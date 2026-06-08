@@ -423,6 +423,11 @@ impl App {
                 let f0 = self.held_f0_sum / self.held_f0_n as f32;
                 let shimmer = voice_quality::shimmer(&self.held_samples, self.sample_rate, f0);
                 seg.set_shimmer(shimmer);
+                // Smoothed cepstral peak prominence over the whole held window —
+                // a raw within-person measurement that also feeds the harmonic
+                // sub-metric. Computed before compute() so both reflect it.
+                let cpps = voice_quality::cpps(&self.held_samples, self.sample_rate, f0);
+                seg.set_cpps(cpps);
                 if let Some(metrics) = coherence::compute(&seg) {
                     self.last_coherence = Some(metrics);
                     self.last_coherence_vowel = self.held_vowel;
@@ -453,6 +458,7 @@ impl App {
             r.flux,
             r.mean_formant_bw,
             r.vowel_conf,
+            r.alpha_ratio_db,
         );
     }
 
@@ -620,6 +626,8 @@ impl eframe::App for App {
                 self.last_coherence_secs,
                 self.live_coherence_index,
             );
+            ui.add_space(2.0);
+            ui::draw_state_signals_panel(ui, self.last_coherence.as_ref());
             ui.add_space(2.0);
             ui.separator();
             ui.horizontal(|ui| {

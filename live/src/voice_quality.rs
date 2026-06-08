@@ -197,6 +197,185 @@ pub fn cpp(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     }
 }
 
+/// CPPS (smoothed cepstral peak prominence) in dB — Hillenbrand/Awan/Maryn.
+///
+/// CPPS is the smoothed sibling of [`cpp`]: the "S" comes from two smoothings of
+/// the cepstrum before the peak/baseline measurement, which makes the prominence
+/// far more stable on a sustained tone than the single-frame `cpp`:
+///
+/// 1. **Time smoothing** — frame the input into overlapping Hann windows
+///    (window 1024, 50% hop) and AVERAGE the per-frame cepstra. To bound cost on
+///    a long held vowel we analyze at most ~32 frames evenly spaced across the
+///    input (we do not process hundreds of frames). At least 2 usable frames are
+///    required, else `None`.
+/// 2. **Quefrency smoothing** — apply a short moving average across quefrency to
+///    the averaged cepstrum.
+///
+/// The peak is then searched in the voice quefrency band for F0 in 60..330 Hz,
+/// i.e. `q in [sr/330, sr/60]` samples (clamped to the cepstrum length and
+/// biased toward `f0` when it is finite and inside that range). As in [`cpp`],
+/// the regression baseline is fit over a *wide* quefrency range (not just the
+/// narrow search band) so the lone rahmonic peak does not pull the floor upward.
+/// `CPPS_dB = peak − regression_at(q_peak)`, in the same dB cepstral domain as
+/// [`cpp`] — units are kept consistent between the two.
+///
+/// Returns `None` on short / degenerate input (fewer than 2 usable frames, an
+/// unresolvable quefrency band, or a degenerate spectrum).
+// Spec'd voice-quality feature (spec A4); consumed once per held tone in
+// finish_held_note (feeds the harmonic sub-metric + the raw state-signals block).
+pub fn cpps(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
+    if samples.is_empty() || !sr.is_finite() || sr <= 0.0 {
+        return None;
+    }
+
+    const WINDOW: usize = 1024;
+    const HOP: usize = WINDOW / 2; // 50% overlap
+    const MAX_FRAMES: usize = 32; // bound cost on a long held tone
+
+    let n = samples.len();
+    if n < WINDOW {
+        return None;
+    }
+
+    // Frame starts at a 50% hop, then evenly subsample down to MAX_FRAMES so a
+    // long input still costs O(32) cepstra rather than hundreds.
+    let n_hops = (n - WINDOW) / HOP + 1;
+    if n_hops < 2 {
+        return None;
+    }
+    let mut starts: Vec<usize> = Vec::new();
+    if n_hops <= MAX_FRAMES {
+        for h in 0..n_hops {
+            starts.push(h * HOP);
+        }
+    } else {
+        // Evenly spaced across [0, last_start].
+        let last_start = (n_hops - 1) * HOP;
+        for j in 0..MAX_FRAMES {
+            let s = (j as f64 * last_start as f64 / (MAX_FRAMES - 1) as f64).round() as usize;
+            starts.push(s);
+        }
+        starts.dedup();
+    }
+    if starts.len() < 2 {
+        return None;
+    }
+
+    // Precompute the Hann window once.
+    let hann: Vec<f32> = (0..WINDOW)
+        .map(|i| 0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (WINDOW as f32 - 1.0)).cos())
+        .collect();
+
+    // --- Time smoothing: average the per-frame cepstra. -------------------
+    let mut avg: Vec<f32> = Vec::new();
+    let mut used = 0usize;
+    for &start in &starts {
+        let seg = &samples[start..start + WINDOW];
+        let windowed: Vec<f32> = seg.iter().zip(&hann).map(|(s, w)| s * w).collect();
+        let cep = real_cepstrum(&windowed);
+        if cep.is_empty() {
+            continue;
+        }
+        if avg.is_empty() {
+            avg = vec![0.0f32; cep.len()];
+        } else if avg.len() != cep.len() {
+            continue;
+        }
+        for (a, &c) in avg.iter_mut().zip(&cep) {
+            *a += c;
+        }
+        used += 1;
+    }
+    if used < 2 || avg.is_empty() {
+        return None;
+    }
+    let inv = 1.0 / used as f32;
+    for a in avg.iter_mut() {
+        *a *= inv;
+    }
+
+    // --- Quefrency smoothing: short moving average across quefrency. ------
+    // A 5-tap (±2) box average; edges shrink the window to stay in-bounds.
+    const SMOOTH_HALF: usize = 2;
+    let len = avg.len();
+    let mut cep = vec![0.0f32; len];
+    for q in 0..len {
+        let lo = q.saturating_sub(SMOOTH_HALF);
+        let hi = (q + SMOOTH_HALF).min(len - 1);
+        let mut acc = 0.0f32;
+        for v in &avg[lo..=hi] {
+            acc += *v;
+        }
+        cep[q] = acc / (hi - lo + 1) as f32;
+    }
+
+    // --- Peak-search band: voice quefrency for F0 in 60..330 Hz. ----------
+    let max_q = len - 1; // cep has WINDOW/2 + 1 points
+    // q = sr / f_hz, so higher Hz → lower quefrency.
+    let mut q_lo = (sr / 330.0).floor() as usize; // smallest quefrency (330 Hz)
+    let mut q_hi = (sr / 60.0).ceil() as usize; // largest quefrency (60 Hz)
+    q_lo = q_lo.max(1);
+    q_hi = q_hi.min(max_q.saturating_sub(1));
+    if q_lo >= q_hi {
+        return None;
+    }
+    // Bias toward the provided f0 when it is finite and inside the band: shrink
+    // the search to ±20% around sr/f0 (still clamped to the voice band).
+    if f0.is_finite() && f0 >= 60.0 && f0 <= 330.0 {
+        let q0 = sr / f0;
+        let lo = (q0 * 0.8).floor() as usize;
+        let hi = (q0 * 1.2).ceil() as usize;
+        q_lo = q_lo.max(lo.max(1));
+        q_hi = q_hi.min(hi);
+        if q_lo >= q_hi {
+            return None;
+        }
+    }
+
+    // Cepstral peak within the band.
+    let mut peak_q = q_lo;
+    let mut peak_val = cep[q_lo];
+    for q in q_lo..=q_hi {
+        if cep[q] > peak_val {
+            peak_val = cep[q];
+            peak_q = q;
+        }
+    }
+
+    // --- Wide-range regression baseline (as in `cpp`). --------------------
+    // From ~1 ms (above the spectral-envelope/formant region) to the Nyquist
+    // quefrency. Fit val = a + b*q by least squares.
+    let baseline_lo = ((sr * 0.001).round() as usize).max(1);
+    let baseline_hi = max_q.saturating_sub(1);
+    if baseline_lo >= baseline_hi {
+        return None;
+    }
+    let band: Vec<(f32, f32)> = (baseline_lo..=baseline_hi)
+        .map(|q| (q as f32, cep[q]))
+        .collect();
+    let m = band.len() as f32;
+    let sum_x: f32 = band.iter().map(|(qx, _)| *qx).sum();
+    let sum_y: f32 = band.iter().map(|(_, qy)| *qy).sum();
+    let sum_xx: f32 = band.iter().map(|(qx, _)| qx * qx).sum();
+    let sum_xy: f32 = band.iter().map(|(qx, qy)| qx * qy).sum();
+    let denom = m * sum_xx - sum_x * sum_x;
+    let (a, b) = if denom.abs() > 1e-12 {
+        let b = (m * sum_xy - sum_x * sum_y) / denom;
+        let a = (sum_y - b * sum_x) / m;
+        (a, b)
+    } else {
+        (sum_y / m, 0.0)
+    };
+    let baseline = a + b * peak_q as f32;
+
+    let prominence = peak_val - baseline;
+    if prominence.is_finite() {
+        Some(prominence)
+    } else {
+        None
+    }
+}
+
 /// Real cepstrum in dB units: inverse cosine transform of the dB log-magnitude
 /// spectrum of a real signal. Returns `n/2 + 1` quefrency samples.
 ///
@@ -377,6 +556,96 @@ mod tests {
         assert!(cpp(&[0.1; 1024], 0.0, 200.0).is_none());
         // Too short to resolve the expected quefrency (sr/f0 = 320 samples).
         assert!(cpp(&[0.1; 32], sr, 50.0).is_none());
+    }
+
+    // ---- cpps -------------------------------------------------------------
+
+    // Deterministic LCG white noise in [-1, 1), matching the cpp test style.
+    fn lcg_noise(n: usize, seed: u64) -> Vec<f32> {
+        let mut s = seed;
+        let mut next = || {
+            s = s
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((s >> 33) as f32 / (1u64 << 31) as f32) - 1.0
+        };
+        (0..n).map(|_| next()).collect()
+    }
+
+    #[test]
+    fn cpps_clean_tone_beats_breathy_and_noise() {
+        let sr = 16_000.0;
+        let f0 = 160.0;
+        // A few seconds of audio so multiple frames are smoothed together.
+        let n = 16_000;
+
+        // Clean, richly-harmonic sustained tone → strong, stable rahmonic peak.
+        let clean = sawtooth(f0, sr, n, 16);
+        let c_clean = cpps(&clean, sr, f0).expect("cpps clean");
+
+        // Breathy version: same periodic core plus substantial additive noise,
+        // which fills in the cepstral floor and lowers the prominence.
+        let noise = lcg_noise(n, 0x1234_5678_9abc_def0);
+        let breathy: Vec<f32> = clean
+            .iter()
+            .zip(&noise)
+            .map(|(t, no)| 0.5 * t + 0.8 * no)
+            .collect();
+        let c_breathy = cpps(&breathy, sr, f0).expect("cpps breathy");
+
+        // Pure white noise → no periodicity at all.
+        let pure_noise = lcg_noise(n, 0x0bad_f00d_dead_beef);
+        let c_noise = cpps(&pure_noise, sr, f0).expect("cpps noise");
+
+        assert!(
+            c_clean > c_breathy,
+            "clean CPPS {c_clean} should exceed breathy {c_breathy}"
+        );
+        assert!(
+            c_clean > c_noise,
+            "clean CPPS {c_clean} should exceed white-noise {c_noise}"
+        );
+    }
+
+    #[test]
+    fn cpps_rises_with_harmonic_periodicity() {
+        let sr = 16_000.0;
+        let f0 = 150.0;
+        let n = 16_000;
+        // More harmonics → sharper periodicity → higher cepstral peak.
+        let weak = sawtooth(f0, sr, n, 2);
+        let strong = sawtooth(f0, sr, n, 20);
+        let c_weak = cpps(&weak, sr, f0).expect("cpps weak");
+        let c_strong = cpps(&strong, sr, f0).expect("cpps strong");
+        assert!(
+            c_strong > c_weak,
+            "stronger periodicity CPPS {c_strong} should exceed weaker {c_weak}"
+        );
+    }
+
+    #[test]
+    fn cpps_none_for_too_short_input() {
+        let sr = 16_000.0;
+        // Shorter than a single 1024 window → cannot frame.
+        assert!(cpps(&[0.1; 512], sr, 160.0).is_none());
+        // Exactly one window → only one frame, need >= 2.
+        assert!(cpps(&[0.1; 1024], sr, 160.0).is_none());
+        assert!(cpps(&[], sr, 160.0).is_none());
+        assert!(cpps(&[0.1; 16_000], 0.0, 160.0).is_none());
+    }
+
+    #[test]
+    fn cpps_finite_and_plausible_for_vowel_like_tone() {
+        let sr = 16_000.0;
+        let f0 = 200.0;
+        let n = 16_000;
+        // Vowel-like: harmonic source with a mild lowpass-ish taper.
+        let tone = sawtooth(f0, sr, n, 14);
+        let c = cpps(&tone, sr, f0).expect("cpps vowel");
+        assert!(c.is_finite(), "cpps should be finite, got {c}");
+        // CPP(S) for clear voice sits in a low-tens-of-dB range; assert a wide,
+        // non-degenerate sanity band rather than an exact value.
+        assert!(c > 0.0 && c < 60.0, "cpps {c} out of plausible range");
     }
 
     // ---- h1_h2_db ---------------------------------------------------------

@@ -457,6 +457,17 @@ pub fn draw_coherence_panel(
         );
     }
 
+    // D4: an honest scope note. The index reflects vocal-production steadiness
+    // only; it is NOT a nervous-system, arousal, or health reading.
+    ui.label(
+        egui::RichText::new(
+            "  reflects vocal-production steadiness — no nervous-system claim",
+        )
+        .monospace()
+        .size(10.0)
+        .weak(),
+    );
+
     // Overall index as a prominent bar.
     let index = metrics.map(|m| m.index);
     ui.horizontal(|ui| {
@@ -516,6 +527,181 @@ pub fn draw_coherence_panel(
         }),
         "Resonance support — how cleanly the vowel matched a target and how sharp (narrow-bandwidth) the formants were.",
     );
+}
+
+/// Evidence tiers for the state-signals readout (Appendix 1). The colored dot
+/// before each metric encodes how strong the within-person evidence is.
+#[derive(Clone, Copy)]
+enum Evidence {
+    /// Strong, well-established acoustic correlate.
+    Strong,
+    /// Moderate / context-dependent correlate.
+    Moderate,
+    /// Experimental / deferred (e.g. needs a baseline we do not keep).
+    Experimental,
+}
+
+impl Evidence {
+    /// A legible dot color for this tier (fixed hues; readable on the panel).
+    fn dot_color(self) -> Color32 {
+        match self {
+            Evidence::Strong => Color32::from_rgb(60, 170, 90), // green
+            Evidence::Moderate => Color32::from_rgb(210, 160, 40), // amber
+            Evidence::Experimental => Color32::from_rgb(140, 140, 140), // grey
+        }
+    }
+}
+
+/// State-signals block for the coherence panel: the last completed sustained
+/// tone's raw acoustic measurements (F0 mean, F0 variability, alpha-ratio,
+/// CPPS) plus the deferred Autonomic Index placeholder.
+///
+/// CRITICAL FRAMING: every row here is a RAW MEASUREMENT, never a state
+/// inference. There is no personal baseline in this build, so nothing is
+/// presented as a population-referenced or absolute state — the heading and the
+/// measured|inferred divider make that separation explicit, and each tooltip
+/// says the value "will become a within-person signal once a baseline exists".
+/// The Autonomic Index is rendered as a deferred experimental placeholder
+/// ("needs baseline"), never a number or a state word.
+pub fn draw_state_signals_panel(ui: &mut egui::Ui, metrics: Option<&CoherenceMetrics>) {
+    let dash = "—";
+    let d = metrics.map(|m| m.detail);
+
+    // Heading: honest measured/inferred separation, no baseline claim.
+    ui.label(
+        egui::RichText::new("State signals (raw — needs a personal baseline to interpret)")
+            .monospace()
+            .size(12.0)
+            .strong(),
+    )
+    .on_hover_text(
+        "Raw acoustic measurements from your last steady tone. They are shown on \
+         the MEASURED side of the line: with no personal baseline this build never \
+         turns them into a state, population comparison, or any nervous-system / \
+         health reading. Each becomes a within-person signal only once a baseline \
+         exists.",
+    );
+    ui.label(
+        egui::RichText::new("  measured │ inferred (needs baseline)")
+            .monospace()
+            .size(10.0)
+            .weak(),
+    );
+
+    // F0 mean (Hz) — strong evidence.
+    state_signal_row(
+        ui,
+        Evidence::Strong,
+        "F0 mean",
+        d.map(|d| format!("{:>6.1} Hz", d.mean_f0_hz)),
+        "Average fundamental frequency over the held tone (Hz) — a raw measurement. \
+         It will become a within-person signal once a baseline exists; on its own it \
+         is not a state, mood, or health reading.",
+    );
+
+    // F0 variability (semitones) — moderate evidence.
+    state_signal_row(
+        ui,
+        Evidence::Moderate,
+        "F0 var",
+        d.map(|d| format!("{:>6.2} st", d.f0_var_st)),
+        "How much F0 wandered across the held tone, in semitones — a raw measurement \
+         of vocal-production steadiness. It will become a within-person signal once a \
+         baseline exists; it makes no nervous-system claim.",
+    );
+
+    // Alpha-ratio (dB) — moderate evidence.
+    state_signal_row(
+        ui,
+        Evidence::Moderate,
+        "α-ratio",
+        d.and_then(|d| d.alpha_ratio_db).map(|a| format!("{a:>+6.1} dB")),
+        "Spectral tilt (low vs high band energy) averaged over the held tone, in dB — \
+         a raw measurement. It will become a within-person signal once a baseline \
+         exists; shown here only as a measured acoustic, not a state.",
+    );
+
+    // CPPS (dB) — moderate evidence.
+    state_signal_row(
+        ui,
+        Evidence::Moderate,
+        "CPPS",
+        d.and_then(|d| d.cpps_db).map(|c| format!("{c:>6.1} dB")),
+        "Smoothed cepstral peak prominence over the held tone, in dB — a raw measure \
+         of harmonic clarity / periodicity. It will become a within-person signal once \
+         a baseline exists; it is not a diagnosis.",
+    );
+
+    // Autonomic Index — experimental, deferred: NOT a number, NOT a state word.
+    ui.horizontal(|ui| {
+        let weak = ui.visuals().weak_text_color();
+        ui.label(
+            egui::RichText::new("●")
+                .size(11.0)
+                .color(Evidence::Experimental.dot_color()),
+        );
+        ui.label(
+            egui::RichText::new(format!("{:<8} ", "Auto idx"))
+                .monospace()
+                .size(12.0),
+        );
+        ui.label(
+            egui::RichText::new("⚗ needs baseline")
+                .monospace()
+                .size(11.0)
+                .italics()
+                .color(weak),
+        )
+        .on_hover_text(
+            "Experimental, deferred. An autonomic index would require a personal \
+             baseline centroid (a Mahalanobis distance from it) that this build does \
+             not keep — so no number and no state word is shown. It is a placeholder \
+             only, never a nervous-system or health reading.",
+        );
+    });
+
+    // Blank-to-dash hint when there is no completed tone yet.
+    if metrics.is_none() {
+        ui.label(
+            egui::RichText::new(format!("  {dash} hold a steady note ≥ 2.5 s for state signals"))
+                .monospace()
+                .size(10.0)
+                .weak(),
+        );
+    }
+}
+
+/// One state-signal row: evidence dot + name + raw measurement (em-dash when
+/// absent), with a hover tooltip. The value is always a raw measurement — the
+/// tooltip must not claim any state inference or baseline comparison.
+fn state_signal_row(
+    ui: &mut egui::Ui,
+    evidence: Evidence,
+    name: &str,
+    raw: Option<String>,
+    tooltip: &str,
+) {
+    let dash = "—";
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new("●")
+                .size(11.0)
+                .color(evidence.dot_color()),
+        );
+        ui.label(
+            egui::RichText::new(format!("{name:<8} "))
+                .monospace()
+                .size(12.0),
+        )
+        .on_hover_text(tooltip);
+        let value = raw.unwrap_or_else(|| format!("{dash:>6}"));
+        ui.label(
+            egui::RichText::new(value)
+                .monospace()
+                .size(12.0),
+        )
+        .on_hover_text(tooltip);
+    });
 }
 
 /// One sub-metric row: `name` + 0..1 score + bar + raw measurement, with a hover

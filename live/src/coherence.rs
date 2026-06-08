@@ -26,8 +26,14 @@ pub struct SustainedSegment {
     /// are stored.
     mean_bandwidth_hz: Vec<f32>,
     vowel_conf: Vec<f32>,
+    /// Alpha ratio (spectral tilt) per hop in dB; only finite values are stored.
+    /// A raw measured acoustic — carried for display, not used in the index.
+    alpha: Vec<f32>,
     /// Segment-level relative shimmer, computed once over the held window.
     shimmer: Option<f32>,
+    /// Segment-level smoothed cepstral peak prominence (CPPS) in dB, computed
+    /// once over the held window when the note ends (live in-progress = `None`).
+    cpps: Option<f32>,
     /// Analysis hops per second (used to convert hop count to seconds).
     hops_per_sec: f32,
 }
@@ -43,14 +49,16 @@ impl SustainedSegment {
             flux: Vec::new(),
             mean_bandwidth_hz: Vec::new(),
             vowel_conf: Vec::new(),
+            alpha: Vec::new(),
             shimmer: None,
+            cpps: None,
             hops_per_sec: if hops_per_sec > 0.0 { hops_per_sec } else { 1.0 },
         }
     }
 
-    /// Append one voiced hop's features. `hnr_db` and `mean_bw_hz` are optional;
-    /// only finite supplied values are accumulated (so missing/`NaN` measures do
-    /// not pollute the per-segment means).
+    /// Append one voiced hop's features. `hnr_db`, `mean_bw_hz` and
+    /// `alpha_ratio_db` are optional; only finite supplied values are accumulated
+    /// (so missing/`NaN` measures do not pollute the per-segment means).
     pub fn push_hop(
         &mut self,
         f0: f32,
@@ -60,6 +68,7 @@ impl SustainedSegment {
         flux: f32,
         mean_bw_hz: Option<f32>,
         vowel_conf: f32,
+        alpha_ratio_db: Option<f32>,
     ) {
         if f0.is_finite() {
             self.f0.push(f0);
@@ -86,12 +95,23 @@ impl SustainedSegment {
         if vowel_conf.is_finite() {
             self.vowel_conf.push(vowel_conf);
         }
+        if let Some(a) = alpha_ratio_db {
+            if a.is_finite() {
+                self.alpha.push(a);
+            }
+        }
     }
 
     /// Set the segment-level shimmer (computed once over the held window when the
     /// note ends).
     pub fn set_shimmer(&mut self, s: Option<f32>) {
         self.shimmer = s.filter(|v| v.is_finite());
+    }
+
+    /// Set the segment-level CPPS in dB (computed once over the held window when
+    /// the note ends; stays `None` for the live in-progress index).
+    pub fn set_cpps(&mut self, c: Option<f32>) {
+        self.cpps = c.filter(|v| v.is_finite());
     }
 
     /// Number of voiced hops accumulated (by the f0 row count).
@@ -133,6 +153,11 @@ pub struct CoherenceMetrics {
 pub struct CoherenceDetail {
     /// Std-dev of F0 over the held tone, in cents (pitch wander).
     pub f0_cents_std: f32,
+    /// F0 variability over the held tone, in semitones (= `f0_cents_std / 100`).
+    /// A raw within-person measurement; needs a personal baseline to interpret.
+    pub f0_var_st: f32,
+    /// Mean F0 over the held tone in Hz (raw measurement).
+    pub mean_f0_hz: f32,
     /// Segment shimmer (relative cycle-to-cycle amplitude variation), if it was
     /// measurable; otherwise `None` and `rms_cv` was used for amplitude.
     pub shimmer: Option<f32>,
@@ -148,6 +173,12 @@ pub struct CoherenceDetail {
     pub bandwidth_hz: Option<f32>,
     /// Mean vowel-classification confidence (0..1).
     pub vowel_conf: f32,
+    /// Mean alpha ratio (spectral tilt) over the segment in dB, if any hop
+    /// supplied a finite value; a raw measurement (needs a baseline to interpret).
+    pub alpha_ratio_db: Option<f32>,
+    /// Smoothed cepstral peak prominence (CPPS) in dB over the held window, if it
+    /// was measurable; a raw measurement (needs a baseline to interpret).
+    pub cpps_db: Option<f32>,
 }
 
 /// Minimum voiced duration (seconds) for the index to be meaningful (~1 s).
@@ -207,11 +238,24 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
     }
     .clamp(0.0, 1.0);
 
-    // --- harmonic coherence: HNR term + spectral order (1 - entropy) ---------
+    // --- harmonic coherence: HNR + spectral order (1 - entropy) [+ CPPS] -----
+    // Default mapping (tunable, spec §D3): the harmonic sub-metric is the mean of
+    // the available terms { clamp(HNR/20), 1 - entropy, clamp(CPPS/15) }. The
+    // CPPS term is only present once the note ends and a segment-level CPPS has
+    // been measured (live, mid-hold it is `None`); then we fall back to the
+    // HNR + (1-entropy) blend. CPPS_dB/15 maps a clear sustained voice (~15 dB)
+    // toward 1.0 — a DEFAULT scale to be baseline-normalized per person later.
     let hnr_mean = mean(&seg.hnr_db);
     let entropy_mean = mean(&seg.entropy);
     let hnr_term = (hnr_mean / 20.0).clamp(0.0, 1.0);
-    let harmonic_coherence = (0.5 * hnr_term + 0.5 * (1.0 - entropy_mean)).clamp(0.0, 1.0);
+    let order_term = (1.0 - entropy_mean).clamp(0.0, 1.0);
+    let harmonic_coherence = match seg.cpps {
+        Some(c) => {
+            let cpps_term = (c / 15.0).clamp(0.0, 1.0);
+            ((hnr_term + order_term + cpps_term) / 3.0).clamp(0.0, 1.0)
+        }
+        None => (0.5 * hnr_term + 0.5 * order_term).clamp(0.0, 1.0),
+    };
 
     // --- spectral stability: low frame-to-frame flux -------------------------
     let flux_mean = mean(&seg.flux);
@@ -268,6 +312,8 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
         index,
         detail: CoherenceDetail {
             f0_cents_std,
+            f0_var_st: f0_cents_std / 100.0,
+            mean_f0_hz: mean(&seg.f0),
             shimmer: seg.shimmer,
             rms_cv,
             hnr_db: hnr_mean,
@@ -275,6 +321,12 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
             flux: flux_mean,
             bandwidth_hz,
             vowel_conf: vowel_conf_mean,
+            alpha_ratio_db: if seg.alpha.is_empty() {
+                None
+            } else {
+                Some(mean(&seg.alpha))
+            },
+            cpps_db: seg.cpps,
         },
     })
 }
@@ -342,6 +394,7 @@ mod tests {
                 0.02,        // flux: low (stable)
                 Some(80.0),  // narrow formant bandwidth
                 0.9,         // confident vowel
+                Some(-8.0),  // alpha ratio (raw measurement)
             );
         }
         seg.set_shimmer(Some(0.02)); // small shimmer
@@ -366,6 +419,7 @@ mod tests {
                 0.40,       // high flux (unstable)
                 Some(350.0), // broad formants
                 0.3,         // uncertain vowel
+                Some(-2.0),  // alpha ratio (raw measurement)
             );
         }
         seg.set_shimmer(Some(0.18)); // large shimmer
@@ -406,7 +460,7 @@ mod tests {
         let mut seg = SustainedSegment::new(11.0);
         // Only a few hops -> well under 1 s.
         for _ in 0..5 {
-            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9);
+            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9, Some(-8.0));
         }
         assert!(compute(&seg).is_none());
     }
@@ -425,7 +479,7 @@ mod tests {
         let hops_per_sec = 11.0;
         let mut seg = SustainedSegment::new(hops_per_sec);
         for _ in 0..((hops_per_sec * 2.0) as usize) {
-            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9);
+            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9, Some(-8.0));
         }
         let m = compute(&seg).expect("metrics");
         assert!(
@@ -443,7 +497,7 @@ mod tests {
         let hops_per_sec = 11.0;
         let mut seg = SustainedSegment::new(hops_per_sec);
         for _ in 0..((hops_per_sec * 2.0) as usize) {
-            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, None, 0.2);
+            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, None, 0.2, Some(-8.0));
         }
         let m = compute(&seg).expect("metrics");
         assert!(
@@ -454,10 +508,52 @@ mod tests {
     }
 
     #[test]
+    fn cpps_feeds_harmonic_term_and_detail() {
+        // With a segment-level CPPS set, the harmonic sub-metric blends three
+        // terms { HNR/20, 1-entropy, CPPS/15 } and the detail carries cpps_db.
+        let hops_per_sec = 11.0;
+        let mut seg = SustainedSegment::new(hops_per_sec);
+        for _ in 0..((hops_per_sec * 2.0) as usize) {
+            // HNR/20 -> 0.5, 1-entropy -> 0.5.
+            seg.push_hop(220.0, 0.5, Some(10.0), 0.5, 0.02, Some(80.0), 0.9, Some(-8.0));
+        }
+        seg.set_cpps(Some(15.0)); // CPPS term -> 1.0
+        let m = compute(&seg).expect("metrics");
+        // mean of {0.5, 0.5, 1.0} = 0.6667.
+        assert!(
+            (m.harmonic_coherence - 2.0 / 3.0).abs() < 1e-3,
+            "harmonic {} should be mean of the three terms",
+            m.harmonic_coherence
+        );
+        assert_eq!(m.detail.cpps_db, Some(15.0));
+        assert_eq!(m.detail.alpha_ratio_db, Some(-8.0));
+    }
+
+    #[test]
+    fn no_cpps_falls_back_to_hnr_entropy_blend() {
+        // Without a CPPS, the harmonic sub-metric is the HNR + (1-entropy) blend.
+        let hops_per_sec = 11.0;
+        let mut seg = SustainedSegment::new(hops_per_sec);
+        for _ in 0..((hops_per_sec * 2.0) as usize) {
+            seg.push_hop(220.0, 0.5, Some(10.0), 0.5, 0.02, Some(80.0), 0.9, None);
+        }
+        // No set_cpps.
+        let m = compute(&seg).expect("metrics");
+        // 0.5*(10/20) + 0.5*(1-0.5) = 0.5.
+        assert!(
+            (m.harmonic_coherence - 0.5).abs() < 1e-3,
+            "harmonic {} should be the HNR+entropy blend",
+            m.harmonic_coherence
+        );
+        assert_eq!(m.detail.cpps_db, None);
+        assert_eq!(m.detail.alpha_ratio_db, None);
+    }
+
+    #[test]
     fn duration_and_len_track_pushes() {
         let mut seg = SustainedSegment::new(10.0);
         for _ in 0..15 {
-            seg.push_hop(220.0, 0.5, None, 0.1, 0.02, None, 0.9);
+            seg.push_hop(220.0, 0.5, None, 0.1, 0.02, None, 0.9, None);
         }
         assert_eq!(seg.len(), 15);
         assert!((seg.duration_secs() - 1.5).abs() < 1e-6);
