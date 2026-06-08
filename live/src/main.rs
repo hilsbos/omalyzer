@@ -1,4 +1,4 @@
-// Omalizer Live — real-time vowel-chant analyzer.
+// Omalyzer Live — real-time vowel-chant analyzer.
 //
 // Captures a macOS input device and shows a scrolling low-frequency
 // spectrogram. Per-hop analysis (pitch, harmonics, formants, voice quality)
@@ -43,7 +43,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Omalizer Live",
+        "Omalyzer Live",
         options,
         Box::new(|_cc| Ok(Box::new(App::new()))),
     )
@@ -291,7 +291,7 @@ impl eframe::App for App {
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.heading("Omalizer Live");
+                ui.heading("Omalyzer Live");
                 ui.separator();
                 let mut switch_to: Option<String> = None;
                 egui::ComboBox::from_id_salt("input_device")
