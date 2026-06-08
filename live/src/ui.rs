@@ -428,7 +428,7 @@ pub fn draw_coherence_panel(
             egui::RichText::new(header)
                 .monospace()
                 .size(13.0)
-                .color(Color32::from_white_alpha(200)),
+                .strong(),
         )
         .on_hover_text(
             "Overall vocal coherence and its five acoustic sub-metrics, measured \
@@ -441,7 +441,7 @@ pub fn draw_coherence_panel(
                 egui::RichText::new(format!("· holding… {li:.2}"))
                     .monospace()
                     .size(12.0)
-                    .color(Color32::from_rgb(150, 210, 150)),
+                    .color(Color32::from_rgb(40, 150, 70)),
             )
             .on_hover_text("Live in-progress index while you hold the current note.");
         }
@@ -453,7 +453,7 @@ pub fn draw_coherence_panel(
             egui::RichText::new("  0 = unstable / noisy   …   1 = steady / clear")
                 .monospace()
                 .size(10.0)
-                .color(Color32::from_white_alpha(110)),
+                .weak(),
         );
     }
 
@@ -536,8 +536,7 @@ fn sub_metric(
         ui.label(
             egui::RichText::new(format!("{name:<10} {val}"))
                 .monospace()
-                .size(12.0)
-                .color(Color32::from_white_alpha(180)),
+                .size(12.0),
         )
         .on_hover_text(description);
         coherence_bar(ui, value, 160.0, 9.0);
@@ -545,7 +544,7 @@ fn sub_metric(
             egui::RichText::new(raw.unwrap_or_else(|| dash.to_string()))
                 .monospace()
                 .size(11.0)
-                .color(Color32::from_white_alpha(130)),
+                .weak(),
         )
         .on_hover_text(description);
     });
