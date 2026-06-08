@@ -12,6 +12,7 @@
 - **Recommended (primary): Shared `omalyzer-core` Cargo workspace + a native Swift/SwiftUI iOS app calling the Rust core over a thin FFI (UniFFI), with mic capture in Swift via AVAudioEngine.** Why: 100% of the DSP IP is reused unchanged, you get a first-class native iOS UX and the most proven App Store path, and you sidestep both cpal's youngest backend (iOS input) and egui's weakest area (text/native-feel).
 - **Strong fallback (fastest to a running app): egui/eframe directly on iOS** as a second build target. Why: the *entire* app — DSP **and** the existing spectrogram/plot/vowel-chart UI — compiles for iOS almost verbatim; iOS safe-area is already upstream (egui **0.33.0**, so your pinned **0.33.3 already has it**), and cpal 0.18.1 actually does support iOS mic input. The cost is a non-native single-canvas UI with some App Store review judgment risk.
 - **Do this first regardless of UI choice:** extract the std-only DSP modules into a platform-agnostic `core` crate and lift the rustfft forward-FFT + hop/window/gate framing out of `main.rs`. This is low-risk, benefits the desktop app today, and is a prerequisite for *every* option below.
+- **Widest-reach alternative (no App Store at all): Web / WASM (PWA)** — compile the same DSP core to `wasm32-unknown-unknown`, capture mic via Web Audio (`getUserMedia` + AudioWorklet), and ship one *responsive* UI that runs in desktop **and** mobile browsers from a static HTTPS host. Niche: maximum reach, zero App-Store friction (no $99/yr, no review), one codebase, one URL. Trade-off: **mic-fidelity and perf caveats on mobile Safari** — iOS WebKit won't give you a truly raw mic stream (AGC is coupled to `echoCancellation`, residual high-frequency conditioning), the AudioContext is foreground-only and gesture-gated, and you must hand-build a separate touch UI (no hover tooltips, no auto-reflow). Best as a complement to — not a replacement for — a native store app. See **§3.6**.
 - **Avoid for now:** Dioxus mobile (native renderer still young/unstable; webview fallback negates its advantage) and Slint on iOS (still officially a tech-preview, no confirmed shipped App Store apps, and you'd rewrite all custom visuals). Both are credible in ~12 months, not today.
 - **Honest caveat:** no option has a *confirmed, shipped, real-time iOS mic→Rust-analyzer→spectrogram* public example. The mic-capture + re-blocking-to-4096-hops work is greenfield in every path, so the audio glue (not the DSP) is the real long pole.
 
@@ -291,6 +292,207 @@ top of Rust for no UX advantage over native SwiftUI. React Native is the weakest
 (missing stream primitive). Choose Flutter only if cross-platform mobile (incl. Android)
 is a near-term goal.
 
+### 3.6 Web / WASM (PWA) — runs on desktop + mobile, no App Store — *widest reach, mobile-Safari caveats*
+
+**How it works.** Compile the same `core` to `wasm32-unknown-unknown`, capture the mic
+with the Web Audio API, and render a responsive UI in any browser — desktop **and**
+mobile — served as static files over HTTPS. No store, no review, no $99/yr; updates ship
+by pushing to the host, and users can "Add to Home Screen" for an app-like PWA shell. Two
+UI sub-strategies exist:
+
+- **(a) eframe on the web target** — the *same* egui draw code as option 3.1, compiled to
+  WASM and painted into one `<canvas>` via WebGL2 (glow) or WebGPU (wgpu). All of
+  `ui.rs`'s painter code (spectrogram texture, pitch plot, vowel chart, coherence bars,
+  sliders) ports nearly verbatim. **Recommended render backend: glow/WebGL2**, not wgpu —
+  wgpu drags in Naga (WGSL→GLSL), inflating the `.wasm`; WebGPU is now default-on in
+  Safari 26 / iOS 26 but has reported device-lost issues on Safari 26 in some WASM
+  toolchains, so WebGL2 is the conservative, widest-reach default for a 2-D app.
+- **(b) a DOM/HTML+CSS shell + plain 2-D Canvas** that calls the WASM DSP core directly
+  (no egui). More work, but you get real CSS reflow, real ARIA/accessibility, browser
+  font/zoom integration, and tap-friendly native controls — exactly the things egui's
+  canvas cannot provide on mobile.
+
+For *this* app, **(b) is the better long-term web UI** and **(a) is the fastest spike**;
+see **§3.7** for the responsive-UI recommendation.
+
+**Shared vs rewritten.** The whole DSP pipeline is shared verbatim — *measured*: all eight
+pure modules plus rustfft compile to wasm32 with **zero source changes** (see §3.8). Only
+the platform layers are replaced: `audio.rs` (cpal) → `getUserMedia` + AudioWorklet, and
+`main.rs`/`ui.rs` → either eframe-web (sub-strategy a, near-verbatim) or a DOM+Canvas
+front-end (sub-strategy b, a UI rewrite). The FFT/hop/gate framing should be lifted into
+`core` (Phase A) so the WASM build gets bit-identical magnitudes, same as every other
+option.
+
+**Mic capture in the browser.** This is the load-bearing part and where mobile Safari
+degrades things honestly:
+
+- **Disable browser DSP** via `getUserMedia({audio:{ echoCancellation:false,
+  noiseSuppression:false, autoGainControl:false }})` (plain booleans, not `{exact:…}`, so
+  capture never fails), then **verify with `track.getSettings()`** and surface the actual
+  values in the UI. On Chrome/Edge/Firefox desktop and Android Chrome these are honored
+  well.
+- **iOS WebKit does NOT independently honor `autoGainControl:false`** — the constraint was
+  never implemented (WebKit #204444, still open). The only working lever is
+  **`echoCancellation:false`, which on WebKit *also* disables AGC** (WebKit #179411,
+  fixed 2019). So on iOS you must pass `echoCancellation:false` to get near-raw audio;
+  relying on `autoGainControl:false` alone is unreliable. Pass all three constraints
+  anyway (harmless), but on iOS treat `echoCancellation:false` as the real switch.
+- **Residual conditioning on iOS.** Even with processing nominally off, older WebKit
+  reports describe residual filtering that flat-lines content **above ~9–12 kHz**. That is
+  *above* Omalyzer's 0–5 kHz formant/HNR band, so the practical impact on this app is
+  smaller than it first looks — but it is unverified on current iOS 26 and **must be
+  measured on-device** before trusting iOS spectra; the more relevant in-band unknowns are
+  AGC gain dynamics and the user-toggled OS **Voice Isolation** mic mode (which is *not*
+  controllable from any web constraint — you can only detect anomalies and tell the user
+  to set Mic Mode to "Standard" in Control Center).
+- **AudioWorklet, not ScriptProcessorNode.** The worklet (shipped Safari 14.1 / iOS 14.5)
+  delivers fixed **128-frame render quanta**; accumulate into a ring/FIFO and emit a hop
+  once **4096** samples are available (4096 = 32 × 128, a clean multiple, no fractional
+  remainder). Never allocate or run the FFT inside `process()` — the worklet stays a thin
+  copy/enqueue sink; run rustfft + features off the audio thread (main thread or a Web
+  Worker). *(Web Audio 1.1 adds an optional `renderSizeHint` for a non-128 quantum, but
+  it's ignored on Safari — the 32×128 re-blocking is the safe default path.)*
+- **Do NOT hardcode the sample rate.** iOS commonly runs the AudioContext at 44100 (and a
+  Bluetooth/AirPods HFP route silently drops it to **16000**, collapsing the usable band);
+  forcing 48000 causes resampling glitches. Create `new AudioContext()`, read
+  `ctx.sampleRate` at runtime, and thread it into the core — which already parameterizes
+  `sr` everywhere (`bin_hz = sr/16384`, YIN, HNR all take `sr`). Detect a 16 kHz route and
+  warn the user to use the built-in/wired mic.
+- **Transport into WASM.** `postMessage(Float32Array)` per hop is entirely adequate at
+  this app's ~11.7 hops/s; a **SharedArrayBuffer + Atomics ring buffer** is an optional
+  zero-copy upgrade, not a requirement. SAB needs **cross-origin isolation** (COOP:
+  `same-origin` + COEP: `require-corp`/`credentialless`), supported on iOS Safari 15.2+; if
+  your host can't set those headers (e.g. plain GitHub Pages), fall back to `postMessage`
+  with no penalty. If you do use SAB with a worklet, pass it via the
+  `AudioWorkletNode` **`processorOptions`**, not `postMessage` (the latter historically
+  copied rather than shared on WebKit).
+
+**iOS-Safari & mobile specifics — does it work WELL? (honest).** **Desktop browsers:
+yes**, essentially native-equivalent. **Mobile/iOS Safari: acceptable-but-degraded**, and
+the degradations are real, not cosmetic:
+
+- **Foreground-only.** iOS suspends the AudioContext on backgrounding/lock and has *no*
+  background audio for the web. This is strictly a foreground tool — gate mic start behind
+  an explicit "Start" tap and re-resume on `visibilitychange`.
+- **Mic fidelity** is the genuine risk for a voice analyzer (see above): near-raw via
+  `echoCancellation:false`, but AGC dynamics, Voice Isolation, and possible band-limiting
+  are not fully defeatable and need on-device verification.
+- **No hover.** `ui.rs` leans on `.on_hover_text()` pervasively (the coherence sub-metrics
+  and the index explanation); hover does not exist on touch, so that information is
+  invisible on a phone and must be redesigned to tap/expand or always-on captions.
+- **Touch ergonomics.** egui's four sliders + the device combo are mouse-sized; enlarge
+  touch targets and set CSS `touch-action:none` on the canvas so it doesn't fight page
+  scroll/pinch.
+- **Text entry is the one bug this app dodges entirely** — egui's iOS on-screen-keyboard
+  failure (issue #4500, still open) is moot because the app has **zero** `TextEdit`
+  widgets (verified: only 4 sliders + 1 combo box). That single fact is why the port is
+  viable on iPhone at all.
+
+**Maturity (verified).** eframe/egui web is a first-class, long-shipping WASM target
+(latest **0.34.3, 2026-05-27**; your pin **0.33.3**, so a 0.33→0.34 minor bump — note
+0.34 deprecated `App::update`→`App::ui` and unified `SidePanel`/`TopBottomPanel`, which
+could touch layout code). WASM **fixed-width SIMD** (used by rustfft's opt-in `wasm_simd`
+feature) is supported on Safari/iOS **16.4+** — set that as the floor, and JS-side
+feature-detect SIMD (`wasm-feature-detect`) to load a scalar fallback rather than hard
+trapping below it. The toolchain (`rustup target add wasm32-unknown-unknown`, Trunk /
+`wasm-bindgen-cli`, `wasm-opt`) is standard and well-documented.
+
+**Effort.** **Sub-strategy (a) eframe-web:** low — days to a desktop-browser build reusing
+all the draw code; the spend is the Web Audio capture shim + a mobile layout branch +
+replacing hover affordances. **Sub-strategy (b) DOM+Canvas:** medium — a genuine UI
+rewrite (HTML/CSS/Canvas) on top of the WASM core, but you get a real responsive/accessible
+mobile UI. The DSP is free in both.
+
+**Distribution.** Any static HTTPS host (Cloudflare Pages, Netlify, GitHub Pages + a
+header shim, an S3 bucket). No App Store account, no $99/yr, no review queue, no binary
+signing; updates are a file push. Add a `manifest.json` for "Add to Home Screen" (Safari
+26+ treats added sites as web apps); don't rely on an install prompt on iOS (manual Share
+→ Add to Home Screen), on true fullscreen (status bar stays), or on persistent cache
+(~7-day eviction if unused — fine, this app needs no offline storage).
+
+**Verdict for this app.** **The best zero-friction reach play, and a strong companion to
+the native SwiftUI app — not a substitute for it.** Compute is a non-issue (measured ~0.7
+ms/hop, §3.8), the DSP ports with zero changes, and desktop browsers are excellent. The
+honest ceiling is **mobile Safari**: foreground-only, un-pristine mic, no hover, and a
+hand-built touch UI. For users who want "open a URL and chant," ship the web build; for
+the polished, store-distributed, measurement-trustworthy mobile experience, the native
+path (3.2) still wins. Doing **both** is realistic because they share the same `core`.
+
+### 3.7 The responsive / mobile UI (a different UI from desktop)
+
+The user explicitly needs a *different* UI on phones than on desktop. egui has **no
+automatic responsive layout** — there are no CSS breakpoints; you branch manually on
+`ui.available_width()`. So whichever sub-strategy you pick, the phone layout is
+hand-written, not free.
+
+**Recommendation:** for the *shared, broad-reach* mobile UI, prefer the **DOM/HTML+CSS +
+2-D Canvas** approach (§3.6b). CSS Grid/Flexbox reflow is declarative and robust, you get
+real touch controls, ARIA (the coherence hover descriptions map straight to ARIA labels),
+browser zoom, and the smallest bundle (no wgpu). Keep **eframe-web (§3.6a) as an optional
+desktop "expert" view** or as the fast initial spike. Rendering the scrolling spectrogram
+to a plain Canvas (`putImageData` of one new column per hop, scroll the bitmap) is cheap
+and avoids WebGPU entirely.
+
+**Concrete responsive layout:**
+
+*Phone portrait (single column, progressive disclosure):*
+
+1. **Hero:** big Start/Stop button + the live *primary* readout only — vowel + F0/note +
+   one overall **Coherence index** number/bar. This is the at-a-glance "how am I doing"
+   line.
+2. **Spectrogram** as the main visual, full-width, formant/harmonic overlays kept; clamp
+   the displayed range to the live Nyquist (important when a Bluetooth route drops to
+   16 kHz), and offer pinch-to-zoom the frequency axis *in place of* the desktop max-freq
+   slider.
+3. **One** secondary panel at a time behind a segmented/tab control: **Pitch track** ·
+   **Vowel chart** · **Coherence detail** — never all three stacked.
+4. **Coherence panel simplified:** show only the overall index bar; tap-to-expand reveals
+   the five sub-metrics (pitch / amplitude / harmonic / spectral / resonance). Replace
+   every `.on_hover_text()` with a tap/long-press info row or always-visible compact
+   captions.
+5. **Sliders collapsed** (max-freq, db-floor, db-ceil, gate) into an "Advanced" sheet/
+   accordion with sensible mobile defaults, so most users never open it.
+
+*Desktop (the existing dense view):* the **same component set** re-laid via a wider CSS
+Grid — top readout row, coherence panel, large spectrogram center, pitch-track + vowel
+chart side-by-side, sliders inline. One component set, two grid templates via media
+queries.
+
+*Touch targets & breakpoints:* every interactive control **≥44×44 CSS px** (Apple HIG) /
+48 dp (Material), **≥8 px** apart; WCAG 2.5.8 floor is 24 px. Use **mobile-first,
+content-driven breakpoints in `rem`** set where Omalyzer's panels actually stop fitting,
+not at arbitrary device widths — typical bands: ≤480 phone portrait, 481–768 landscape/
+small tablet, 769–1024 tablet, 1025+ desktop. Size the Canvas backing store to
+`devicePixelRatio` for crisp retina rendering and redraw on orientation change. Set the
+viewport meta (`width=device-width, initial-scale=1`).
+
+### 3.8 Simulation results (measured locally)
+
+These numbers were measured on this repo on an Apple-Silicon dev machine; framed honestly,
+they de-risk the *compute and bundle* questions but **not** the mobile-Safari audio-fidelity
+questions, which still require on-device testing.
+
+- **DSP core → WASM: compiles with zero source changes.** All eight pure modules (pitch,
+  formants, harmonics, spectral, voice_quality, coherence, analysis, colormap) built for
+  `wasm32-unknown-unknown` as-is — they are genuinely std-only.
+- **`.wasm` size — DSP core:** **~85 KiB** default release (reachable via exports),
+  **~57 KiB** with rustc-only size flags (`opt-level="z"`, LTO). `wasm-opt -Oz` was not
+  available locally and would typically shave further; gzip/brotli over the wire reduces
+  all figures.
+- **`.wasm` size — rustfft 6.4.1:** compiles to wasm32 cleanly (all transitive deps, no
+  feature flags), **~272 KiB** default release (size-optimizable, upper bound). **Combined
+  footprint ≈ 330 KiB pre-`wasm-opt`/pre-gzip** — well within web/mobile budgets.
+- **Per-hop compute (native, full pipeline:** FFT + YIN + harmonics + HNR + LPC formants +
+  vowel + entropy/flux + coherence push, always-voiced worst case): **~0.7 ms mean**
+  (p95 ~0.7–0.8 ms) against the **85.3 ms** real-time budget — **~120× headroom** native.
+- **Under a conservative 2× WASM-vs-native penalty:** ~1.4 ms/hop, still **~61× inside
+  budget**. Even adding a 5–10× slower mobile CPU on top (10–20× total) leaves ~6–12×
+  headroom. **Compute is not the bottleneck on mobile — the audio plumbing and mic
+  fidelity are.**
+- **Caveat:** these probes prove *compilation, size, and native compute* only; the WASM was
+  not executed/validated for numerical parity, and `wasm_simd` was not benchmarked. The
+  ~1.3–2× WASM penalty is a literature figure, not measured here.
+
 ---
 
 ## 4. Comparison table
@@ -306,6 +508,14 @@ Ratings: ✅ strong / ⚠️ caveat / ❌ weak.
 | **Dioxus 0.7** | ✅ DSP; ❌ RSX UI | ⚠️ webview (native unstable) | ⚠️ Med (tooling risk) | ⚠️ fewer data points | ⚠️ webview or unstable WGPU | ❌ iOS tooling young | ✅ one UI |
 | **Flutter (FRB)** | ✅ DSP; ❌ Dart UI | ⚠️ native-ish, not Apple | ⚠️ Med | ✅ proven | ✅ StreamSink + zero-copy | ✅ FRB mature | ⚠️ +Dart |
 | **React Native (uniffi-rn)** | ✅ DSP; ❌ JS UI | ⚠️ native-ish | ❌ Med–High | ⚠️ inferred | ❌ no stream primitive | ⚠️ pre-1.0 | ⚠️ +JS/TS |
+| **Web / WASM (PWA)** | ✅ DSP reused (zero changes) | ⚠️ browser UI, responsive | ✅ Low (eframe) – Med (DOM) | ✅ no store/review (N/A) | ⚠️ mobile-Safari mic/AGC caveats | ✅ eframe-web mature; WebAudio caveats | ✅ one responsive codebase |
+
+**Reach (platforms).** A separate axis the table above doesn't capture: **Web / WASM is
+the only option that reaches desktop browsers *and* Android *and* iOS from one build and
+one URL** (egui-on-iOS and SwiftUI are iPhone-only; Flutter/RN add Android but not the
+desktop web). If breadth of reach with zero install friction is the goal, the web option
+is unique; if measurement-grade mobile capture and a polished store presence are the goal,
+native SwiftUI (3.2) leads.
 
 ---
 
@@ -473,3 +683,25 @@ and store-review certainty.
   https://developer.apple.com/documentation/avfaudio/avaudiosession/requestrecordpermission(_:) ·
   https://developer.apple.com/documentation/AVFAudio/AVAudioSession ·
   https://developer.apple.com/documentation/avfaudio/avaudionode/installtap(onbus:buffersize:format:block:)
+- Web / WASM — eframe-web, render backends, mobile egui:
+  https://github.com/emilk/egui · https://docs.rs/crate/eframe/latest ·
+  https://github.com/emilk/egui/issues/4500 · https://github.com/emilk/egui/issues/4569 ·
+  https://github.com/emilk/egui/issues/279 · https://web.dev/blog/webgpu-supported-major-browsers ·
+  https://webkit.org/blog/17640/webkit-features-for-safari-26-2/ · https://github.com/ocornut/imgui/issues/9103
+- Web Audio mic capture / constraints / AudioWorklet / SAB-COOP-COEP:
+  https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Using_AudioWorklet ·
+  https://developer.chrome.com/blog/audio-worklet-design-pattern/ ·
+  https://web.dev/patterns/media/microphone-process · https://blog.addpipe.com/getusermedia-audio-constraints/ ·
+  https://bugs.webkit.org/show_bug.cgi?id=179411 · https://bugs.webkit.org/show_bug.cgi?id=204444 ·
+  https://bugs.webkit.org/show_bug.cgi?id=204467 · https://bugs.webkit.org/show_bug.cgi?id=237144 ·
+  https://github.com/WebKit/standards-positions/issues/314 · https://support.apple.com/en-us/101993 ·
+  https://www.w3.org/TR/webaudio-1.1/ · https://github.com/chrisguttandin/standardized-audio-context/issues/489 ·
+  https://github.com/godotengine/godot/issues/36643 · https://caniuse.com/sharedarraybuffer ·
+  https://web.dev/articles/coop-coep · https://webrtchacks.com/guide-to-safari-webrtc/
+- WASM perf, SIMD, PWA limits, responsive UI:
+  https://arxiv.org/abs/1901.09056v3 · https://caniuse.com/wasm-simd ·
+  https://docs.rs/rustfft/6.4.1/rustfft/ · https://github.com/GoogleChromeLabs/wasm-feature-detect ·
+  https://9to5mac.com/2024/03/01/apple-home-screen-web-apps-ios-17-eu/ ·
+  https://blog.tomayac.com/2025/03/08/setting-coop-coep-headers-on-static-hosting-like-github-pages/ ·
+  https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/CSS_layout/Responsive_Design ·
+  https://blog.logrocket.com/ux-design/all-accessible-touch-target-sizes/
