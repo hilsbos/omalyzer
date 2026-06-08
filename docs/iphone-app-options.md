@@ -493,6 +493,50 @@ questions, which still require on-device testing.
   not executed/validated for numerical parity, and `wasm_simd` was not benchmarked. The
   ~1.3–2× WASM penalty is a literature figure, not measured here.
 
+### 3.9 Will the web version work properly? — honest verdict
+
+"Will it work" splits into two questions with different answers: **will it run**, and
+**will it be trustworthy**. For a measurement instrument those are not the same thing.
+
+**Will it run? — yes, with confidence.**
+
+- *Compute* is settled, not guessed: ~0.7 ms/hop measured against an 85 ms budget (~120×
+  headroom; still ~6–12× after a 2× WASM penalty **and** a 5–10× slower mobile CPU).
+  Real-time is a non-issue.
+- *The port* is settled: the DSP compiled to WASM with zero source changes, ~330 KB total.
+- *Desktop browsers* (Chrome/Edge/Firefox) honor the mic constraints, eframe-web is mature
+  — on desktop this behaves essentially like the native app.
+
+**Will it be trustworthy on iPhone? — genuinely unknown, and it's the part that matters
+most.** This app's entire value is *measurement* (formants, HNR, jitter, coherence), and
+those features are precisely the ones corrupted by automatic gain control and band-limiting.
+On iOS WebKit you cannot fully guarantee a raw mic stream: the dedicated `autoGainControl:
+false` is unimplemented (#204444), AGC is only defeatable as a side effect of
+`echoCancellation:false`, and **Voice Isolation** mic mode isn't web-controllable at all.
+So the realistic failure mode is not a crash — it's the worst case for an instrument:
+**it runs perfectly while quietly reporting subtly wrong or unstable numbers on the one
+platform you care most about.** The simulations could prove compute and size; they
+**cannot** prove mic fidelity — that is only answerable on a physical device.
+
+A partial mitigant: Omalyzer's own framing is *within-person deviation, not absolute
+values*. A **consistent** iOS coloration would still allow useful relative tracking — but
+AGC is *dynamic*, not a fixed offset, so this should not be leaned on heavily for
+HNR/jitter.
+
+**Verdict.**
+
+- **Desktop web app — yes, it will work properly.**
+- **Mobile-Safari web app — it will *run* properly, but its *trustworthiness as a measure*
+  is a real, unresolved unknown** until tested on a real iPhone.
+
+**The cheap way to settle it (do this before building the web UI):** a ~1-hour spike —
+capture the mic in Safari on a physical iPhone with `echoCancellation:false`, push it
+through the already-WASM-ready DSP core, and compare HNR / formants / coherence on a
+sustained vowel against the desktop native app on the *same* voice. If the numbers track,
+green-light the web/mobile path. If they wander, the iPhone wants the native AVAudioEngine
+`.measurement` path (§3.2) *before* any web-UI investment. This single test converts the
+one real uncertainty from opinion into data. (See §7 item 9.)
+
 ---
 
 ## 4. Comparison table
@@ -617,6 +661,13 @@ and store-review certainty.
    authoritative Apple statement and no confirmed shipped egui App-Store app.
 8. **(If Slint)** get **written confirmation from Slint** that an iOS App Store app is not
    barred by the royalty-free license's "Embedded Systems" exclusion.
+9. **(If Web/WASM) The make-or-break iPhone mic-fidelity test — do this first.** A ~1-hour
+   spike: capture the mic in Safari on a *physical* iPhone with `echoCancellation:false`,
+   push it through the already-WASM-ready DSP core, and compare HNR / formants / coherence
+   on a sustained vowel against the desktop native app on the *same* voice. Tracks → the
+   web/mobile path is trustworthy; wanders → the iPhone needs the native AVAudioEngine
+   `.measurement` path (§3.2) before any web-UI work. This is the single highest-value
+   de-risking step for the web option (see §3.9).
 
 ---
 
