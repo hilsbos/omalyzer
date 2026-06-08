@@ -237,6 +237,14 @@ impl PitchTracker {
         }
     }
 
+    /// Hop index at which the currently held note started, or `None` when no
+    /// note is active (after an unvoiced gap or before the first voiced frame).
+    /// Used by the sustained-tone capture to tell when a held note is the same
+    /// one across hops (a change of onset marks a new note).
+    pub fn onset(&self) -> Option<u64> {
+        self.onset_hop
+    }
+
     /// Std-dev in cents (vs the local mean) over the last ~1 s of voiced
     /// frames of the current note. `None` if too few frames.
     pub fn jitter_cents(&self) -> Option<f32> {

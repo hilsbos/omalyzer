@@ -25,6 +25,12 @@ pub struct Formants {
     pub f1: Option<f32>,
     pub f2: Option<f32>,
     pub f3: Option<f32>,
+    /// -3 dB bandwidths (Hz) of F1/F2/F3, measured on the LPC envelope.
+    /// `None` when the corresponding formant is absent or its peak cannot be
+    /// located on the envelope grid.
+    pub b1: Option<f32>,
+    pub b2: Option<f32>,
+    pub b3: Option<f32>,
 }
 
 /// Estimate the first three formants from a time-domain window at native `sr`.
@@ -72,7 +78,14 @@ pub fn estimate(samples: &[f32], sr: f32, f0: Option<f32>) -> Formants {
         .collect();
     let peaks = local_maxima(&env_db, &grid_hz);
 
-    pick_formants(&peaks, f0)
+    let mut formants = pick_formants(&peaks, f0);
+
+    // -3 dB bandwidths from the same LPC envelope (None when the formant absent).
+    formants.b1 = formants.f1.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+    formants.b2 = formants.f2.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+    formants.b3 = formants.f3.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+
+    formants
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +331,94 @@ fn pick_formants(peaks: &[(f32, f32)], f0: Option<f32>) -> Formants {
     let after2 = f2.map(|v| v + 200.0).unwrap_or(f3_range.0);
     let f3 = pick(f3_range.0.max(after2), f3_range.1, after2);
 
-    Formants { f1, f2, f3 }
+    Formants {
+        f1,
+        f2,
+        f3,
+        ..Formants::default()
+    }
+}
+
+/// Estimate the -3 dB bandwidth (Hz) of a formant peak at frequency `peak_hz`
+/// on the LPC envelope (`env_db` = spectral magnitude in dB over `grid_hz`).
+///
+/// Snaps `peak_hz` to the nearest grid index, then walks left and right until
+/// the level falls 3 dB below the peak, linearly interpolating each crossing
+/// for sub-grid accuracy. The bandwidth is `right_hz - left_hz`. Returns `None`
+/// for degenerate input or when neither side ever reaches the -3 dB level (e.g.
+/// a peak pinned at a grid edge with no crossing in range).
+fn formant_bandwidth(env_db: &[f32], grid_hz: &[f32], peak_hz: f32) -> Option<f32> {
+    let n = env_db.len();
+    if n < 3 || grid_hz.len() != n || !peak_hz.is_finite() {
+        return None;
+    }
+    let step = grid_hz[1] - grid_hz[0];
+    if step <= 0.0 {
+        return None;
+    }
+
+    // Nearest grid index to the (parabolically-interpolated) peak frequency.
+    let mut pi = ((peak_hz - grid_hz[0]) / step).round() as isize;
+    pi = pi.clamp(0, (n - 1) as isize);
+    let mut pi = pi as usize;
+
+    // Refine to the local envelope maximum within +-1 bin (the peak frequency
+    // was sub-grid interpolated, so the level there may sit just off the apex).
+    for &j in &[pi.saturating_sub(1), (pi + 1).min(n - 1)] {
+        if env_db[j] > env_db[pi] {
+            pi = j;
+        }
+    }
+    let peak_level = env_db[pi];
+    let target = peak_level - 3.0;
+
+    // Walk left until the level drops to/below target; interpolate the crossing.
+    let left_hz = {
+        let mut i = pi;
+        let mut found = None;
+        while i > 0 {
+            if env_db[i - 1] <= target {
+                // crossing between i-1 (below) and i (above)
+                let (y0, y1) = (env_db[i - 1], env_db[i]);
+                let frac = if (y1 - y0).abs() > 1e-9 {
+                    (target - y0) / (y1 - y0)
+                } else {
+                    0.0
+                };
+                let frac = frac.clamp(0.0, 1.0);
+                found = Some(grid_hz[i - 1] + frac * step);
+                break;
+            }
+            i -= 1;
+        }
+        found
+    };
+
+    // Walk right until the level drops to/below target; interpolate the crossing.
+    let right_hz = {
+        let mut i = pi;
+        let mut found = None;
+        while i + 1 < n {
+            if env_db[i + 1] <= target {
+                let (y0, y1) = (env_db[i], env_db[i + 1]);
+                let frac = if (y1 - y0).abs() > 1e-9 {
+                    (target - y0) / (y1 - y0)
+                } else {
+                    0.0
+                };
+                let frac = frac.clamp(0.0, 1.0);
+                found = Some(grid_hz[i] + frac * step);
+                break;
+            }
+            i += 1;
+        }
+        found
+    };
+
+    match (left_hz, right_hz) {
+        (Some(l), Some(r)) if r > l => Some(r - l),
+        _ => None,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -448,6 +548,27 @@ mod tests {
         assert!((f2 - 1200.0).abs() <= 180.0, "F2 = {} (want ~1200)", f2);
         let (v, _conf) = classify_vowel(f1, f2);
         assert_eq!(v, 'a', "classified {} (F1={}, F2={})", v, f1, f2);
+    }
+
+    #[test]
+    fn estimate_vowel_a_has_plausible_bandwidths() {
+        let sr = 48_000.0;
+        let sig = synth_vowel(700.0, 1200.0, sr, 16384);
+        let f = estimate(&sig, sr, Some(120.0));
+        // The two formants this vowel exposes must yield finite, plausible
+        // -3 dB bandwidths (tens-to-low-hundreds of Hz for a vowel resonance).
+        let b1 = f.b1.expect("B1 found");
+        let b2 = f.b2.expect("B2 found");
+        assert!(b1.is_finite() && b1 > 0.0, "B1 = {b1}");
+        assert!(b2.is_finite() && b2 > 0.0, "B2 = {b2}");
+        assert!(
+            (10.0..=500.0).contains(&b1),
+            "B1 = {b1} Hz out of plausible range"
+        );
+        assert!(
+            (10.0..=500.0).contains(&b2),
+            "B2 = {b2} Hz out of plausible range"
+        );
     }
 
     #[test]

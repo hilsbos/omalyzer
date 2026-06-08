@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 
 use eframe::egui::{self, Color32, ColorImage, Pos2, Rect, Stroke, TextureHandle, TextureOptions};
 
+use crate::coherence::CoherenceMetrics;
 use crate::colormap::colormap;
 
 // Distinct, semi-transparent colors for the formant overlay lines.
@@ -391,5 +392,108 @@ pub fn draw_vowel_chart(
             painter.circle_filled(p, 4.5, Color32::from_rgb(255, 230, 120));
             painter.circle_stroke(p, 4.5, Stroke::new(1.0, Color32::BLACK));
         }
+    }
+}
+
+/// Draw the Vocal Coherence section: the overall index as a labeled bar plus the
+/// five acoustic sub-metrics. Honest acoustic framing (docs section 4.4) — the
+/// header names the measured vowel and duration; sub-labels are the acoustic
+/// constructs (pitch / amplitude / harmonic / spectral / resonance), never
+/// energetic / chakra language. Absent values collapse to an em-dash, matching
+/// the monospace readout style of the top panel.
+///
+/// * `metrics` — the last completed sustained tone's metrics (`None` until one
+///   has been captured).
+/// * `vowel` / `secs` — which vowel and how many seconds it was measured over.
+/// * `live_index` — a cheap in-progress index while a note is currently held.
+pub fn draw_coherence_panel(
+    ui: &mut egui::Ui,
+    metrics: Option<&CoherenceMetrics>,
+    vowel: Option<char>,
+    secs: f32,
+    live_index: Option<f32>,
+) {
+    let dash = "—";
+
+    // Header: "Vocal Coherence (sustained /x/, N s)" with a live-hold hint.
+    let header = match (metrics, vowel) {
+        (Some(_), Some(v)) => format!("Vocal Coherence (sustained /{v}/, {secs:.1} s)"),
+        (Some(_), None) => format!("Vocal Coherence (sustained tone, {secs:.1} s)"),
+        (None, _) => "Vocal Coherence (sustained tone) — hold a steady note ≥ 2.5 s".to_string(),
+    };
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(header)
+                .monospace()
+                .size(13.0)
+                .color(Color32::from_white_alpha(200)),
+        );
+        if let Some(li) = live_index {
+            ui.label(
+                egui::RichText::new(format!("· holding… {li:.2}"))
+                    .monospace()
+                    .size(12.0)
+                    .color(Color32::from_rgb(150, 210, 150)),
+            );
+        }
+    });
+
+    // Overall index as a prominent bar.
+    let index = metrics.map(|m| m.index);
+    ui.horizontal(|ui| {
+        let label = match index {
+            Some(i) => format!("index {i:.2}"),
+            None => format!("index {dash:>4}"),
+        };
+        ui.label(egui::RichText::new(format!("{label:<11}")).monospace().size(14.0));
+        coherence_bar(ui, index, 240.0, 14.0);
+    });
+
+    // The five sub-metrics, each on its own small bar with an acoustic sub-label.
+    let sub = |ui: &mut egui::Ui, name: &str, v: Option<f32>| {
+        ui.horizontal(|ui| {
+            let val = match v {
+                Some(x) => format!("{x:.2}"),
+                None => format!("{dash:>4}"),
+            };
+            ui.label(
+                egui::RichText::new(format!("{name:<10} {val}"))
+                    .monospace()
+                    .size(12.0)
+                    .color(Color32::from_white_alpha(180)),
+            );
+            coherence_bar(ui, v, 160.0, 9.0);
+        });
+    };
+    sub(ui, "pitch", metrics.map(|m| m.pitch_coherence));
+    sub(ui, "amplitude", metrics.map(|m| m.amplitude_coherence));
+    sub(ui, "harmonic", metrics.map(|m| m.harmonic_coherence));
+    sub(ui, "spectral", metrics.map(|m| m.spectral_stability));
+    sub(ui, "resonance", metrics.map(|m| m.resonance_match));
+}
+
+/// A small horizontal 0..1 bar. `value = None` draws only the empty track.
+fn coherence_bar(ui: &mut egui::Ui, value: Option<f32>, width: f32, height: f32) {
+    let (rect, _) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    let painter = ui.painter_at(rect);
+    painter.rect_filled(rect, 2.0, Color32::from_gray(30));
+    painter.rect_stroke(
+        rect,
+        2.0,
+        Stroke::new(1.0, Color32::from_gray(60)),
+        egui::StrokeKind::Inside,
+    );
+    if let Some(v) = value {
+        let t = v.clamp(0.0, 1.0);
+        let fill = Rect::from_min_size(rect.min, egui::vec2(rect.width() * t, rect.height()));
+        // Red (low) -> amber -> green (high), so the color reinforces the value.
+        let color = if t < 0.5 {
+            let k = (t / 0.5).clamp(0.0, 1.0);
+            Color32::from_rgb(220, (90.0 + 120.0 * k) as u8, 70)
+        } else {
+            let k = ((t - 0.5) / 0.5).clamp(0.0, 1.0);
+            Color32::from_rgb((220.0 - 100.0 * k) as u8, 210, (70.0 + 50.0 * k) as u8)
+        };
+        painter.rect_filled(fill, 2.0, color);
     }
 }

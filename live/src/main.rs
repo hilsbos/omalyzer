@@ -6,11 +6,14 @@
 
 mod analysis;
 mod audio;
+mod coherence;
 mod colormap;
 mod formants;
 mod harmonics;
 mod pitch;
+mod spectral;
 mod ui;
+mod voice_quality;
 
 use std::collections::VecDeque;
 use std::sync::mpsc::{channel, Receiver};
@@ -30,6 +33,12 @@ const STORE_MAX_HZ: f32 = 4000.0; // store bins up to this frequency (spectrogra
 // chant fundamental (e.g. 20 * 440 Hz) and a 0-5 kHz noise-floor median, so the
 // analysis spectrum is kept wider than the displayed spectrogram.
 const ANALYSIS_MAX_HZ: f32 = 9000.0;
+/// Minimum continuously-held duration (seconds) before a sustained tone is
+/// considered long enough to capture a Vocal Coherence Index for.
+const SUSTAINED_MIN_SECS: f32 = 2.5;
+/// Cap on the held-note time-domain buffer used for the one segment-level
+/// shimmer measurement (~6 s at 48 kHz), so a long hold stays cheap.
+const HELD_SAMPLES_MAX: usize = 288_000;
 
 /// Approximate analysis hops per second (sample_rate / HOP, ~11–12 at
 /// 44.1/48 kHz). Used to size the pitch tracker's time windows.
@@ -68,6 +77,7 @@ struct App {
     analysis_bins: usize, // bins kept in latest_lin for analysis (up to ANALYSIS_MAX_HZ)
     spec: VecDeque<Vec<f32>>, // dB columns, index 0 = oldest
     latest_lin: Vec<f32>,     // latest linear (window-normalized) magnitude column
+    prev_lin: Vec<f32>,       // previous frame's linear magnitude column (for flux)
     current_rms: f32,         // most recent per-hop RMS amplitude
     gate_open: bool,          // current gate state (hysteresis between hops)
     gate_hold: u32,           // remaining release-hold hops before closing
@@ -80,6 +90,27 @@ struct App {
     pitch_history: VecDeque<(u64, f32)>,
     // (hop_index, f1, f2) for voiced+formant frames, for the vowel-chart trail.
     vowel_history: VecDeque<(u64, f32, f32)>,
+
+    // Sustained-tone coherence capture.
+    // The currently-held note's accumulating feature segment (`Some` while a
+    // continuously voiced note is held), plus the onset hop of that held note so
+    // we can detect when it changes (= a new note).
+    held_segment: Option<coherence::SustainedSegment>,
+    held_onset: Option<u64>,
+    // Most-confident vowel observed during the current held note (by confidence).
+    held_vowel: Option<char>,
+    held_vowel_conf: f32,
+    // Time-domain samples of the current held note, for one segment-level shimmer
+    // measurement when the note ends. Bounded so a very long hold stays cheap.
+    held_samples: Vec<f32>,
+    held_f0_sum: f32, // running sum of held-note F0 for a representative f0
+    held_f0_n: u32,
+    // Result of the last completed sustained tone (None until one is captured).
+    last_coherence: Option<coherence::CoherenceMetrics>,
+    last_coherence_vowel: Option<char>,
+    last_coherence_secs: f32,
+    // Cheap live in-progress index while a note is being held (None otherwise).
+    live_coherence_index: Option<f32>,
 
     // UI state
     paused: bool,
@@ -121,6 +152,7 @@ impl App {
             analysis_bins,
             spec: VecDeque::with_capacity(SPEC_COLS),
             latest_lin: Vec::new(),
+            prev_lin: Vec::new(),
             current_rms: 0.0,
             gate_open: false,
             gate_hold: 0,
@@ -129,6 +161,17 @@ impl App {
             hop_index: 0,
             pitch_history: VecDeque::new(),
             vowel_history: VecDeque::new(),
+            held_segment: None,
+            held_onset: None,
+            held_vowel: None,
+            held_vowel_conf: 0.0,
+            held_samples: Vec::new(),
+            held_f0_sum: 0.0,
+            held_f0_n: 0,
+            last_coherence: None,
+            last_coherence_vowel: None,
+            last_coherence_secs: 0.0,
+            live_coherence_index: None,
             paused: false,
             max_freq: 1000.0,
             db_floor: -90.0,
@@ -161,6 +204,7 @@ impl App {
         self.window.clear();
         self.spec.clear();
         self.latest_lin.clear();
+        self.prev_lin.clear();
         self.current_rms = 0.0;
         self.gate_open = false;
         self.gate_hold = 0;
@@ -171,6 +215,18 @@ impl App {
         self.hop_index = 0;
         self.pitch_history.clear();
         self.vowel_history.clear();
+        // Drop any in-progress / completed sustained-tone capture.
+        self.held_segment = None;
+        self.held_onset = None;
+        self.held_vowel = None;
+        self.held_vowel_conf = 0.0;
+        self.held_samples.clear();
+        self.held_f0_sum = 0.0;
+        self.held_f0_n = 0;
+        self.last_coherence = None;
+        self.last_coherence_vowel = None;
+        self.last_coherence_secs = 0.0;
+        self.live_coherence_index = None;
         self.tex = None;
     }
 
@@ -194,6 +250,10 @@ impl App {
                 self.window.pop_front();
             }
             if self.window.len() == FFT_SIZE {
+                // Carry the prior spectrum forward for spectral flux before
+                // push_spectrum_column overwrites latest_lin with this frame.
+                self.prev_lin.clear();
+                self.prev_lin.extend_from_slice(&self.latest_lin);
                 self.push_spectrum_column();
 
                 // RMS silence gate with hysteresis + release hold so signals
@@ -222,6 +282,7 @@ impl App {
                 self.hop_index = self.hop_index.wrapping_add(1);
                 let result = analysis::run(
                     &win,
+                    &self.prev_lin,
                     &self.latest_lin,
                     self.sample_rate,
                     self.bin_hz(),
@@ -246,6 +307,10 @@ impl App {
                 while self.vowel_history.len() > cap {
                     self.vowel_history.pop_front();
                 }
+
+                // Sustained-tone coherence capture (held-note state machine).
+                let onset = self.tracker.onset();
+                self.update_sustained_capture(&result, &win, onset);
 
                 self.last_result = result;
             }
@@ -280,6 +345,126 @@ impl App {
         self.spec.push_back(col);
         while self.spec.len() > SPEC_COLS {
             self.spec.pop_front();
+        }
+    }
+
+    /// Advance the sustained-tone capture state machine for one analysis hop.
+    ///
+    /// A "held note" is a run of continuously voiced hops sharing the same pitch
+    /// onset (the `PitchTracker` resets the onset on an unvoiced gap or a >150c
+    /// jump). While a note is held we accumulate per-hop features into a
+    /// `coherence::SustainedSegment` and buffer time-domain samples for one
+    /// segment-level shimmer measurement. When the note ends (onset changes or
+    /// the frame is unvoiced) we finalize and store the Vocal Coherence Index if
+    /// the hold lasted at least `SUSTAINED_MIN_SECS`.
+    fn update_sustained_capture(
+        &mut self,
+        result: &analysis::AnalysisResult,
+        win: &[f32],
+        onset: Option<u64>,
+    ) {
+        let hps = hops_per_sec(self.sample_rate);
+        let rms = self.current_rms;
+
+        // Continuation only when voiced AND the onset matches the held note.
+        let continues =
+            result.voiced && matches!((onset, self.held_onset), (Some(a), Some(b)) if a == b);
+
+        if !continues {
+            // The previous held note (if any) just ended; finalize it.
+            self.finish_held_note();
+
+            // Start a fresh segment if this frame is voiced with a known onset.
+            if result.voiced {
+                if let (Some(on), Some(f0)) = (onset, result.f0) {
+                    let mut seg = coherence::SustainedSegment::new(hps);
+                    Self::push_hop_features(&mut seg, result, rms);
+                    self.held_segment = Some(seg);
+                    self.held_onset = Some(on);
+                    self.held_vowel = result.vowel;
+                    self.held_vowel_conf = result.vowel_conf;
+                    self.held_samples.clear();
+                    Self::append_held_samples(&mut self.held_samples, win);
+                    self.held_f0_sum = f0;
+                    self.held_f0_n = 1;
+                }
+            }
+        } else if let Some(mut seg) = self.held_segment.take() {
+            // Same note held: accumulate this hop (take/put-back keeps the field
+            // borrows disjoint while we also touch the other held-note fields).
+            Self::push_hop_features(&mut seg, result, rms);
+            self.held_segment = Some(seg);
+            if result.vowel_conf > self.held_vowel_conf {
+                self.held_vowel = result.vowel;
+                self.held_vowel_conf = result.vowel_conf;
+            }
+            Self::append_held_samples(&mut self.held_samples, win);
+            if let Some(f0) = result.f0 {
+                self.held_f0_sum += f0;
+                self.held_f0_n += 1;
+            }
+        }
+
+        // Cheap live in-progress index while a long-enough note is held.
+        self.live_coherence_index = self
+            .held_segment
+            .as_ref()
+            .filter(|s| s.duration_secs() >= SUSTAINED_MIN_SECS)
+            .and_then(coherence::compute)
+            .map(|m| m.index);
+    }
+
+    /// Finalize the currently-held note: compute the one segment-level shimmer,
+    /// then the Vocal Coherence Index, storing it when the hold was long enough.
+    /// Clears the held-note state regardless.
+    fn finish_held_note(&mut self) {
+        if let Some(mut seg) = self.held_segment.take() {
+            if seg.duration_secs() >= SUSTAINED_MIN_SECS && self.held_f0_n > 0 {
+                let f0 = self.held_f0_sum / self.held_f0_n as f32;
+                let shimmer = voice_quality::shimmer(&self.held_samples, self.sample_rate, f0);
+                seg.set_shimmer(shimmer);
+                if let Some(metrics) = coherence::compute(&seg) {
+                    self.last_coherence = Some(metrics);
+                    self.last_coherence_vowel = self.held_vowel;
+                    self.last_coherence_secs = seg.duration_secs();
+                }
+            }
+        }
+        self.held_onset = None;
+        self.held_vowel = None;
+        self.held_vowel_conf = 0.0;
+        self.held_samples.clear();
+        self.held_f0_sum = 0.0;
+        self.held_f0_n = 0;
+        self.live_coherence_index = None;
+    }
+
+    /// Push one analysis hop's features (plus the hop's RMS) into a segment.
+    fn push_hop_features(
+        seg: &mut coherence::SustainedSegment,
+        r: &analysis::AnalysisResult,
+        rms: f32,
+    ) {
+        seg.push_hop(
+            r.f0.unwrap_or(0.0),
+            rms,
+            r.hnr_db,
+            r.entropy,
+            r.flux,
+            r.mean_formant_bw,
+            r.vowel_conf,
+        );
+    }
+
+    /// Append the current hop's time-domain samples (the most recent `HOP`
+    /// samples of the window) to the held-note buffer, bounded by
+    /// `HELD_SAMPLES_MAX`.
+    fn append_held_samples(buf: &mut Vec<f32>, win: &[f32]) {
+        let start = win.len().saturating_sub(HOP);
+        buf.extend_from_slice(&win[start..]);
+        if buf.len() > HELD_SAMPLES_MAX {
+            let excess = buf.len() - HELD_SAMPLES_MAX;
+            buf.drain(..excess);
         }
     }
 }
@@ -406,7 +591,17 @@ impl eframe::App for App {
                     .size(15.0),
                 );
             });
+            ui.add_space(4.0);
+            ui.separator();
+            ui::draw_coherence_panel(
+                ui,
+                self.last_coherence.as_ref(),
+                self.last_coherence_vowel,
+                self.last_coherence_secs,
+                self.live_coherence_index,
+            );
             ui.add_space(2.0);
+            ui.separator();
             ui.horizontal(|ui| {
                 ui.label("max freq");
                 ui.add(
