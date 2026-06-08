@@ -396,11 +396,13 @@ pub fn draw_vowel_chart(
 }
 
 /// Draw the Vocal Coherence section: the overall index as a labeled bar plus the
-/// five acoustic sub-metrics. Honest acoustic framing (docs section 4.4) — the
-/// header names the measured vowel and duration; sub-labels are the acoustic
-/// constructs (pitch / amplitude / harmonic / spectral / resonance), never
-/// energetic / chakra language. Absent values collapse to an em-dash, matching
-/// the monospace readout style of the top panel.
+/// five acoustic sub-metrics, each with its 0..1 score, a bar, and the raw
+/// measurement that drove it (F0 wander, shimmer, HNR, etc.). Hover any row for a
+/// one-line description. Honest acoustic framing (docs section 4.4) — the header
+/// names the measured vowel and duration; sub-labels are the acoustic constructs
+/// (pitch / amplitude / harmonic / spectral / resonance), never energetic /
+/// chakra language. Absent values collapse to an em-dash, matching the monospace
+/// readout style of the top panel.
 ///
 /// * `metrics` — the last completed sustained tone's metrics (`None` until one
 ///   has been captured).
@@ -427,6 +429,12 @@ pub fn draw_coherence_panel(
                 .monospace()
                 .size(13.0)
                 .color(Color32::from_white_alpha(200)),
+        )
+        .on_hover_text(
+            "Overall vocal coherence and its five acoustic sub-metrics, measured \
+             over the last steady tone you held (≥ 2.5 s). Each score is 0..1, \
+             higher = steadier / clearer / more ordered. A within-person acoustic \
+             measure, not a diagnosis.",
         );
         if let Some(li) = live_index {
             ui.label(
@@ -434,9 +442,20 @@ pub fn draw_coherence_panel(
                     .monospace()
                     .size(12.0)
                     .color(Color32::from_rgb(150, 210, 150)),
-            );
+            )
+            .on_hover_text("Live in-progress index while you hold the current note.");
         }
     });
+
+    // Scale legend (only meaningful once a tone has been captured).
+    if metrics.is_some() {
+        ui.label(
+            egui::RichText::new("  0 = unstable / noisy   …   1 = steady / clear")
+                .monospace()
+                .size(10.0)
+                .color(Color32::from_white_alpha(110)),
+        );
+    }
 
     // Overall index as a prominent bar.
     let index = metrics.map(|m| m.index);
@@ -445,31 +464,91 @@ pub fn draw_coherence_panel(
             Some(i) => format!("index {i:.2}"),
             None => format!("index {dash:>4}"),
         };
-        ui.label(egui::RichText::new(format!("{label:<11}")).monospace().size(14.0));
+        ui.label(egui::RichText::new(format!("{label:<11}")).monospace().size(14.0))
+            .on_hover_text(
+                "Weighted overall index: 0.25·pitch + 0.15·amplitude + 0.30·harmonic \
+                 + 0.15·spectral + 0.15·resonance.",
+            );
         coherence_bar(ui, index, 240.0, 14.0);
     });
 
-    // The five sub-metrics, each on its own small bar with an acoustic sub-label.
-    let sub = |ui: &mut egui::Ui, name: &str, v: Option<f32>| {
-        ui.horizontal(|ui| {
-            let val = match v {
-                Some(x) => format!("{x:.2}"),
-                None => format!("{dash:>4}"),
-            };
-            ui.label(
-                egui::RichText::new(format!("{name:<10} {val}"))
-                    .monospace()
-                    .size(12.0)
-                    .color(Color32::from_white_alpha(180)),
-            );
-            coherence_bar(ui, v, 160.0, 9.0);
-        });
-    };
-    sub(ui, "pitch", metrics.map(|m| m.pitch_coherence));
-    sub(ui, "amplitude", metrics.map(|m| m.amplitude_coherence));
-    sub(ui, "harmonic", metrics.map(|m| m.harmonic_coherence));
-    sub(ui, "spectral", metrics.map(|m| m.spectral_stability));
-    sub(ui, "resonance", metrics.map(|m| m.resonance_match));
+    // The five sub-metrics: name + 0..1 score + bar + raw measurement, each with
+    // a hover description. The raw text is the natural-unit value behind the score.
+    let d = metrics.map(|m| m.detail);
+    sub_metric(
+        ui,
+        "pitch",
+        metrics.map(|m| m.pitch_coherence),
+        d.map(|d| format!("F0 ±{:.0} c", d.f0_cents_std)),
+        "Pitch steadiness — how little F0 wandered across the held tone (cents std-dev). Lower wander → higher score.",
+    );
+    sub_metric(
+        ui,
+        "amplitude",
+        metrics.map(|m| m.amplitude_coherence),
+        d.map(|d| match d.shimmer {
+            Some(sh) => format!("shimmer {:.1}%", sh * 100.0),
+            None => format!("RMS cv {:.2}", d.rms_cv),
+        }),
+        "Loudness steadiness — cycle-to-cycle amplitude variation (shimmer), or RMS variation when shimmer isn't measurable.",
+    );
+    sub_metric(
+        ui,
+        "harmonic",
+        metrics.map(|m| m.harmonic_coherence),
+        d.map(|d| format!("HNR {:.0} dB · entropy {:.2}", d.hnr_db, d.entropy)),
+        "Harmonic clarity — harmonics-to-noise ratio plus spectral order (low entropy = clean, ordered harmonics).",
+    );
+    sub_metric(
+        ui,
+        "spectral",
+        metrics.map(|m| m.spectral_stability),
+        d.map(|d| format!("flux {:.3}", d.flux)),
+        "Spectral stability — how little the spectrum changed frame-to-frame (flux). Lower flux → higher score.",
+    );
+    sub_metric(
+        ui,
+        "resonance",
+        metrics.map(|m| m.resonance_match),
+        d.map(|d| match d.bandwidth_hz {
+            Some(bw) => format!("vowel {:.0}% · bw {:.0} Hz", d.vowel_conf * 100.0, bw),
+            None => format!("vowel {:.0}%", d.vowel_conf * 100.0),
+        }),
+        "Resonance support — how cleanly the vowel matched a target and how sharp (narrow-bandwidth) the formants were.",
+    );
+}
+
+/// One sub-metric row: `name` + 0..1 score + bar + raw measurement, with a hover
+/// description. Absent score / raw collapse to an em-dash.
+fn sub_metric(
+    ui: &mut egui::Ui,
+    name: &str,
+    value: Option<f32>,
+    raw: Option<String>,
+    description: &str,
+) {
+    let dash = "—";
+    ui.horizontal(|ui| {
+        let val = match value {
+            Some(x) => format!("{x:.2}"),
+            None => format!("{dash:>4}"),
+        };
+        ui.label(
+            egui::RichText::new(format!("{name:<10} {val}"))
+                .monospace()
+                .size(12.0)
+                .color(Color32::from_white_alpha(180)),
+        )
+        .on_hover_text(description);
+        coherence_bar(ui, value, 160.0, 9.0);
+        ui.label(
+            egui::RichText::new(raw.unwrap_or_else(|| dash.to_string()))
+                .monospace()
+                .size(11.0)
+                .color(Color32::from_white_alpha(130)),
+        )
+        .on_hover_text(description);
+    });
 }
 
 /// A small horizontal 0..1 bar. `value = None` draws only the empty track.

@@ -122,6 +122,32 @@ pub struct CoherenceMetrics {
     pub spectral_stability: f32,
     pub resonance_match: f32,
     pub index: f32,
+    /// Raw underlying measurements that drove each sub-metric, in their natural
+    /// units — for display / inspection (the sub-metrics above are these mapped
+    /// to `0..=1`).
+    pub detail: CoherenceDetail,
+}
+
+/// Raw per-segment measurements behind each sub-metric, in natural units.
+#[derive(Clone, Copy, Default)]
+pub struct CoherenceDetail {
+    /// Std-dev of F0 over the held tone, in cents (pitch wander).
+    pub f0_cents_std: f32,
+    /// Segment shimmer (relative cycle-to-cycle amplitude variation), if it was
+    /// measurable; otherwise `None` and `rms_cv` was used for amplitude.
+    pub shimmer: Option<f32>,
+    /// RMS coefficient of variation (fallback amplitude steadiness measure).
+    pub rms_cv: f32,
+    /// Mean harmonics-to-noise ratio over the segment, in dB.
+    pub hnr_db: f32,
+    /// Mean normalized spectral entropy (0 = ordered/tonal, 1 = noisy/diffuse).
+    pub entropy: f32,
+    /// Mean spectral flux (frame-to-frame change; 0 = perfectly stable).
+    pub flux: f32,
+    /// Mean formant -3 dB bandwidth in Hz, if formants were measurable.
+    pub bandwidth_hz: Option<f32>,
+    /// Mean vowel-classification confidence (0..1).
+    pub vowel_conf: f32,
 }
 
 /// Minimum voiced duration (seconds) for the index to be meaningful (~1 s).
@@ -167,25 +193,28 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
     let pitch_coherence = (-f0_cents_std / 25.0).exp().clamp(0.0, 1.0);
 
     // --- amplitude coherence: shimmer if known, else RMS CV ------------------
+    let mean_rms = mean(&seg.rms);
+    let rms_cv = if mean_rms > 0.0 {
+        std_dev(&seg.rms) / mean_rms
+    } else {
+        0.0
+    };
     let amplitude_coherence = if let Some(sh) = seg.shimmer {
         (-sh / 0.06).exp()
     } else {
-        let mean_rms = mean(&seg.rms);
-        let rms_cv = if mean_rms > 0.0 {
-            std_dev(&seg.rms) / mean_rms
-        } else {
-            0.0
-        };
         (-rms_cv / 0.15).exp()
     }
     .clamp(0.0, 1.0);
 
     // --- harmonic coherence: HNR term + spectral order (1 - entropy) ---------
-    let hnr_term = (mean(&seg.hnr_db) / 20.0).clamp(0.0, 1.0);
-    let harmonic_coherence = (0.5 * hnr_term + 0.5 * (1.0 - mean(&seg.entropy))).clamp(0.0, 1.0);
+    let hnr_mean = mean(&seg.hnr_db);
+    let entropy_mean = mean(&seg.entropy);
+    let hnr_term = (hnr_mean / 20.0).clamp(0.0, 1.0);
+    let harmonic_coherence = (0.5 * hnr_term + 0.5 * (1.0 - entropy_mean)).clamp(0.0, 1.0);
 
     // --- spectral stability: low frame-to-frame flux -------------------------
-    let spectral_stability = (-mean(&seg.flux) / 0.3).exp().clamp(0.0, 1.0);
+    let flux_mean = mean(&seg.flux);
+    let spectral_stability = (-flux_mean / 0.3).exp().clamp(0.0, 1.0);
 
     // --- resonance match: vowel confidence + narrow (well-supported) formants
     // When no hop yielded a finite formant bandwidth (formants unmeasurable —
@@ -193,11 +222,18 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
     // measurement as a perfect (maximally narrow) resonance: fall back to vowel
     // confidence alone. Otherwise the absence of formants would *inflate* the
     // score in the wrong direction.
-    let resonance_match = if seg.mean_bandwidth_hz.is_empty() {
-        mean(&seg.vowel_conf).clamp(0.0, 1.0)
+    let vowel_conf_mean = mean(&seg.vowel_conf);
+    let bandwidth_hz = if seg.mean_bandwidth_hz.is_empty() {
+        None
     } else {
-        let bw_term = (1.0 - mean(&seg.mean_bandwidth_hz) / 400.0).clamp(0.0, 1.0);
-        (0.5 * mean(&seg.vowel_conf) + 0.5 * bw_term).clamp(0.0, 1.0)
+        Some(mean(&seg.mean_bandwidth_hz))
+    };
+    let resonance_match = match bandwidth_hz {
+        None => vowel_conf_mean.clamp(0.0, 1.0),
+        Some(bw) => {
+            let bw_term = (1.0 - bw / 400.0).clamp(0.0, 1.0);
+            (0.5 * vowel_conf_mean + 0.5 * bw_term).clamp(0.0, 1.0)
+        }
     };
 
     // --- weighted composite --------------------------------------------------
@@ -215,6 +251,16 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
         spectral_stability,
         resonance_match,
         index,
+        detail: CoherenceDetail {
+            f0_cents_std,
+            shimmer: seg.shimmer,
+            rms_cv,
+            hnr_db: hnr_mean,
+            entropy: entropy_mean,
+            flux: flux_mean,
+            bandwidth_hz,
+            vowel_conf: vowel_conf_mean,
+        },
     })
 }
 
