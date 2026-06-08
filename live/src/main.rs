@@ -590,6 +590,26 @@ impl eframe::App for App {
                     .monospace()
                     .size(15.0),
                 );
+                // Alpha ratio (spectral tilt) — a measured acoustic shown raw.
+                // It is research-linked to vocal effort/arousal, but is only
+                // interpretable as *state* relative to a personal baseline, which
+                // this build does not yet keep — so it is shown as a measurement,
+                // not a state reading (honest-framing guardrail).
+                let alpha = match (voiced, r.alpha_ratio_db) {
+                    (true, Some(a)) => format!("{a:>+5.1} dB"),
+                    _ => format!("{dash:>6}"),
+                };
+                ui.label(
+                    egui::RichText::new(format!("   α-ratio: {alpha}"))
+                        .monospace()
+                        .size(15.0),
+                )
+                .on_hover_text(
+                    "Spectral tilt: balance of low (50–1000 Hz) vs high (1000–5000 Hz) \
+                     energy, in dB. A measured acoustic that research links to vocal \
+                     effort/arousal — shown raw here; it becomes a meaningful state \
+                     signal only as a change vs your own baseline (not yet tracked).",
+                );
             });
             ui.add_space(4.0);
             ui.separator();

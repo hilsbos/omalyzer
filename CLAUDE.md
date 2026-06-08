@@ -28,7 +28,7 @@ Dataflow per frame: `audio.rs` (cpal input stream) → mpsc channel → `App::in
 - `pitch.rs` — YIN F0 estimation, note naming, `PitchTracker` (jitter = short-term cents std-dev, drift = slow cents change of the held note).
 - `formants.rs` — LPC formant estimation (decimate → pre-emphasis → autocorrelation → Levinson-Durbin → envelope peak-pick), −3 dB formant bandwidths, and vowel classification.
 - `harmonics.rs` — harmonic peak extraction, spectral centroid, HNR (Praat normalized-autocorrelation method).
-- `spectral.rs` — spectral entropy, flatness, flux on a linear magnitude spectrum.
+- `spectral.rs` — spectral entropy, flatness, flux, and alpha ratio (spectral tilt, eGeMAPS bands) on a linear magnitude spectrum.
 - `voice_quality.rs` — shimmer, CPP (cepstral peak prominence), H1–H2. (`cpp`/`h1_h2_db`/`spectral_flatness` are validated and tested but not yet wired into the readout — `#[allow(dead_code)]`.)
 - `coherence.rs` — `SustainedSegment` (per-hop feature accumulator) + `compute` → the Vocal Coherence Index (five 0..1 sub-metrics + weighted overall), per docs §5.2. Mapping thresholds are defaults, to be baseline-normalized per person later (§5.3).
 - `ui.rs` / `colormap.rs` — spectrogram + overlays, pitch-track plot, vowel chart, coherence panel.

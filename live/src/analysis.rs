@@ -40,6 +40,10 @@ pub struct AnalysisResult {
     /// Mean of the available -3 dB formant bandwidths (b1/b2/b3), in Hz, or
     /// `None` when no formant bandwidth is available.
     pub mean_formant_bw: Option<f32>,
+    /// Alpha ratio (spectral tilt) in dB, eGeMAPS bands (50–1000 vs 1000–5000 Hz),
+    /// computed every gate-open frame. A *measured acoustic*; state meaning only
+    /// vs a personal baseline. `None` when the bands have no usable energy.
+    pub alpha_ratio_db: Option<f32>,
 }
 
 /// Run per-hop analysis.
@@ -79,6 +83,7 @@ pub fn run(
     // and carry them into every gate-open result, voiced or not.
     let entropy = spectral::spectral_entropy(latest_lin);
     let flux = spectral::spectral_flux(prev_lin, latest_lin);
+    let alpha_ratio_db = spectral::alpha_ratio_db(latest_lin, bin_hz);
 
     // --- Pitch (YIN) on the most recent PITCH_WINDOW samples ----------------
     let pitch_start = window.len().saturating_sub(PITCH_WINDOW);
@@ -98,6 +103,7 @@ pub fn run(
             return AnalysisResult {
                 entropy,
                 flux,
+                alpha_ratio_db,
                 ..AnalysisResult::default()
             }
         }
@@ -159,5 +165,6 @@ pub fn run(
         entropy,
         flux,
         mean_formant_bw,
+        alpha_ratio_db,
     }
 }

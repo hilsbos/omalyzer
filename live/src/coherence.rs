@@ -168,8 +168,9 @@ const MIN_DURATION_SECS: f32 = 1.0;
 /// - `spectral_stability = exp(-mean(flux) / 0.3)`.
 /// - `resonance_match = 0.5*mean(vowel_conf) + 0.5*clamp(1 - mean(bw_hz)/400)`,
 ///   or `mean(vowel_conf)` alone when no formant bandwidth was measurable.
-/// - `index = 0.25*pitch + 0.15*amplitude + 0.30*harmonic + 0.15*spectral
-///   + 0.15*resonance`.
+/// - `index` = weighted *harmonic* mean of the five sub-metrics (weights
+///   0.25/0.15/0.30/0.15/0.15), so one weak dimension penalizes the whole index
+///   rather than being averaged away (spec §D2).
 pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
     if seg.duration_secs() < MIN_DURATION_SECS || seg.f0.is_empty() {
         return None;
@@ -236,13 +237,27 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
         }
     };
 
-    // --- weighted composite --------------------------------------------------
-    let index = (0.25 * pitch_coherence
-        + 0.15 * amplitude_coherence
-        + 0.30 * harmonic_coherence
-        + 0.15 * spectral_stability
-        + 0.15 * resonance_match)
-        .clamp(0.0, 1.0);
+    // --- weighted-harmonic-mean composite ------------------------------------
+    // A harmonic mean (rather than arithmetic) so a single failing dimension
+    // (e.g. breathy voice -> low `harmonic`) drags the whole index down, instead
+    // of being averaged away by the strong dimensions (spec §D2). Weights are
+    // retained (harmonic clarity matters most) via the weighted form
+    //   H = Σw / Σ(w/s),  with each s_i floored at EPS to avoid div-by-zero.
+    const EPS: f32 = 1e-3;
+    let terms: [(f32, f32); 5] = [
+        (0.25, pitch_coherence),
+        (0.15, amplitude_coherence),
+        (0.30, harmonic_coherence),
+        (0.15, spectral_stability),
+        (0.15, resonance_match),
+    ];
+    let w_sum: f32 = terms.iter().map(|(w, _)| w).sum();
+    let recip_sum: f32 = terms.iter().map(|(w, s)| w / s.max(EPS)).sum();
+    let index = if recip_sum > 0.0 {
+        (w_sum / recip_sum).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
 
     Some(CoherenceMetrics {
         pitch_coherence,

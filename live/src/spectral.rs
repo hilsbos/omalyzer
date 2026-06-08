@@ -139,6 +139,47 @@ pub fn spectral_flux(prev_lin: &[f32], curr_lin: &[f32]) -> f32 {
     flux.clamp(0.0, 1.0)
 }
 
+/// Alpha ratio (spectral tilt) in dB on a linear magnitude spectrum.
+///
+/// Ratio of low-band to high-band spectral *energy* (power), using the eGeMAPS
+/// band convention: low = 50–1000 Hz, high = 1000–5000 Hz (Eyben et al. 2016).
+///
+/// `alpha_ratio_dB = 10 * log10(E_low / E_high)`, where `E = Σ |X(f)|²` over the
+/// band. A more negative value = relatively more high-frequency energy (brighter,
+/// more effortful/tense phonation); a higher (less negative / positive) value =
+/// a steeper tilt toward low-frequency energy. This is a *measured acoustic*; any
+/// state interpretation is the caller's, and only meaningful vs a personal
+/// baseline.
+///
+/// `bin_hz` is Hz per spectrum bin (index `i` ↔ `i * bin_hz`). Returns `None`
+/// when the bands are empty or `E_high <= 0` (no usable high-band energy).
+pub fn alpha_ratio_db(spectrum_lin: &[f32], bin_hz: f32) -> Option<f32> {
+    if spectrum_lin.is_empty() || !bin_hz.is_finite() || bin_hz <= 0.0 {
+        return None;
+    }
+    // eGeMAPS bands. Low is [50, 1000] Hz; high is (1000, 5000] Hz.
+    let band_energy = |lo_hz: f32, hi_hz: f32| -> f64 {
+        let lo = (lo_hz / bin_hz).ceil() as usize;
+        let hi = ((hi_hz / bin_hz).floor() as usize).min(spectrum_lin.len().saturating_sub(1));
+        let mut e = 0.0f64;
+        let mut i = lo;
+        while i <= hi {
+            let m = spectrum_lin[i];
+            if m.is_finite() {
+                e += (m as f64) * (m as f64); // power
+            }
+            i += 1;
+        }
+        e
+    };
+    let e_low = band_energy(50.0, 1000.0);
+    let e_high = band_energy(1000.0 + bin_hz, 5000.0); // strictly above 1000 Hz
+    if e_high <= 0.0 || e_low <= 0.0 {
+        return None;
+    }
+    Some((10.0 * (e_low / e_high).log10()) as f32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,5 +312,31 @@ mod tests {
         assert_eq!(spectral_flux(&[1.0, 2.0], &[1.0]), 0.0); // length mismatch
         assert_eq!(spectral_flux(&[1.0], &[]), 0.0);
         assert_eq!(spectral_flux(&[0.0, 0.0], &[0.0, 0.0]), 0.0); // no energy
+    }
+
+    // ---- alpha ratio ------------------------------------------------------
+
+    #[test]
+    fn alpha_ratio_sign_tracks_spectral_tilt() {
+        let bin_hz = 10.0; // 600 bins -> 0..6000 Hz
+        let n = 600;
+        // Low-band-dominant tone (300 Hz) over a tiny floor -> positive dB.
+        let mut low = vec![0.001f32; n];
+        low[30] = 1.0;
+        let a_low = alpha_ratio_db(&low, bin_hz).expect("alpha low");
+        assert!(a_low > 0.0, "low-dominant alpha {a_low} should be positive");
+        // High-band-dominant tone (3000 Hz) -> negative dB.
+        let mut high = vec![0.001f32; n];
+        high[300] = 1.0;
+        let a_high = alpha_ratio_db(&high, bin_hz).expect("alpha high");
+        assert!(a_high < 0.0, "high-dominant alpha {a_high} should be negative");
+        assert!(a_low > a_high, "low tilt {a_low} should exceed high tilt {a_high}");
+    }
+
+    #[test]
+    fn alpha_ratio_rejects_degenerate() {
+        assert!(alpha_ratio_db(&[], 10.0).is_none());
+        assert!(alpha_ratio_db(&[1.0; 100], 0.0).is_none());
+        assert!(alpha_ratio_db(&vec![0.0f32; 600], 10.0).is_none()); // no energy
     }
 }
