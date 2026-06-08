@@ -1,5 +1,3 @@
 live/target/
-analysis/output/
 recordings/
-__pycache__/
 .DS_Store
