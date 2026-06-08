@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NeuroSense analysis — offline analysis of body/stretch recordings.
+"""Omalizer analysis — offline analysis of body/stretch recordings.
 
 Processes every audio file in ../recordings/ and writes per-file reports
 to ./output/: spectrogram, amplitude envelope, envelope modulation

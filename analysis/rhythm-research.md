@@ -1,6 +1,6 @@
-# NeuroSense rhythm & tone detection — research-grounded redesign
+# Omalizer rhythm & tone detection — research-grounded redesign
 
-Scope: redesign the rhythm/tone detection in `/Users/patrick/Projects/neurosense/live/src/main.rs`.
+Scope: redesign the rhythm/tone detection in `/Users/patrick/Projects/omalizer/live/src/main.rs`.
 The user holds an isometric Ashtanga bind and perceives (a) a sustained internal "tone"
 they attribute to nerves/muscles and (b) a slow "two things coming and going" every few
 seconds. The current app reports a "breath-like / heartbeat-like" rhythm and a dominant

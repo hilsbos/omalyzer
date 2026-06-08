@@ -1897,15 +1897,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "neurosense-live"
-version = "0.1.0"
-dependencies = [
- "cpal",
- "eframe",
- "rustfft",
-]
-
-[[package]]
 name = "nohash-hasher"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2303,6 +2294,15 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "omalizer-live"
+version = "0.1.0"
+dependencies = [
+ "cpal",
+ "eframe",
+ "rustfft",
 ]
 
 [[package]]
