@@ -8,6 +8,11 @@
   src: local('Georgia');
   size-adjust: 88.1%; ascent-override: 83.4%; descent-override: 30.1%; line-gap-override: 0%;
 }
+@font-face {
+  font-family: 'IBM Plex Mono Fallback';
+  src: local('Menlo'), local('Consolas'), local('monospace');
+  size-adjust: 100%; ascent-override: 100%; descent-override: 25%; line-gap-override: 0%;
+}
 
 * { box-sizing: border-box; }
 html { font-optical-sizing: auto; hanging-punctuation: first last; }
@@ -81,12 +86,12 @@ p, li { text-wrap: pretty; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
    Default size is the masthead; the hero scales it via font-size. */
 .om-mark {
   font-family: var(--devanagari);
-  font-weight: 500;
+  font-weight: 400;  /* Tiro 400 balances the Fraunces wordmark ~380 (was 500 for Noto) */
   color: currentColor;
   line-height: 1;
   display: inline-block;
   font-size: 1.7rem;
-  transform: translateY(0.06em);  /* optical centering against Fraunces caps */
+  transform: translateY(0.04em);  /* optical centering against Fraunces caps (re-tuned for Tiro) */
 }
 
 /* ── Instrument register: the analyzer + app surfaces ──────────────────────
@@ -96,12 +101,15 @@ p, li { text-wrap: pretty; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
    no per-component edits, fully consistent. */
 .instrument {
   font-family: var(--mono);
+  font-size: 0.96em;  /* optically match IBM Plex Mono x-height to the Newsreader it sits beside */
   --serif: var(--mono);
   --serif-display: var(--mono);
   --num: var(--mono);
   font-feature-settings: "kern";
   font-variant-numeric: tabular-nums;
 }
+/* Plex is already fixed-pitch, so tabular-nums is a no-op in the instrument scope. */
+.instrument .readout { font-variant-numeric: normal; }
 .instrument h1, .instrument h2, .instrument h3 {
   letter-spacing: 0;
   font-weight: 500;

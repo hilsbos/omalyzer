@@ -77,8 +77,8 @@
   --serif:        'Newsreader', 'Newsreader Fallback', Georgia, serif;  /* body */
   --serif-display:'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* headings/wordmark */
   --num:          'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* tabular readouts */
-  --mono:         ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; /* the analyzer / app surfaces */
-  --devanagari:   'Noto Serif Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', serif; /* the Om (ॐ) mark */
+  --mono:         'IBM Plex Mono', 'IBM Plex Mono Fallback', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; /* the analyzer / app surfaces */
+  --devanagari:   'Tiro Devanagari Sanskrit', 'Noto Serif Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', serif; /* the Om (ॐ) mark */
 
   /* ── Golden-ratio spacing scale (φ = 1.618) ───────────────────────────── */
   --s-2xs: 0.382rem;   /* φ⁻²  */
