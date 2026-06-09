@@ -1,0 +1,27 @@
+[package]
+name = "omalyzer-wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+omalyzer-core = { path = "../core" }
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+# Optional: nicer panic messages in the browser console. Enabled by default via
+# the `panic-hook` feature; `console_error_panic_hook::set_once()` runs in
+# `WasmAnalyzer::new`.
+console_error_panic_hook = { version = "0.1", optional = true }
+
+[features]
+default = ["panic-hook"]
+panic-hook = ["dep:console_error_panic_hook"]
+
+# Smaller wasm in release builds.
+[profile.release]
+opt-level = "s"
+lto = true

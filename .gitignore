@@ -1,3 +1,6 @@
 /target
 recordings/
 .DS_Store
+
+# wasm-pack build output for the browser proof (build artifact, not source).
+web-proof/pkg/

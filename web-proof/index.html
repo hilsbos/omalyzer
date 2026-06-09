@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Omalyzer web-proof</title>
+  <style>
+    body { font: 16px system-ui, sans-serif; margin: 2rem; max-width: 36rem; }
+    button { font-size: 1.2rem; padding: 0.6rem 1.4rem; }
+    .row { margin: 0.5rem 0; }
+    .label { display: inline-block; width: 13rem; color: #555; }
+    .val { font-variant-numeric: tabular-nums; font-weight: 600; }
+    h3 { margin-top: 1.4rem; }
+    #warn { color: #b00; font-weight: 600; min-height: 1.2em; }
+    #settings { white-space: pre; font-family: ui-monospace, monospace;
+                font-size: 0.85rem; color: #333; background: #f4f4f4;
+                padding: 0.5rem; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Omalyzer — desktop-browser pipeline proof</h1>
+  <p>Proves: mic → AudioWorklet (128→4096 reblock) → WASM core → live readouts.</p>
+
+  <button id="start">Start microphone</button>
+  <div id="warn"></div>
+
+  <h3>Live readout</h3>
+  <div class="row"><span class="label">Sample rate</span><span id="sr" class="val">—</span></div>
+  <div class="row"><span class="label">RMS (dBFS)</span><span id="rms" class="val">—</span></div>
+  <div class="row"><span class="label">Voiced</span><span id="voiced" class="val">—</span></div>
+  <div class="row"><span class="label">F0</span><span id="f0" class="val">—</span></div>
+  <div class="row"><span class="label">Note</span><span id="note" class="val">—</span></div>
+  <div class="row"><span class="label">Vowel</span><span id="vowel" class="val">—</span></div>
+  <div class="row"><span class="label">HNR (dB)</span><span id="hnr" class="val">—</span></div>
+
+  <h3>Coherence</h3>
+  <div class="row"><span class="label">Live index (held tone)</span><span id="liveCoh" class="val">—</span></div>
+  <div class="row"><span class="label">Last completed index</span><span id="lastCoh" class="val">—</span></div>
+  <div class="row"><span class="label">Last tone duration</span><span id="lastSecs" class="val">—</span></div>
+  <div class="row"><span class="label">Last tone vowel</span><span id="lastVowel" class="val">—</span></div>
+  <div class="row"><span class="label">pitch / amp</span><span id="subPA" class="val">—</span></div>
+  <div class="row"><span class="label">harmonic / spectral</span><span id="subHS" class="val">—</span></div>
+  <div class="row"><span class="label">resonance</span><span id="subR" class="val">—</span></div>
+
+  <h3>Applied track settings (getSettings)</h3>
+  <div id="settings">—</div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
