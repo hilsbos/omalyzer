@@ -232,10 +232,18 @@ pub fn hnr_db(samples: &[f32], sr: f32, f0: f32) -> f32 {
         r0
     };
 
-    // Clamp r off the asymptotes of HNR = 10*log10(r/(1-r)). The upper bound
+    // A non-positive autocorrelation at the pitch lag means this frame is not
+    // periodic at that lag (aperiodic content, or an octave/lag mismatch). Report
+    // it as genuinely unvoiced (NEG_INFINITY → mapped to None by analysis.rs)
+    // rather than clamping up to a tiny positive r, which would masquerade as a
+    // real ~-60 dB HNR measurement.
+    if r <= 0.0 {
+        return f32::NEG_INFINITY;
+    }
+    // Clamp r off the upper asymptote of HNR = 10*log10(r/(1-r)). The bound
     // 1 - 1e-7 caps the reportable HNR at ~70 dB (well above any real voice),
     // so clean tones are not artificially flattened to a low ceiling.
-    let r = r.clamp(1e-6, 1.0 - 1e-7);
+    let r = r.min(1.0 - 1e-7);
     10.0 * (r / (1.0 - r)).log10()
 }
 

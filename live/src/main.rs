@@ -72,7 +72,10 @@ struct App {
     pending: Vec<f32>,
     window: VecDeque<f32>,
     hann: Vec<f32>,
+    hann_sum: f32, // cached sum of `hann` (window-normalization denominator)
     fft: Arc<dyn Fft<f32>>,
+    win_scratch: Vec<f32>,             // reused contiguous copy of `window` per hop
+    fft_scratch: Vec<Complex<f32>>,    // reused FFT input buffer per hop
     stored_bins: usize,   // bins kept per spectrogram column (up to STORE_MAX_HZ)
     analysis_bins: usize, // bins kept in latest_lin for analysis (up to ANALYSIS_MAX_HZ)
     spec: VecDeque<Vec<f32>>, // dB columns, index 0 = oldest
@@ -100,8 +103,11 @@ struct App {
     // Most-confident vowel observed during the current held note (by confidence).
     held_vowel: Option<char>,
     held_vowel_conf: f32,
-    // Time-domain samples of the current held note, for one segment-level shimmer
-    // measurement when the note ends. Bounded so a very long hold stays cheap.
+    // Time-domain samples of the current held note. Feeds the segment-level
+    // CPPS over the full held window when the note ends (`cpps` frames the whole
+    // span); shimmer is also computed from it but only reads the buffer's tail.
+    // Bounded by `HELD_SAMPLES_MAX` so a very long hold stays cheap — shrinking
+    // this cap degrades CPPS, not shimmer.
     held_samples: Vec<f32>,
     held_f0_sum: f32, // running sum of held-note F0 for a representative f0
     held_f0_n: u32,
@@ -132,6 +138,7 @@ impl App {
         let hann: Vec<f32> = (0..FFT_SIZE)
             .map(|n| 0.5 - 0.5 * (std::f32::consts::TAU * n as f32 / (FFT_SIZE - 1) as f32).cos())
             .collect();
+        let hann_sum: f32 = hann.iter().sum();
         let fft = FftPlanner::new().plan_fft_forward(FFT_SIZE);
         let bin_hz = sample_rate / FFT_SIZE as f32;
         let stored_bins = ((STORE_MAX_HZ / bin_hz) as usize).min(FFT_SIZE / 2);
@@ -147,7 +154,10 @@ impl App {
             pending: Vec::new(),
             window: VecDeque::with_capacity(FFT_SIZE),
             hann,
+            hann_sum,
             fft,
+            win_scratch: Vec::with_capacity(FFT_SIZE),
+            fft_scratch: Vec::with_capacity(FFT_SIZE),
             stored_bins,
             analysis_bins,
             spec: VecDeque::with_capacity(SPEC_COLS),
@@ -237,7 +247,12 @@ impl App {
     fn ingest_audio(&mut self) {
         while let Ok(chunk) = self.rx.try_recv() {
             if !self.paused {
-                self.pending.extend(chunk);
+                // Sanitize device input: a single NaN/inf sample (driver glitch)
+                // would make current_rms NaN, and every gate comparison with `>`
+                // is false for NaN — wedging the silence gate (a closed gate
+                // never reopens). Replace non-finite samples with silence.
+                self.pending
+                    .extend(chunk.into_iter().map(|s| if s.is_finite() { s } else { 0.0 }));
             }
         }
         while self.pending.len() >= HOP {
@@ -277,7 +292,11 @@ impl App {
                     self.gate_hold = GATE_RELEASE_HOPS;
                 }
                 let gate_open = self.gate_open;
-                let win: Vec<f32> = self.window.iter().copied().collect();
+                // Reuse a persistent contiguous scratch copy of the window
+                // (VecDeque isn't contiguous) instead of allocating ~64 KB/hop.
+                self.win_scratch.clear();
+                self.win_scratch.extend(self.window.iter().copied());
+                let win = std::mem::take(&mut self.win_scratch);
                 let hop_index = self.hop_index;
                 self.hop_index = self.hop_index.wrapping_add(1);
                 let result = analysis::run(
@@ -312,19 +331,23 @@ impl App {
                 let onset = self.tracker.onset();
                 self.update_sustained_capture(&result, &win, onset);
 
+                // Return the scratch buffer for reuse on the next hop.
+                self.win_scratch = win;
                 self.last_result = result;
             }
         }
     }
 
     fn push_spectrum_column(&mut self) {
-        let win_sum: f32 = self.hann.iter().sum();
-        let mut buf: Vec<Complex<f32>> = self
-            .window
-            .iter()
-            .zip(&self.hann)
-            .map(|(s, w)| Complex::new(s * w, 0.0))
-            .collect();
+        let win_sum = self.hann_sum; // invariant: cached at construction
+        let mut buf = std::mem::take(&mut self.fft_scratch);
+        buf.clear();
+        buf.extend(
+            self.window
+                .iter()
+                .zip(&self.hann)
+                .map(|(s, w)| Complex::new(s * w, 0.0)),
+        );
         self.fft.process(&mut buf);
 
         // Wide window-normalized linear magnitudes (up to ANALYSIS_MAX_HZ) kept
@@ -341,6 +364,9 @@ impl App {
             .map(|m| 20.0 * (m + 1e-10).log10())
             .collect();
         self.latest_lin = lin;
+
+        // Return the FFT buffer for reuse on the next hop.
+        self.fft_scratch = buf;
 
         self.spec.push_back(col);
         while self.spec.len() > SPEC_COLS {
@@ -366,9 +392,15 @@ impl App {
         let hps = hops_per_sec(self.sample_rate);
         let rms = self.current_rms;
 
-        // Continuation only when voiced AND the onset matches the held note.
-        let continues =
-            result.voiced && matches!((onset, self.held_onset), (Some(a), Some(b)) if a == b);
+        // Continuation is keyed to the SAME onset signal the `PitchTracker`
+        // exposes, which itself tolerates up to 3 consecutive unvoiced hops
+        // before clearing the onset (vibrato troughs, breath, brief YIN/gate
+        // dropouts). So a held note continues whenever the tracker's onset is
+        // unchanged — even on a momentarily-unvoiced hop — and only finalizes
+        // when the onset actually changes or becomes `None`. (Keying off
+        // `result.voiced` instead would chop a genuinely continuous hold into
+        // sub-segments on a single transient dropout.)
+        let continues = matches!((onset, self.held_onset), (Some(a), Some(b)) if a == b);
 
         if !continues {
             // The previous held note (if any) just ended; finalize it.
@@ -390,19 +422,23 @@ impl App {
                 }
             }
         } else if let Some(mut seg) = self.held_segment.take() {
-            // Same note held: accumulate this hop (take/put-back keeps the field
-            // borrows disjoint while we also touch the other held-note fields).
-            Self::push_hop_features(&mut seg, result, rms);
+            // Same note held. A momentarily-unvoiced hop (tracker still within
+            // its 3-None tolerance) does NOT end the note: we simply skip
+            // pushing this hop's features/samples (they carry no valid F0 /
+            // would corrupt the segment) and resume on the next voiced hop.
+            if result.voiced {
+                Self::push_hop_features(&mut seg, result, rms);
+                if result.vowel_conf > self.held_vowel_conf {
+                    self.held_vowel = result.vowel;
+                    self.held_vowel_conf = result.vowel_conf;
+                }
+                Self::append_held_samples(&mut self.held_samples, win);
+                if let Some(f0) = result.f0 {
+                    self.held_f0_sum += f0;
+                    self.held_f0_n += 1;
+                }
+            }
             self.held_segment = Some(seg);
-            if result.vowel_conf > self.held_vowel_conf {
-                self.held_vowel = result.vowel;
-                self.held_vowel_conf = result.vowel_conf;
-            }
-            Self::append_held_samples(&mut self.held_samples, win);
-            if let Some(f0) = result.f0 {
-                self.held_f0_sum += f0;
-                self.held_f0_n += 1;
-            }
         }
 
         // Cheap live in-progress index while a long-enough note is held.

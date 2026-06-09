@@ -195,7 +195,10 @@ const MIN_DURATION_SECS: f32 = 1.0;
 ///   std-dev of `1200*log2(f0/median_f0)` over the segment.
 /// - `amplitude_coherence = exp(-shimmer / 0.06)` when a segment shimmer is
 ///   available, else `exp(-rms_cv / 0.15)` from the RMS coefficient of variation.
-/// - `harmonic_coherence = 0.5*clamp(mean(hnr_db)/20) + 0.5*(1 - mean(entropy))`.
+/// - `harmonic_coherence` = mean of the *present* terms among
+///   { clamp(mean(hnr_db)/20), 1 - mean(entropy), clamp(cpps/15) }; a term whose
+///   per-segment vector is empty (not measured) is dropped rather than counted as
+///   0, and an all-absent case yields a neutral 0.5.
 /// - `spectral_stability = exp(-mean(flux) / 0.3)`.
 /// - `resonance_match = 0.5*mean(vowel_conf) + 0.5*clamp(1 - mean(bw_hz)/400)`,
 ///   or `mean(vowel_conf)` alone when no formant bandwidth was measurable.
@@ -245,16 +248,28 @@ pub fn compute(seg: &SustainedSegment) -> Option<CoherenceMetrics> {
     // been measured (live, mid-hold it is `None`); then we fall back to the
     // HNR + (1-entropy) blend. CPPS_dB/15 maps a clear sustained voice (~15 dB)
     // toward 1.0 — a DEFAULT scale to be baseline-normalized per person later.
+    // Blend only the terms that were actually measured: an EMPTY hnr/entropy
+    // vector means "not measured", which must not be fed in as 0.0 (the worst
+    // value) — that would collapse the harmonic-mean composite to ~0. Mirror the
+    // bandwidth fallback below and average over present terms only.
     let hnr_mean = mean(&seg.hnr_db);
     let entropy_mean = mean(&seg.entropy);
-    let hnr_term = (hnr_mean / 20.0).clamp(0.0, 1.0);
-    let order_term = (1.0 - entropy_mean).clamp(0.0, 1.0);
-    let harmonic_coherence = match seg.cpps {
-        Some(c) => {
-            let cpps_term = (c / 15.0).clamp(0.0, 1.0);
-            ((hnr_term + order_term + cpps_term) / 3.0).clamp(0.0, 1.0)
-        }
-        None => (0.5 * hnr_term + 0.5 * order_term).clamp(0.0, 1.0),
+    let mut harm_terms: Vec<f32> = Vec::with_capacity(3);
+    if !seg.hnr_db.is_empty() {
+        harm_terms.push((hnr_mean / 20.0).clamp(0.0, 1.0));
+    }
+    if !seg.entropy.is_empty() {
+        harm_terms.push((1.0 - entropy_mean).clamp(0.0, 1.0));
+    }
+    if let Some(c) = seg.cpps {
+        harm_terms.push((c / 15.0).clamp(0.0, 1.0));
+    }
+    let harmonic_coherence = if harm_terms.is_empty() {
+        // No harmonic measurement at all: neutral mid-point rather than 0 (which
+        // would falsely declare the worst possible harmonic clarity).
+        0.5
+    } else {
+        (harm_terms.iter().sum::<f32>() / harm_terms.len() as f32).clamp(0.0, 1.0)
     };
 
     // --- spectral stability: low frame-to-frame flux -------------------------

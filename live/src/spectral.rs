@@ -158,12 +158,11 @@ pub fn alpha_ratio_db(spectrum_lin: &[f32], bin_hz: f32) -> Option<f32> {
         return None;
     }
     // eGeMAPS bands. Low is [50, 1000] Hz; high is (1000, 5000] Hz.
-    let band_energy = |lo_hz: f32, hi_hz: f32| -> f64 {
-        let lo = (lo_hz / bin_hz).ceil() as usize;
-        let hi = ((hi_hz / bin_hz).floor() as usize).min(spectrum_lin.len().saturating_sub(1));
+    let last = spectrum_lin.len().saturating_sub(1);
+    let band_energy = |lo: usize, hi: usize| -> f64 {
         let mut e = 0.0f64;
         let mut i = lo;
-        while i <= hi {
+        while i <= hi.min(last) {
             let m = spectrum_lin[i];
             if m.is_finite() {
                 e += (m as f64) * (m as f64); // power
@@ -172,8 +171,13 @@ pub fn alpha_ratio_db(spectrum_lin: &[f32], bin_hz: f32) -> Option<f32> {
         }
         e
     };
-    let e_low = band_energy(50.0, 1000.0);
-    let e_high = band_energy(1000.0 + bin_hz, 5000.0); // strictly above 1000 Hz
+    // Contiguous split at the 1 kHz boundary so no bin is dropped from both
+    // bands: the low band ends at `low_hi`, the high band starts at `low_hi + 1`.
+    let low_lo = (50.0 / bin_hz).ceil() as usize;
+    let low_hi = (1000.0 / bin_hz).floor() as usize;
+    let high_hi = (5000.0 / bin_hz).floor() as usize;
+    let e_low = band_energy(low_lo, low_hi);
+    let e_high = band_energy(low_hi + 1, high_hi);
     if e_high <= 0.0 || e_low <= 0.0 {
         return None;
     }
