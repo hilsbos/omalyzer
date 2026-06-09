@@ -5,7 +5,10 @@
 //! "perturbation"/"voicing" features and H1-H2 as a "tension/breathiness"
 //! indicator (see docs section 3.2).
 //!
-//! Pure DSP on slices: std-only, no external deps, fully unit-testable.
+//! Pure DSP on slices, fully unit-testable. The smoothed cepstrum uses rustfft
+//! (a workspace dependency) for an O(n log n) transform.
+
+use rustfft::{num_complex::Complex, FftPlanner};
 
 /// Convert a linear magnitude to dB. Guards against log of zero / negatives.
 #[allow(dead_code)] // helper for cpp(); part of the spec'd voice-quality toolbox
@@ -404,12 +407,15 @@ pub fn cpps(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     }
 }
 
-/// Real cepstrum in dB units: inverse cosine transform of the dB log-magnitude
+/// Real cepstrum in dB units: the inverse transform of the dB log-magnitude
 /// spectrum of a real signal. Returns `n/2 + 1` quefrency samples.
 ///
-/// Naive O(n^2) DFT + IDFT — std-only and adequate for the modest window sizes
-/// used here, matching the naive-DFT helper style in harmonics.rs tests.
-#[allow(dead_code)] // helper for cpp(); part of the spec'd voice-quality toolbox
+/// FFT-based (rustfft), O(n log n). This replaces a former naive O(n^2) DFT+IDFT
+/// that, at a 4096-sample window × the per-note frame count, blocked the thread
+/// for a noticeable beat when a held tone ended. The result is numerically
+/// identical (to f64 precision) to the cosine-sum form it replaced: for a real
+/// signal `|X[k]| = |X[n-k]|`, so the dB log-magnitude spectrum is real and even
+/// and its inverse transform is the same real cepstrum.
 fn real_cepstrum(signal: &[f32]) -> Vec<f32> {
     let n = signal.len();
     if n == 0 {
@@ -417,37 +423,29 @@ fn real_cepstrum(signal: &[f32]) -> Vec<f32> {
     }
     let half = n / 2;
 
-    // Log-magnitude spectrum (in dB) over the unique 0..=half bins.
-    let mut log_mag = vec![0.0f32; half + 1];
-    for (k, slot) in log_mag.iter_mut().enumerate() {
-        let mut re = 0.0f64;
-        let mut im = 0.0f64;
-        let w = -2.0 * std::f64::consts::PI * (k as f64) / (n as f64);
-        for (i, &s) in signal.iter().enumerate() {
-            let ph = w * (i as f64);
-            re += (s as f64) * ph.cos();
-            im += (s as f64) * ph.sin();
-        }
-        let mag = ((re * re + im * im).sqrt()) as f32;
-        *slot = lin_to_db(mag);
-    }
+    let mut planner = FftPlanner::<f64>::new();
+    let fft = planner.plan_fft_forward(n);
+    let ifft = planner.plan_fft_inverse(n);
 
-    // The cepstrum is the IDFT of the (real, even) log-magnitude spectrum.
-    // Reconstruct the full symmetric spectrum implicitly via a cosine sum:
-    //   c[q] = (1/n) * sum_{k=0}^{n-1} S[k] * cos(2*pi*k*q/n)
-    // where S is even-symmetric so S[k] = S[n-k] = log_mag[min(k, n-k)].
-    let mut cep = vec![0.0f32; half + 1];
-    for (q, c) in cep.iter_mut().enumerate() {
-        let mut acc = 0.0f64;
-        for k in 0..n {
-            let idx = if k <= half { k } else { n - k };
-            let s = log_mag[idx] as f64;
-            let ph = 2.0 * std::f64::consts::PI * (k as f64) * (q as f64) / (n as f64);
-            acc += s * ph.cos();
-        }
-        *c = (acc / n as f64) as f32;
-    }
-    cep
+    // Forward transform of the real windowed signal.
+    let mut buf: Vec<Complex<f64>> =
+        signal.iter().map(|&s| Complex::new(s as f64, 0.0)).collect();
+    fft.process(&mut buf);
+
+    // dB log-magnitude spectrum S[k] = lin_to_db(|X[k]|) — real and even.
+    let mut spec: Vec<Complex<f64>> = buf
+        .iter()
+        .map(|c| Complex::new(lin_to_db(c.norm() as f32) as f64, 0.0))
+        .collect();
+
+    // Inverse transform → real cepstrum. rustfft's inverse is unnormalized (× 1/n);
+    // S is real+even so the imaginary part cancels and we keep the real part.
+    ifft.process(&mut spec);
+    let inv_n = 1.0 / n as f64;
+    spec.iter()
+        .take(half + 1)
+        .map(|c| (c.re * inv_n) as f32)
+        .collect()
 }
 
 /// H1-H2 in dB: difference of the first two harmonic peak magnitudes (dB).

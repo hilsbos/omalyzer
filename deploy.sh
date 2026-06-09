@@ -17,6 +17,9 @@ DIST_ID="E27JEVRT6GNQ6O"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$HERE/web"
 
+echo "==> Building the WASM core (omalyzer-wasm)…"
+npm run wasm
+
 echo "==> Building production bundle…"
 npm run build
 
