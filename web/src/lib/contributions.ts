@@ -7,7 +7,7 @@
 // never leave a file with no row pointing at it.
 
 import { supabase } from './supabase';
-import { pcmToFlacBlob } from './flac';
+import { pcmToWavBlob } from './wav';
 
 /** The analysis payload the LivePage record produces, flattened for storage. */
 export interface OmContribution {
@@ -65,15 +65,15 @@ export async function saveOm(c: OmContribution): Promise<SavedOm> {
   }
   const userId = userData.user.id;
   const omId = crypto.randomUUID();
-  const audioPath = `${userId}/${omId}.flac`;
+  const audioPath = `${userId}/${omId}.wav`;
 
-  // 1. encode the retained PCM to FLAC (off the click handler; this awaits).
-  const blob = await pcmToFlacBlob(c.pcm, c.sampleRate);
+  // 1. encode the retained PCM to WAV (pure JS, synchronous).
+  const blob = pcmToWavBlob(c.pcm, c.sampleRate);
 
   // 2. upload to the private bucket under the user's own prefix.
   const { error: upErr } = await supabase.storage
     .from('oms')
-    .upload(audioPath, blob, { contentType: 'audio/flac', upsert: false });
+    .upload(audioPath, blob, { contentType: 'audio/wav', upsert: false });
   if (upErr) throw new Error(`Audio upload failed: ${upErr.message}`);
 
   // From here, roll the object back on any failure.
