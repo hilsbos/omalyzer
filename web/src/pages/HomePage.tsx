@@ -29,7 +29,7 @@ export default function HomePage() {
           <Link className={styles.ctaPrimary} to="/analyze">
             Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.ctaSecondary} to="/analyze">
+          <Link className={styles.ctaSecondary} to="/signin">
             Sign up to contribute your oms
           </Link>
         </div>
@@ -83,7 +83,7 @@ export default function HomePage() {
             Try it now — no account needed{' '}
             <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.ctaSecondary} to="/analyze">
+          <Link className={styles.ctaSecondary} to="/signin">
             Create an account
           </Link>
         </div>
