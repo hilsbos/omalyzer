@@ -60,6 +60,15 @@ export function useAnalyzer() {
   const gateRef = useRef<number>(GATE_DB);
   const [gateDb, setGateDbState] = useState<number>(GATE_DB);
 
+  // Parallel raw-PCM tap for FLAC capture. While `recordingRef.active` is true,
+  // every worklet hop (the same Float32 the WASM core consumes) is COPIED into
+  // `chunks`. This is a passive copy — it never touches the analyzer's stream, so
+  // analysis stays uncorrupted. Caps at a generous ~30 s @ 48 kHz to bound memory.
+  const recordingRef = useRef<{ active: boolean; chunks: Float32Array[]; length: number }>(
+    { active: false, chunks: [], length: 0 },
+  );
+  const MAX_RECORD_SAMPLES = 48000 * 30;
+
   /** Update the RMS silence-gate threshold (the one display control that feeds
    *  back into the DSP). Applies live if the analyzer is running. */
   const setGate = useCallback((db: number) => {
@@ -183,7 +192,15 @@ export function useAnalyzer() {
 
     // 5. Each hop -> push into the WASM core (per 4096-sample boundary).
     node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
-      analyzerRef.current?.push_samples(ev.data);
+      const hop = ev.data;
+      // Parallel record tap: copy the hop BEFORE handing it to WASM (push_samples
+      // may neuter/consume the transferred buffer). The copy is independent memory.
+      const rec = recordingRef.current;
+      if (rec.active && rec.length < MAX_RECORD_SAMPLES) {
+        rec.chunks.push(Float32Array.from(hop));
+        rec.length += hop.length;
+      }
+      analyzerRef.current?.push_samples(hop);
     };
     src.connect(node); // no connect to destination (numberOfOutputs:0 still pulls)
 
@@ -221,5 +238,36 @@ export function useAnalyzer() {
     return analyzerRef.current.snapshot() as Snapshot;
   }, []);
 
-  return { snapshot, status, start, stop, peek, getHistory, gateDb, setGate };
+  /** Begin retaining a copy of every worklet hop for FLAC capture. */
+  const startRecording = useCallback(() => {
+    recordingRef.current = { active: true, chunks: [], length: 0 };
+  }, []);
+
+  /** Stop retaining hops and return the concatenated mono PCM for the window. */
+  const stopRecording = useCallback((): Float32Array => {
+    const rec = recordingRef.current;
+    rec.active = false;
+    const out = new Float32Array(rec.length);
+    let off = 0;
+    for (const c of rec.chunks) {
+      out.set(c, off);
+      off += c.length;
+    }
+    rec.chunks = [];
+    rec.length = 0;
+    return out;
+  }, []);
+
+  return {
+    snapshot,
+    status,
+    start,
+    stop,
+    peek,
+    getHistory,
+    gateDb,
+    setGate,
+    startRecording,
+    stopRecording,
+  };
 }

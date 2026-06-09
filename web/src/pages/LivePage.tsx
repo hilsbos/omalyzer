@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAnalyzer } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
 import Hero from '../components/Hero';
@@ -6,9 +7,12 @@ import CoherencePanel from '../components/CoherencePanel';
 import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
+import ConsentStep, { type ConsentChoice } from '../components/ConsentStep';
 import Spectrogram from '../viz/Spectrogram';
 import PitchTrack from '../viz/PitchTrack';
 import VowelChart from '../viz/VowelChart';
+import { useAuth } from '../auth/AuthProvider';
+import { saveOm, type OmContribution } from '../lib/contributions';
 import styles from './LivePage.module.css';
 
 const RECORD_SECONDS = 5;
@@ -22,8 +26,29 @@ function meanOf(values: Array<number | null | undefined>): number | null {
   return xs.reduce((a, b) => a + b, 0) / xs.length;
 }
 
+/** A coarse capture-device hint stored as a fidelity covariate (not identifying). */
+function deriveDeviceLabel(settings: MediaTrackSettings | null): string | null {
+  const isMobile =
+    typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const kind = isMobile ? 'mobile' : 'desktop';
+  const label = (settings as { label?: string } | null)?.label;
+  return label ? `${kind} · ${label}` : kind;
+}
+
 export default function LivePage() {
-  const { snapshot, status, start, stop, peek, getHistory, gateDb, setGate } = useAnalyzer();
+  const {
+    snapshot,
+    status,
+    start,
+    stop,
+    peek,
+    getHistory,
+    gateDb,
+    setGate,
+    startRecording,
+    stopRecording,
+  } = useAnalyzer();
+  const { session } = useAuth();
   const [controls, setControls] = useState<DisplayControls>({
     maxFreqHz: 1000,
     dbFloor: -90,
@@ -33,6 +58,12 @@ export default function LivePage() {
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState<RecordResult | null>(null);
   const recTimerRef = useRef<number | null>(null);
+  // The retained mono PCM for the most recent record window (FLAC source).
+  const pcmRef = useRef<Float32Array | null>(null);
+  // The last detail-bearing snapshot of the window (feeds om_features).
+  const detailRef = useRef<Snapshot | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const s: Snapshot | null = snapshot;
   const latestHop = s?.hop_index ?? 0;
@@ -41,6 +72,11 @@ export default function LivePage() {
     if (!status.running || recording) return;
     setRecording(true);
     setResult(null);
+    setSaveState('idle');
+    setSaveError(null);
+    pcmRef.current = null;
+    detailRef.current = null;
+    startRecording(); // begin the parallel raw-PCM tap
     const frames: Snapshot[] = [];
     const id = window.setInterval(() => {
       const snap = peek();
@@ -50,7 +86,9 @@ export default function LivePage() {
     window.setTimeout(() => {
       window.clearInterval(id);
       recTimerRef.current = null;
+      pcmRef.current = stopRecording(); // pull the concatenated mono PCM
       const last = frames.length ? frames[frames.length - 1] : null;
+      detailRef.current = last;
       const voicedFraction = frames.length
         ? frames.filter((fr) => fr.voiced).length / frames.length
         : 0;
@@ -82,7 +120,7 @@ export default function LivePage() {
       setResult(res);
       setRecording(false);
     }, RECORD_SECONDS * 1000);
-  }, [status, recording, peek]);
+  }, [status, recording, peek, startRecording, stopRecording]);
 
   const downloadJson = useCallback(() => {
     if (!result) return;
@@ -96,6 +134,70 @@ export default function LivePage() {
     a.remove();
     URL.revokeObjectURL(url);
   }, [result]);
+
+  const handleSave = useCallback(
+    async (choice: ConsentChoice) => {
+      if (!result || !pcmRef.current || !result.sampleRate) {
+        setSaveError('Nothing captured to save — record a tone first.');
+        return;
+      }
+      const pcm = pcmRef.current;
+      const d = detailRef.current; // the last snapshot of the window (detail block)
+      setSaveState('saving');
+      setSaveError(null);
+      try {
+        const deviceLabel = deriveDeviceLabel(result.settings);
+        const contribution: OmContribution = {
+          pcm,
+          sampleRate: result.sampleRate,
+          durationSecs: result.windowSeconds,
+          vowel: result.lastCoherence.vowel ?? d?.vowel ?? null,
+          note: d?.note ?? null,
+          f0Mean: result.averaged.f0Hz,
+          deviceLabel,
+          micSettings: result.settings,
+          consentShare: choice.share,
+          coherenceIndex: result.lastCoherence.index,
+          subMetrics: {
+            pitch_coherence: result.lastCoherence.pitchCoherence,
+            amplitude_coherence: result.lastCoherence.amplitudeCoherence,
+            harmonic_coherence: result.lastCoherence.harmonicCoherence,
+            spectral_stability: result.lastCoherence.spectralStability,
+            resonance_match: result.lastCoherence.resonanceMatch,
+          },
+          hnrDb: d?.detail_hnr_db ?? result.averaged.hnrDb,
+          jitterCents: d?.detail_f0_cents_std ?? null,
+          alphaRatioDb: d?.detail_alpha_ratio_db ?? null,
+          cppsDb: d?.detail_cpps_db ?? null,
+          formants: {
+            f1: d?.f1 ?? null,
+            f2: d?.f2 ?? null,
+            f3: d?.f3 ?? null,
+            bandwidth_hz: d?.detail_bandwidth_hz ?? null,
+          },
+          // The wider Snapshot detail superset (mirrors the JSON export).
+          rawFeatures: {
+            shimmer: d?.detail_shimmer ?? null,
+            rms_cv: d?.detail_rms_cv ?? null,
+            entropy: d?.detail_entropy ?? null,
+            flux: d?.detail_flux ?? null,
+            vowel_conf: d?.detail_vowel_conf ?? null,
+            f0_var_st: d?.detail_f0_var_st ?? null,
+            mean_f0_hz: d?.detail_mean_f0_hz ?? null,
+            voiced_fraction: result.averaged.voicedFraction,
+            frames: result.frames,
+            warnings: result.warnings,
+          },
+        };
+        await saveOm(contribution);
+        setSaveState('saved');
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : String(e));
+        setSaveState('idle');
+      }
+    },
+    [result],
+  );
 
   return (
     <div className={styles.app}>
@@ -190,6 +292,27 @@ export default function LivePage() {
             <button type="button" className={styles.recordBtn} onClick={downloadJson}>
               Download JSON
             </button>
+
+            {/* Saving is the logged-in path; Download JSON above works logged out. */}
+            <div style={{ marginTop: '0.75rem' }}>
+              {saveState === 'saved' ? (
+                <p className={styles.exportNote}>
+                  Saved to your account.{' '}
+                  <Link to="/dashboard">View it in your dashboard.</Link>
+                </p>
+              ) : session ? (
+                <ConsentStep
+                  saving={saveState === 'saving'}
+                  error={saveError}
+                  onSave={(c) => void handleSave(c)}
+                />
+              ) : (
+                <p className={styles.exportNote}>
+                  <Link to="/signin">Sign in</Link> to save this recording to your
+                  private account. Analysis stays on your device until you do.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

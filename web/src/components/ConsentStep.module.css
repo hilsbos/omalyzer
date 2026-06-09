@@ -1,0 +1,70 @@
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.intro {
+  margin: 0;
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+.intro strong {
+  color: var(--fg);
+}
+.row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.row input {
+  margin-top: 0.15rem;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+.row strong {
+  color: var(--fg);
+}
+.fine {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.74rem;
+}
+.fine a {
+  color: var(--accent);
+}
+.error {
+  margin: 0;
+  color: var(--error);
+}
+.saveBtn {
+  align-self: flex-start;
+  min-height: var(--tap);
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--accent);
+  color: #04243a;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: var(--panel-bg-2);
+  color: var(--fg);
+}
+.hint {
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+}
