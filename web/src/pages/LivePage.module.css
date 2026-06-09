@@ -59,12 +59,13 @@
   gap: 1px; /* 1px seams → reads as a console */
   background-color: var(--plate-rule); /* seam color shows through gap */
   grid-template-columns: 1fr 1fr minmax(20rem, 22rem);
-  grid-template-rows: auto auto 1fr minmax(150px, 0.42fr) auto;
+  grid-template-rows: auto auto 1fr minmax(150px, 0.42fr) auto auto;
   grid-template-areas:
-    'appbar    appbar   appbar'
-    'alerts    alerts   alerts'
-    'spectro   spectro  rail'
-    'pitch     vowel    rail'
+    'appbar    appbar    appbar'
+    'alerts    alerts    alerts'
+    'spectro   spectro   rail'
+    'pitch     vowel     rail'
+    'captured  captured  captured'
     'transport transport transport';
 }
 
@@ -88,6 +89,9 @@
 }
 .transport {
   grid-area: transport;
+}
+.captured {
+  grid-area: captured;
 }
 .tabbar {
   display: none;
@@ -288,26 +292,18 @@
   background: var(--error);
   color: var(--plate-bg);
 }
-.recBtn {
-  min-height: 2.4rem;
-  padding: 0 var(--s-md);
-  border: 1px solid var(--plate-rule);
-  border-radius: 0;
-  background: var(--plate-bg-2);
-  color: var(--data-low-plate);
+/* live capture hint — sits where Record was */
+.captureHint {
+  color: var(--on-plate-soft);
   font-family: var(--mono);
-  cursor: pointer;
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
 }
-.recBtn[data-recording='true'] {
-  color: var(--error);
+.captureHint[data-capturing='true'] {
+  color: var(--data-high-plate);
   animation: pulse 1.4s ease-in-out infinite;
 }
-.recBtn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.startStop:focus-visible,
-.recBtn:focus-visible {
+.startStop:focus-visible {
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
@@ -375,16 +371,6 @@
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
-.gearDot {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: var(--data-high-plate);
-  box-shadow: 0 0 0 1px var(--plate-frame);
-}
 .drawerToggle {
   min-height: 2.4rem;
   padding: 0 var(--s-md);
@@ -403,22 +389,67 @@
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
-.resultPill {
-  min-height: 2.4rem;
-  padding: 0 var(--s-md);
-  border: 1px solid var(--data-high-plate);
-  border-radius: 0;
-  background: transparent;
-  color: var(--data-high-plate);
+/* ====================== CAPTURED-OM BAND ================================ */
+.captured {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-sm);
+  padding: var(--s-xs) var(--s-sm);
+  background: var(--plate-bg-2);
+  border-top: 1px solid var(--data-high-plate); /* a lit seam: "new" */
   font-family: var(--mono);
   font-size: var(--t-label);
+  color: var(--fg);
+}
+.capturedHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--on-plate);
+}
+.capturedHead strong {
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+.capturedActions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+.capturedBtns {
+  display: flex;
+  gap: var(--s-xs);
+}
+.discardBtn {
+  min-height: 2.4rem;
+  padding: 0 var(--s-md);
+  border-radius: 0;
+  border: 1px solid var(--plate-rule);
+  background: transparent;
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
   cursor: pointer;
 }
-.resultPill:hover {
-  background: rgba(127, 168, 110, 0.12);
+.discardBtn:hover {
+  color: var(--error);
+  border-color: var(--error);
 }
-.resultPill:focus-visible {
-  outline: 2px solid var(--data-high-plate);
+.savedMsg {
+  color: var(--data-high-plate);
+}
+.signInMsg {
+  color: var(--fg-muted);
+}
+.savedMsg :global(a),
+.signInMsg :global(a) {
+  color: var(--on-plate);
+}
+.captured *:focus-visible {
+  outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
 
@@ -503,35 +534,6 @@
 .drawerClose:focus-visible {
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
-}
-.drawerHint {
-  margin-top: var(--s-md);
-  color: var(--fg-muted);
-  font-size: var(--t-label);
-}
-
-/* ── Export card (reused inside the drawer; parchment-card look on dark) ── */
-.export {
-  margin-top: var(--s-md);
-  background: var(--panel-bg);
-  border: 1px solid var(--rule);
-  border-radius: 0;
-  padding: var(--s-sm);
-  color: var(--fg);
-}
-.exportNote {
-  color: var(--fg-muted);
-  font-size: var(--t-label);
-}
-.pre {
-  background: var(--plate-bg);
-  color: var(--on-plate);
-  border: 1px solid var(--plate-rule);
-  padding: var(--s-xs);
-  border-radius: 0;
-  overflow-x: auto;
-  font-family: var(--mono);
-  font-size: 0.72rem;
 }
 .recordBtn {
   min-height: var(--tap);
@@ -619,12 +621,16 @@
   }
   /* >=44px touch targets on phone */
   .startStop,
-  .recBtn,
   .drawerToggle,
-  .resultPill,
   .gear,
-  .drawerClose {
+  .drawerClose,
+  .recordBtn,
+  .discardBtn {
     min-height: var(--tap);
+  }
+  /* captured-om band falls naturally between the active cell and the transport */
+  .captured {
+    flex: 0 0 auto;
   }
   /* drawer goes full-width on the narrowest screens */
   .drawer {

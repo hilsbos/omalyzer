@@ -11,6 +11,24 @@ export interface AnalyzerStatus {
   error: string | null;
 }
 
+/**
+ * One completed "om": a single sustained tone the user held (>= 2.5 s),
+ * captured the moment the core finalized its coherence. Audio, duration, and
+ * coherence snapshot are all aligned to the same tone.
+ */
+export interface Om {
+  /** Raw mono PCM of the held tone (the worklet's uncorrupted Float32 stream). */
+  pcm: Float32Array;
+  /** Tone duration in seconds (core's last_coherence_secs for this tone). */
+  durationSecs: number;
+  /** Capture sample rate (Hz) the PCM is at. */
+  sampleRate: number;
+  /** The completing snapshot — its last_coherence_* / detail_* describe THIS tone. */
+  snapshot: Snapshot;
+  /** Wall-clock ms (Date.now()) when captured. */
+  capturedAt: number;
+}
+
 /** Rolling per-hop histories the canvases read (filled only on new hops). */
 export interface AnalyzerHistory {
   /** Newest-last ring of display dB columns (Float32) for the spectrogram. */
@@ -35,6 +53,8 @@ const MAX_VOWEL = 760;
  */
 export function useAnalyzer() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [lastOm, setLastOm] = useState<Om | null>(null);
+  const sampleRateRef = useRef<number>(48000);
   const [status, setStatus] = useState<AnalyzerStatus>({
     running: false,
     sampleRate: null,
@@ -60,14 +80,21 @@ export function useAnalyzer() {
   const gateRef = useRef<number>(GATE_DB);
   const [gateDb, setGateDbState] = useState<number>(GATE_DB);
 
-  // Parallel raw-PCM tap for FLAC capture. While `recordingRef.active` is true,
-  // every worklet hop (the same Float32 the WASM core consumes) is COPIED into
-  // `chunks`. This is a passive copy — it never touches the analyzer's stream, so
-  // analysis stays uncorrupted. Caps at a generous ~30 s @ 48 kHz to bound memory.
-  const recordingRef = useRef<{ active: boolean; chunks: Float32Array[]; length: number }>(
-    { active: false, chunks: [], length: 0 },
-  );
-  const MAX_RECORD_SAMPLES = 48000 * 30;
+  // Continuous rolling raw-PCM tap. While the analyzer runs, EVERY worklet hop
+  // (the same Float32 the WASM core consumes) is COPIED into a bounded ring so
+  // that, the instant the core reports a held tone completed, we can slice that
+  // tone's audio out of recent history. Passive copy — never touches the
+  // analyzer's stream, so analysis stays uncorrupted. ~30 s @ 48 kHz bounds memory.
+  const rollingRef = useRef<{ chunks: Float32Array[]; length: number }>({
+    chunks: [],
+    length: 0,
+  });
+  const MAX_ROLLING_SAMPLES = 48000 * 30;
+
+  // Edge-detection of the core's monotonic completion counter. -1 = uninitialized
+  // (first snapshot seeds it without firing, so a tone completed before this hook
+  // started polling can't spuriously capture).
+  const lastSeqRef = useRef<number>(-1);
 
   /** Update the RMS silence-gate threshold (the one display control that feeds
    *  back into the DSP). Applies live if the analyzer is running. */
@@ -80,6 +107,8 @@ export function useAnalyzer() {
   const resetHistory = () => {
     historyRef.current = { columns: [], pitch: [], vowel: [] };
     lastHopRef.current = -1;
+    rollingRef.current = { chunks: [], length: 0 };
+    lastSeqRef.current = -1;
   };
 
   // Append a snapshot to the histories, but only when a NEW hop has landed (the
@@ -103,12 +132,57 @@ export function useAnalyzer() {
     }
   };
 
+  // When the core's completion counter increments, a held tone (>= 2.5 s) just
+  // finalized. Slice its audio out of the rolling tap by the tone's reported
+  // duration and bundle it with the completing snapshot into `lastOm`.
+  const captureCompletedOm = (snap: Snapshot) => {
+    const seq = snap.coherence_seq;
+    // Seed on first sight without firing (a pre-poll completion can't capture).
+    if (lastSeqRef.current === -1) {
+      lastSeqRef.current = seq;
+      return;
+    }
+    if (seq === lastSeqRef.current) return;
+    lastSeqRef.current = seq;
+
+    const sr = sampleRateRef.current;
+    const want = Math.max(1, Math.round(snap.last_coherence_secs * sr));
+
+    // Flatten the rolling ring, then take the LAST `want` samples — that tail is
+    // the held tone (plus the few release-hold hops the gate added; a small
+    // trailing offset is acceptable per spec). Clamp to what's buffered.
+    const roll = rollingRef.current;
+    const total = roll.length;
+    const take = Math.min(want, total);
+    const pcm = new Float32Array(take);
+    // Walk chunks from the end, filling pcm back-to-front.
+    let need = take;
+    let writeEnd = take;
+    for (let i = roll.chunks.length - 1; i >= 0 && need > 0; i--) {
+      const c = roll.chunks[i];
+      const from = Math.max(0, c.length - need);
+      const slice = c.subarray(from);
+      writeEnd -= slice.length;
+      pcm.set(slice, writeEnd);
+      need -= slice.length;
+    }
+
+    setLastOm({
+      pcm,
+      durationSecs: snap.last_coherence_secs,
+      sampleRate: sr,
+      snapshot: snap,
+      capturedAt: Date.now(),
+    });
+  };
+
   /** Read the rolling histories (read-only; do not mutate). */
   const getHistory = useCallback((): AnalyzerHistory => historyRef.current, []);
 
   // Teardown: cancel rAF, disconnect graph, stop tracks, close ctx, drop wasm.
   const stop = useCallback(() => {
     runningRef.current = false;
+    rollingRef.current = { chunks: [], length: 0 };
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
 
@@ -165,6 +239,7 @@ export function useAnalyzer() {
     ctxRef.current = ctx;
     await ctx.resume(); // gesture-gated; runs inside the user click handler
     const sr = ctx.sampleRate;
+    sampleRateRef.current = sr;
     if (sr <= 16000) {
       warnings.push(
         `sampleRate ${sr} Hz looks like a 16 kHz Bluetooth route — ` +
@@ -193,12 +268,15 @@ export function useAnalyzer() {
     // 5. Each hop -> push into the WASM core (per 4096-sample boundary).
     node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
       const hop = ev.data;
-      // Parallel record tap: copy the hop BEFORE handing it to WASM (push_samples
-      // may neuter/consume the transferred buffer). The copy is independent memory.
-      const rec = recordingRef.current;
-      if (rec.active && rec.length < MAX_RECORD_SAMPLES) {
-        rec.chunks.push(Float32Array.from(hop));
-        rec.length += hop.length;
+      // Continuous rolling tap: copy the hop BEFORE handing it to WASM
+      // (push_samples may neuter/consume the transferred buffer). Independent
+      // memory; trim oldest chunks once the ring exceeds the cap.
+      const roll = rollingRef.current;
+      roll.chunks.push(Float32Array.from(hop));
+      roll.length += hop.length;
+      while (roll.length > MAX_ROLLING_SAMPLES && roll.chunks.length > 1) {
+        roll.length -= roll.chunks[0].length;
+        roll.chunks.shift();
       }
       analyzerRef.current?.push_samples(hop);
     };
@@ -210,6 +288,7 @@ export function useAnalyzer() {
       if (!runningRef.current || !analyzerRef.current) return;
       const snap = analyzerRef.current.snapshot() as Snapshot;
       accumulate(snap);
+      captureCompletedOm(snap);
       setSnapshot(snap);
       rafRef.current = requestAnimationFrame(paint);
     };
@@ -238,25 +317,8 @@ export function useAnalyzer() {
     return analyzerRef.current.snapshot() as Snapshot;
   }, []);
 
-  /** Begin retaining a copy of every worklet hop for FLAC capture. */
-  const startRecording = useCallback(() => {
-    recordingRef.current = { active: true, chunks: [], length: 0 };
-  }, []);
-
-  /** Stop retaining hops and return the concatenated mono PCM for the window. */
-  const stopRecording = useCallback((): Float32Array => {
-    const rec = recordingRef.current;
-    rec.active = false;
-    const out = new Float32Array(rec.length);
-    let off = 0;
-    for (const c of rec.chunks) {
-      out.set(c, off);
-      off += c.length;
-    }
-    rec.chunks = [];
-    rec.length = 0;
-    return out;
-  }, []);
+  /** Drop the last captured om (e.g. after the user saves or discards it). */
+  const clearLastOm = useCallback(() => setLastOm(null), []);
 
   return {
     snapshot,
@@ -267,7 +329,7 @@ export function useAnalyzer() {
     getHistory,
     gateDb,
     setGate,
-    startRecording,
-    stopRecording,
+    lastOm,
+    clearLastOm,
   };
 }

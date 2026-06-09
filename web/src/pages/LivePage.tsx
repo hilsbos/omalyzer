@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAnalyzer } from '../hooks/useAnalyzer';
+import { useAnalyzer, type Om } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
 import CoherencePanel from '../components/CoherencePanel';
 import StateSignals from '../components/StateSignals';
@@ -14,16 +14,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { saveOm, type OmContribution } from '../lib/contributions';
 import styles from './LivePage.module.css';
 
-const RECORD_SECONDS = 5;
 const STORE_MAX_HZ = 4000; // matches core STORE_MAX_HZ
-
-const f1 = (v: number | null | undefined) => (v == null ? '—' : v.toFixed(1));
-
-function meanOf(values: Array<number | null | undefined>): number | null {
-  const xs = values.filter((v): v is number => v != null && Number.isFinite(v));
-  if (xs.length === 0) return null;
-  return xs.reduce((a, b) => a + b, 0) / xs.length;
-}
 
 /** A coarse capture-device hint stored as a fidelity covariate (not identifying). */
 function deriveDeviceLabel(settings: MediaTrackSettings | null): string | null {
@@ -35,18 +26,8 @@ function deriveDeviceLabel(settings: MediaTrackSettings | null): string | null {
 }
 
 export default function LivePage() {
-  const {
-    snapshot,
-    status,
-    start,
-    stop,
-    peek,
-    getHistory,
-    gateDb,
-    setGate,
-    startRecording,
-    stopRecording,
-  } = useAnalyzer();
+  const { snapshot, status, start, stop, getHistory, gateDb, setGate, lastOm, clearLastOm } =
+    useAnalyzer();
   const { session } = useAuth();
   const [controls, setControls] = useState<DisplayControls>({
     maxFreqHz: 1000,
@@ -55,18 +36,17 @@ export default function LivePage() {
   });
   const [tab, setTab] = useState<SecondaryTab>('coherence');
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [result, setResult] = useState<RecordResult | null>(null);
-  const recTimerRef = useRef<number | null>(null);
-  // The retained mono PCM for the most recent record window (FLAC source).
-  const pcmRef = useRef<Float32Array | null>(null);
-  // The last detail-bearing snapshot of the window (feeds om_features).
-  const detailRef = useRef<Snapshot | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const s: Snapshot | null = snapshot;
   const latestHop = s?.hop_index ?? 0;
+
+  // A fresh om (new completed tone) replaces the prior card — reset its save UI.
+  useEffect(() => {
+    setSaveState('idle');
+    setSaveError(null);
+  }, [lastOm?.capturedAt]);
 
   // ── Transport: elapsed timer (wraps start/stop; never touches DSP) ──────────
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -113,131 +93,59 @@ export default function LivePage() {
   const levelNorm = Math.min(1, Math.max(0, ((s?.rms_db ?? -60) + 60) / 60));
   const levelLit = Math.round(levelNorm * LEVEL_SEGMENTS);
 
-  // A completed recording surfaces a "results ready — open" affordance until
-  // the user opens the drawer to act on it.
-  const hasUnseenResult = result != null && !drawerOpen;
+  // `live_coherence_index` is non-null precisely while a long-enough tone is
+  // mid-hold — the correct "capturing…" signal.
+  const capturing = s?.live_coherence_index != null;
 
-  const openResults = useCallback(() => setDrawerOpen(true), []);
-
-  const record = useCallback(() => {
-    if (!status.running || recording) return;
-    setRecording(true);
-    setResult(null);
-    setSaveState('idle');
-    setSaveError(null);
-    pcmRef.current = null;
-    detailRef.current = null;
-    startRecording(); // begin the parallel raw-PCM tap
-    const frames: Snapshot[] = [];
-    const id = window.setInterval(() => {
-      const snap = peek();
-      if (snap) frames.push(snap);
-    }, 50);
-    recTimerRef.current = id;
-    window.setTimeout(() => {
-      window.clearInterval(id);
-      recTimerRef.current = null;
-      pcmRef.current = stopRecording(); // pull the concatenated mono PCM
-      const last = frames.length ? frames[frames.length - 1] : null;
-      detailRef.current = last;
-      const voicedFraction = frames.length
-        ? frames.filter((fr) => fr.voiced).length / frames.length
-        : 0;
-      const res: RecordResult = {
-        capturedAt: new Date().toISOString(),
-        windowSeconds: RECORD_SECONDS,
-        frames: frames.length,
-        sampleRate: status.sampleRate,
-        settings: status.settings,
-        warnings: status.warnings,
-        averaged: {
-          voicedFraction,
-          f0Hz: meanOf(frames.filter((fr) => fr.voiced).map((fr) => fr.f0)),
-          hnrDb: meanOf(frames.filter((fr) => fr.voiced).map((fr) => fr.hnr_db)),
-          rmsDb: meanOf(frames.map((fr) => fr.rms_db)),
-          liveCoherenceIndex: meanOf(frames.map((fr) => fr.live_coherence_index)),
-        },
-        lastCoherence: {
-          index: last?.last_coherence_index ?? null,
-          secs: last?.last_coherence_secs ?? 0,
-          vowel: last?.last_coherence_vowel ?? null,
-          pitchCoherence: last?.pitch_coherence ?? null,
-          amplitudeCoherence: last?.amplitude_coherence ?? null,
-          harmonicCoherence: last?.harmonic_coherence ?? null,
-          spectralStability: last?.spectral_stability ?? null,
-          resonanceMatch: last?.resonance_match ?? null,
-        },
-      };
-      setResult(res);
-      setRecording(false);
-    }, RECORD_SECONDS * 1000);
-  }, [status, recording, peek, startRecording, stopRecording]);
-
-  const downloadJson = useCallback(() => {
-    if (!result) return;
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `omalyzer-${result.capturedAt.replace(/[:.]/g, '-')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, [result]);
-
+  // ── Save the captured om — REAL duration + aligned PCM from `lastOm`. ──────
   const handleSave = useCallback(
     async (choice: ConsentChoice) => {
-      if (!result || !pcmRef.current || !result.sampleRate) {
-        setSaveError('Nothing captured to save — record a tone first.');
+      if (!lastOm || !lastOm.sampleRate) {
+        setSaveError('Nothing captured to save — hold a tone first.');
         return;
       }
-      const pcm = pcmRef.current;
-      const d = detailRef.current; // the last snapshot of the window (detail block)
+      const d = lastOm.snapshot; // the latched completed-tone snapshot
       setSaveState('saving');
       setSaveError(null);
       try {
-        const deviceLabel = deriveDeviceLabel(result.settings);
         const contribution: OmContribution = {
-          pcm,
-          sampleRate: result.sampleRate,
-          durationSecs: result.windowSeconds,
-          vowel: result.lastCoherence.vowel ?? d?.vowel ?? null,
-          note: d?.note ?? null,
-          f0Mean: result.averaged.f0Hz,
-          deviceLabel,
-          micSettings: result.settings,
+          pcm: lastOm.pcm, // ALIGNED held-tone clip
+          sampleRate: lastOm.sampleRate,
+          durationSecs: lastOm.durationSecs, // REAL held-tone duration (last_coherence_secs)
+          vowel: d.last_coherence_vowel ?? d.vowel ?? null,
+          note: d.note ?? null,
+          f0Mean: d.detail_mean_f0_hz ?? d.f0 ?? null,
+          deviceLabel: deriveDeviceLabel(status.settings),
+          micSettings: status.settings,
           consentShare: choice.share,
-          coherenceIndex: result.lastCoherence.index,
+          coherenceIndex: d.last_coherence_index,
           subMetrics: {
-            pitch_coherence: result.lastCoherence.pitchCoherence,
-            amplitude_coherence: result.lastCoherence.amplitudeCoherence,
-            harmonic_coherence: result.lastCoherence.harmonicCoherence,
-            spectral_stability: result.lastCoherence.spectralStability,
-            resonance_match: result.lastCoherence.resonanceMatch,
+            pitch_coherence: d.pitch_coherence,
+            amplitude_coherence: d.amplitude_coherence,
+            harmonic_coherence: d.harmonic_coherence,
+            spectral_stability: d.spectral_stability,
+            resonance_match: d.resonance_match,
           },
-          hnrDb: d?.detail_hnr_db ?? result.averaged.hnrDb,
-          jitterCents: d?.detail_f0_cents_std ?? null,
-          alphaRatioDb: d?.detail_alpha_ratio_db ?? null,
-          cppsDb: d?.detail_cpps_db ?? null,
+          hnrDb: d.detail_hnr_db,
+          jitterCents: d.detail_f0_cents_std,
+          alphaRatioDb: d.detail_alpha_ratio_db,
+          cppsDb: d.detail_cpps_db,
           formants: {
-            f1: d?.f1 ?? null,
-            f2: d?.f2 ?? null,
-            f3: d?.f3 ?? null,
-            bandwidth_hz: d?.detail_bandwidth_hz ?? null,
+            f1: d.f1,
+            f2: d.f2,
+            f3: d.f3,
+            bandwidth_hz: d.detail_bandwidth_hz,
           },
-          // The wider Snapshot detail superset (mirrors the JSON export).
           rawFeatures: {
-            shimmer: d?.detail_shimmer ?? null,
-            rms_cv: d?.detail_rms_cv ?? null,
-            entropy: d?.detail_entropy ?? null,
-            flux: d?.detail_flux ?? null,
-            vowel_conf: d?.detail_vowel_conf ?? null,
-            f0_var_st: d?.detail_f0_var_st ?? null,
-            mean_f0_hz: d?.detail_mean_f0_hz ?? null,
-            voiced_fraction: result.averaged.voicedFraction,
-            frames: result.frames,
-            warnings: result.warnings,
+            shimmer: d.detail_shimmer,
+            rms_cv: d.detail_rms_cv,
+            entropy: d.detail_entropy,
+            flux: d.detail_flux,
+            vowel_conf: d.detail_vowel_conf,
+            f0_var_st: d.detail_f0_var_st,
+            mean_f0_hz: d.detail_mean_f0_hz,
+            captured_at: new Date(lastOm.capturedAt).toISOString(),
+            warnings: status.warnings,
           },
         };
         await saveOm(contribution);
@@ -247,8 +155,56 @@ export default function LivePage() {
         setSaveState('idle');
       }
     },
-    [result],
+    [lastOm, status.settings, status.warnings],
   );
+
+  // Export the captured om as JSON (features only; PCM is not serialized).
+  const downloadJson = useCallback(() => {
+    if (!lastOm) return;
+    const d = lastOm.snapshot;
+    const capturedAt = new Date(lastOm.capturedAt).toISOString();
+    const payload = {
+      capturedAt,
+      durationSecs: lastOm.durationSecs,
+      sampleRate: lastOm.sampleRate,
+      vowel: d.last_coherence_vowel ?? d.vowel,
+      note: d.note,
+      coherenceIndex: d.last_coherence_index,
+      subMetrics: {
+        pitch_coherence: d.pitch_coherence,
+        amplitude_coherence: d.amplitude_coherence,
+        harmonic_coherence: d.harmonic_coherence,
+        spectral_stability: d.spectral_stability,
+        resonance_match: d.resonance_match,
+      },
+      detail: {
+        f0_cents_std: d.detail_f0_cents_std,
+        f0_var_st: d.detail_f0_var_st,
+        mean_f0_hz: d.detail_mean_f0_hz,
+        shimmer: d.detail_shimmer,
+        rms_cv: d.detail_rms_cv,
+        hnr_db: d.detail_hnr_db,
+        entropy: d.detail_entropy,
+        flux: d.detail_flux,
+        bandwidth_hz: d.detail_bandwidth_hz,
+        vowel_conf: d.detail_vowel_conf,
+        alpha_ratio_db: d.detail_alpha_ratio_db,
+        cpps_db: d.detail_cpps_db,
+      },
+      formants: { f1: d.f1, f2: d.f2, f3: d.f3 },
+      micSettings: status.settings,
+      warnings: status.warnings,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `omalyzer-${capturedAt.replace(/[:.]/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [lastOm, status.settings, status.warnings]);
 
   return (
     <div className={`${styles.console} instrument`} data-running={status.running}>
@@ -267,17 +223,17 @@ export default function LivePage() {
         <span className={styles.device}>{deriveDeviceLabel(status.settings) ?? 'Mic'}</span>
         <span
           className={styles.statusDot}
-          data-state={recording ? 'rec' : status.running ? 'live' : 'idle'}
-          aria-label={recording ? 'recording' : status.running ? 'live' : 'idle'}
+          data-state={capturing ? 'rec' : status.running ? 'live' : 'idle'}
+          aria-label={capturing ? 'capturing' : status.running ? 'live' : 'idle'}
         />
         <button
           type="button"
           className={styles.gear}
-          aria-label="controls and results"
+          aria-label="display and gate"
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen((o) => !o)}
         >
-          ⚙{hasUnseenResult && <span className={styles.gearDot} aria-hidden />}
+          ⚙
         </button>
       </header>
 
@@ -340,6 +296,20 @@ export default function LivePage() {
         <TabBar value={tab} onChange={setTab} />
       </div>
 
+      {/* ── CAPTURED OM — full-width band above the transport (renders only when
+          a tone has completed). The thing you just made. ──────────────────── */}
+      {lastOm && (
+        <CapturedOmCard
+          om={lastOm}
+          signedIn={session != null}
+          saveState={saveState}
+          saveError={saveError}
+          onSave={(c) => void handleSave(c)}
+          onExport={downloadJson}
+          onDiscard={clearLastOm}
+        />
+      )}
+
       {/* ── TRANSPORT ───────────────────────────────────────────────────────── */}
       <footer className={styles.transport}>
         <button
@@ -351,15 +321,17 @@ export default function LivePage() {
         >
           {status.running ? 'Stop' : 'Start'}
         </button>
-        <button
-          type="button"
-          className={styles.recBtn}
-          data-recording={recording}
-          onClick={record}
-          disabled={!status.running || recording}
-        >
-          ● {recording ? `REC ${RECORD_SECONDS}s…` : 'Record'}
-        </button>
+
+        {/* live capture hint / capturing state (replaces the old Record button) */}
+        {status.running && (
+          <span
+            className={styles.captureHint}
+            data-capturing={capturing}
+            aria-live="polite"
+          >
+            {capturing ? '● capturing…' : 'hold a tone for 2.5 s or more to capture an om'}
+          </span>
+        )}
 
         <span className={styles.elapsed} aria-label="elapsed">
           {mmss(elapsedMs)}
@@ -392,29 +364,24 @@ export default function LivePage() {
 
         <span className={styles.transportSpacer} />
 
-        {hasUnseenResult && (
-          <button type="button" className={styles.resultPill} onClick={openResults}>
-            results ready — open ▸
-          </button>
-        )}
         <button
           type="button"
           className={styles.drawerToggle}
-          aria-label="controls and results"
+          aria-label="display and gate"
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen((o) => !o)}
         >
-          Controls & results
+          Display & gate
         </button>
       </footer>
 
-      {/* ── DRAWER (slide-over) — advanced controls + record results / save ──── */}
+      {/* ── DRAWER (slide-over) — display + gate controls only ───────────────── */}
       {drawerOpen && (
         <>
           <div className={styles.scrim} onClick={() => setDrawerOpen(false)} aria-hidden />
-          <div className={styles.drawer} role="dialog" aria-label="Controls and results">
+          <div className={styles.drawer} role="dialog" aria-label="Display & gate">
             <div className={styles.drawerHead}>
-              <span>controls &amp; results</span>
+              <span>display &amp; gate</span>
               <button
                 type="button"
                 className={styles.drawerClose}
@@ -433,50 +400,6 @@ export default function LivePage() {
               onGateChange={setGate}
               storeMaxHz={STORE_MAX_HZ}
             />
-
-            {/* Record RESULT + export + consent/save flow — copy preserved verbatim. */}
-            {result ? (
-              <div className={styles.export}>
-                <strong>
-                  Recorded {result.windowSeconds}s window ({result.frames} samples)
-                </strong>
-                <p className={styles.exportNote}>
-                  A within-person acoustic measure. Use this export to compare
-                  capture fidelity across devices (built-in vs. Bluetooth, etc.). f0{' '}
-                  {f1(result.averaged.f0Hz)} Hz · HNR {f1(result.averaged.hnrDb)} dB
-                </p>
-                <pre className={styles.pre}>{JSON.stringify(result.averaged, null, 2)}</pre>
-                <button type="button" className={styles.recordBtn} onClick={downloadJson}>
-                  Download JSON
-                </button>
-
-                {/* Saving is the logged-in path; Download JSON above works logged out. */}
-                <div style={{ marginTop: '0.75rem' }}>
-                  {saveState === 'saved' ? (
-                    <p className={styles.exportNote}>
-                      Saved to your account.{' '}
-                      <Link to="/dashboard">View it in your dashboard.</Link>
-                    </p>
-                  ) : session ? (
-                    <ConsentStep
-                      saving={saveState === 'saving'}
-                      error={saveError}
-                      onSave={(c) => void handleSave(c)}
-                    />
-                  ) : (
-                    <p className={styles.exportNote}>
-                      <Link to="/signin">Sign in</Link> to save this recording to your private
-                      account. Analysis stays on your device until you do.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className={styles.drawerHint}>
-                Record a sustained tone (▶ Start, then ● Record) to capture a 5-second window.
-                Results and export will appear here.
-              </p>
-            )}
           </div>
         </>
       )}
@@ -484,28 +407,65 @@ export default function LivePage() {
   );
 }
 
-interface RecordResult {
-  capturedAt: string;
-  windowSeconds: number;
-  frames: number;
-  sampleRate: number | null;
-  settings: MediaTrackSettings | null;
-  warnings: string[];
-  averaged: {
-    voicedFraction: number;
-    f0Hz: number | null;
-    hnrDb: number | null;
-    rmsDb: number | null;
-    liveCoherenceIndex: number | null;
-  };
-  lastCoherence: {
-    index: number | null;
-    secs: number;
-    vowel: string | null;
-    pitchCoherence: number | null;
-    amplitudeCoherence: number | null;
-    harmonicCoherence: number | null;
-    spectralStability: number | null;
-    resonanceMatch: number | null;
-  };
+interface CapturedOmCardProps {
+  om: Om;
+  signedIn: boolean;
+  saveState: 'idle' | 'saving' | 'saved';
+  saveError: string | null;
+  onSave: (choice: ConsentChoice) => void;
+  onExport: () => void;
+  onDiscard: () => void;
+}
+
+/**
+ * The prominent captured-om band, pinned directly above the transport. Renders
+ * plain acoustic facts (vowel, seconds, coherence index) — no energetic/state
+ * claim. The save path reuses ConsentStep verbatim (honest two-checkbox gate).
+ */
+function CapturedOmCard({
+  om,
+  signedIn,
+  saveState,
+  saveError,
+  onSave,
+  onExport,
+  onDiscard,
+}: CapturedOmCardProps) {
+  const d = om.snapshot;
+  const idx = d.last_coherence_index;
+  const vowel = d.last_coherence_vowel ?? d.vowel ?? '—';
+  return (
+    <section className={styles.captured} role="region" aria-label="captured om">
+      <div className={styles.capturedHead}>
+        <strong>om captured</strong>
+        <span className={styles.sep}>·</span> /{vowel}/
+        <span className={styles.sep}>·</span> {om.durationSecs.toFixed(1)}s
+        <span className={styles.sep}>·</span> coherence {idx != null ? idx.toFixed(2) : '—'}
+      </div>
+
+      <div className={styles.capturedActions}>
+        {saveState === 'saved' ? (
+          <span className={styles.savedMsg}>
+            saved · <Link to="/dashboard">view in dashboard</Link>
+          </span>
+        ) : signedIn ? (
+          <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />
+        ) : (
+          <span className={styles.signInMsg}>
+            <Link to="/signin">sign in to save</Link> — analysis stays on your device. export
+            still works.
+          </span>
+        )}
+
+        <div className={styles.capturedBtns}>
+          <button type="button" className={styles.recordBtn} onClick={onExport}>
+            export json
+          </button>
+          <button type="button" className={styles.discardBtn} onClick={onDiscard}>
+            discard
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }

@@ -69,6 +69,11 @@ pub struct Analyzer {
     last_coherence_vowel: Option<char>,
     last_coherence_secs: f32,
     live_coherence_index: Option<f32>,
+    /// Monotonic count of completed sustained tones (>= SUSTAINED_MIN_SECS) for
+    /// which a coherence index was stored. Incremented only when
+    /// `finish_held_note` actually stores `last_coherence`. Pollers detect a
+    /// just-completed tone by watching this value increase.
+    coherence_seq: u64,
 }
 
 impl Analyzer {
@@ -105,6 +110,7 @@ impl Analyzer {
             last_coherence_vowel: None,
             last_coherence_secs: 0.0,
             live_coherence_index: None,
+            coherence_seq: 0,
         }
     }
 
@@ -140,6 +146,9 @@ impl Analyzer {
         self.last_coherence_vowel = None;
         self.last_coherence_secs = 0.0;
         self.live_coherence_index = None;
+        // NOTE: coherence_seq is intentionally NOT reset — it stays monotonic
+        // for the analyzer's whole lifetime so a JS poller's "did it increment?"
+        // edge-detection can never collide with a pre-reset value.
     }
 
     /// Set the RMS silence-gate open threshold (dB) the hysteresis reads.
@@ -267,6 +276,12 @@ impl Analyzer {
         self.live_coherence_index
     }
 
+    /// Monotonic count of completed sustained tones (>= SUSTAINED_MIN_SECS).
+    /// Increases by 1 each time a held tone finalizes with a stored coherence.
+    pub fn coherence_seq(&self) -> u64 {
+        self.coherence_seq
+    }
+
     pub fn current_rms(&self) -> f32 {
         self.current_rms
     }
@@ -381,6 +396,9 @@ impl Analyzer {
                     self.last_coherence = Some(metrics);
                     self.last_coherence_vowel = self.held_vowel;
                     self.last_coherence_secs = seg.duration_secs();
+                    // A held tone (>= SUSTAINED_MIN_SECS) just completed and its
+                    // coherence was stored — advance the completion counter.
+                    self.coherence_seq = self.coherence_seq.wrapping_add(1);
                 }
             }
         }

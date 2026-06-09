@@ -33,6 +33,8 @@ export interface Snapshot {
 
   // coherence
   live_coherence_index: number | null;
+  /** Monotonic count of completed sustained tones (>= 2.5 s). Watch for increments. */
+  coherence_seq: number;
   last_coherence_index: number | null;
   last_coherence_secs: number;
   last_coherence_vowel: string | null;

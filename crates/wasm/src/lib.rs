@@ -55,6 +55,9 @@ pub struct Snapshot {
     // --- coherence ---
     /// In-progress index while a long-enough note is currently held (else null).
     pub live_coherence_index: Option<f32>,
+    /// Monotonic count of completed sustained tones (>= SUSTAINED_MIN_SECS). JS
+    /// watches this for increments to detect "a held tone just completed".
+    pub coherence_seq: u64,
     /// Index of the last *completed* sustained tone (else null).
     pub last_coherence_index: Option<f32>,
     /// Duration (s) of that last completed tone.
@@ -159,6 +162,7 @@ impl WasmAnalyzer {
             col_db: self.inner.last_col_db().to_vec(),
 
             live_coherence_index: self.inner.live_coherence_index(),
+            coherence_seq: self.inner.coherence_seq(),
             last_coherence_index: coh.map(|m| m.index),
             last_coherence_secs: self.inner.last_coherence_secs(),
             last_coherence_vowel: self.inner.last_coherence_vowel().map(|c| c.to_string()),
