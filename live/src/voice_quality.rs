@@ -293,7 +293,7 @@ fn frame_prominence(cep: &[f32], sr: f32, f0: f32) -> Option<f32> {
 /// 1. **Sample-rate-aware window.** The cepstral frequency resolution is
 ///    `sr/WINDOW` Hz per bin; the rahmonic ripple that produces the peak needs
 ///    several bins per harmonic. We pick `WINDOW = next_pow2(sr * 85 ms)`
-///    (≈4096 at 48 kHz, ≈1024 at 16 kHz) so each harmonic spans ~12+ bins. A
+///    (≈4096 at 48 kHz, ≈2048 at 16 kHz) so each harmonic spans ~12+ bins. A
 ///    fixed 1024-sample window at 48 kHz under-resolves harmonics (~47 Hz/bin),
 ///    collapsing the peak to ~0 dB — the bug this replaces.
 /// 2. **Per-frame prominence averaging (not cepstrum averaging).** The rahmonic
@@ -319,10 +319,14 @@ pub fn cpps(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     }
 
     // Sample-rate-aware window so harmonics are adequately resolved in the
-    // cepstrum (~85 ms → ~12 Hz/bin at 48 kHz). At 16 kHz this is 1024.
+    // cepstrum (~85 ms → ~12 Hz/bin at 48 kHz). At 16 kHz this is 2048.
     let window = next_pow2((sr * 0.085) as usize).clamp(256, 8192);
     let hop = window / 2; // 50% overlap
-    const MAX_FRAMES: usize = 32; // bound cost on a long held tone
+    // Bound cost on a long held tone: real_cepstrum is naive O(window^2), so the
+    // frame count is the cost knob. Drift-robustness comes from per-frame
+    // prominence (each frame sees a near-stationary F0), not from frame count, so
+    // ~16 evenly-spaced frames give a stable average at a fraction of the cost.
+    const MAX_FRAMES: usize = 16;
 
     let n = samples.len();
     if n < window {
@@ -646,10 +650,10 @@ mod tests {
 
     #[test]
     fn cpps_none_for_too_short_input() {
-        let sr = 16_000.0;
-        // Shorter than a single 1024 window → cannot frame.
+        let sr = 16_000.0; // window = 2048 at 16 kHz
+        // Shorter than a single analysis window → cannot frame.
         assert!(cpps(&[0.1; 512], sr, 160.0).is_none());
-        // Exactly one window → only one frame, need >= 2.
+        // Below one full window (2048) → still cannot frame.
         assert!(cpps(&[0.1; 1024], sr, 160.0).is_none());
         assert!(cpps(&[], sr, 160.0).is_none());
         assert!(cpps(&[0.1; 16_000], 0.0, 160.0).is_none());
