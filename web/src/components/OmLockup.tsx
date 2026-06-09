@@ -24,7 +24,7 @@ export default function OmLockup({
   to = '/',
   intro = true,
   className,
-  ariaLabel = 'Omalyzer',
+  ariaLabel = 'omalyzer',
 }: OmLockupProps) {
   const [introing, setIntroing] = useState(false);
   const ranRef = useRef(false);
@@ -58,7 +58,7 @@ export default function OmLockup({
     <Link to={to} className={lockupClass} aria-label={ariaLabel}>
       <OmMark />
       <span className={styles.wordmark} aria-hidden="true">
-        Omalyzer
+        omalyzer
       </span>
     </Link>
   );

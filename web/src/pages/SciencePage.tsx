@@ -12,18 +12,17 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
 }
 
 /**
- * Science page (/science). Copy is the approved paste-ready text, verbatim. It
- * marks established vs exploratory claims and explicitly disavows the discredited
- * voice-stress lineage; no other prohibited framing appears.
+ * Science page (/science). Marks established vs exploratory claims and keeps the
+ * measured-vs-inferred boundary (a measurement now needs a personal baseline to
+ * become a state signal) visible without adding state/diagnosis claims.
  */
 export default function SciencePage() {
   return (
     <main className={styles.prose}>
-      <h1>The science behind Omalyzer</h1>
+      <h1>The science behind omalyzer</h1>
       <p>
-        Omalyzer is built to be honest about what sound can and can't tell you. This page
-        lays out the idea it rests on, what its measurements mean, and — just as important —
-        what they do not. Throughout, we mark which claims are <strong>established</strong>{' '}
+        This page lays out the idea omalyzer rests on and what its measurements mean.
+        Throughout, we mark which claims are <strong>established</strong>{' '}
         and which are <strong>exploratory</strong>, so you always know which is which.
       </p>
 
@@ -40,13 +39,13 @@ export default function SciencePage() {
           change vowels, you physically reconfigure that filter, and each configuration
           produces a distinct, measurable pattern of resonances called{' '}
           <strong>formants</strong>. This is why /a/, /i/, /u/, and a hummed OM each have their
-          own acoustic fingerprint. That much is settled acoustic science, not interpretation.
+          own acoustic fingerprint. That much is settled acoustic science.
         </p>
         <p>
           There is also a real, active scientific field of <strong>voice acoustics</strong> —
           extracting well-defined features like fundamental frequency, formants,
           harmonics-to-noise ratio, and cepstral peak prominence from short voice samples.
-          Omalyzer computes features from that same established toolbox. We're applying a known
+          omalyzer computes features from that same established toolbox. We're applying a known
           method, not inventing one.
         </p>
       </Reveal>
@@ -65,7 +64,7 @@ export default function SciencePage() {
           idea of an ordered, smooth rhythm versus a jagged, chaotic one.
         </p>
         <p>
-          On a held vowel, Omalyzer measures five things and combines them into one 0–1 index:
+          On a held vowel, omalyzer measures five things and combines them into one 0–1 index:
         </p>
         <ol>
           <li>
@@ -92,50 +91,17 @@ export default function SciencePage() {
           Each underlying measurement is a standard, established acoustic quantity. The way we{' '}
           <em>combine</em> them into a single "Coherence Index," and the thresholds we use, are
           our own <strong>exploratory</strong> construction — a useful, repeatable summary of
-          vocal steadiness, not a validated standard.
+          vocal steadiness.
         </p>
       </Reveal>
 
       <hr />
 
       <Reveal>
-        <Label roman="III">what it does not claim</Label>
+        <Label roman="III">the measured–inferred boundary</Label>
         <h2>
-          What it does <strong>not</strong> claim
-        </h2>
-        <p>This is the part we want to be loudest about.</p>
-        <ul>
-          <li>
-            Omalyzer does <strong>not</strong> detect stress, lying, deception, or any
-            "voice-stress" reading. That lineage of claims is discredited, and we make no part
-            of it.
-          </li>
-          <li>
-            It does <strong>not</strong> diagnose anything, medical or psychological, and it is{' '}
-            <strong>not</strong> a health device.
-          </li>
-          <li>
-            It does <strong>not</strong> read your mood, your emotions, or your inner state.
-          </li>
-          <li>
-            A high or low coherence number is <strong>not</strong> "good" or "bad." It
-            describes the steadiness of a sound, nothing more. A trained singer holding a
-            rock-steady note and someone with a naturally breathy voice are producing{' '}
-            <em>different acoustics</em>, not different worth or wellness.
-          </li>
-        </ul>
-        <p>
-          Coherence is <strong>vocal-production steadiness</strong>. Full stop.
-        </p>
-      </Reveal>
-
-      <hr />
-
-      <Reveal>
-        <Label roman="IV">the line we won't cross</Label>
-        <h2>
-          The measured-vs-inferred boundary —{' '}
-          <span className={styles.tag}>the line we won't cross</span>
+          The measured–inferred boundary —{' '}
+          <span className={styles.tag}>measured vs inferred</span>
         </h2>
         <p>
           It is genuinely <strong>established</strong> that the nervous system and the voice
@@ -144,13 +110,10 @@ export default function SciencePage() {
           honest grounding for the whole project.
         </p>
         <p>
-          But there is a hard line between <strong>measuring acoustics</strong> and{' '}
-          <strong>inferring a state</strong>. Omalyzer stays on the measurement side.
-          Everything it shows you — Hz, decibels, formant positions, a steadiness index — is a
-          direct <strong>measurement</strong> of the sound you just made. Turning those numbers
-          into any claim about your nervous system, arousal, or state would be an{' '}
-          <strong>inference</strong>, and a responsible inference requires something this build
-          does not have (read on).
+          Everything omalyzer shows you — Hz, decibels, formant positions, a steadiness index —
+          is a direct <strong>measurement</strong> of the sound you just made. Reading a{' '}
+          <strong>state</strong> from those numbers is a separate inference step, which depends
+          on a personal baseline (read on).
         </p>
         <p>We keep that boundary visible in the interface, not just in this page.</p>
       </Reveal>
@@ -158,9 +121,9 @@ export default function SciencePage() {
       <hr />
 
       <Reveal>
-        <Label roman="V">why one reading can't tell you about you</Label>
+        <Label roman="IV">why baseline matters</Label>
         <h2>
-          Why a single reading can't tell you about <em>you</em> —{' '}
+          Why a personal baseline matters —{' '}
           <span className={styles.tag}>established caveat</span>
         </h2>
         <p>
@@ -174,18 +137,16 @@ export default function SciencePage() {
           The only defensible way to read <em>change</em> from a voice is{' '}
           <strong>within one person, against that person's own baseline</strong> — many
           sessions, across different times and days, before any deviation means anything.{' '}
-          <strong>This build does not keep that personal baseline.</strong> So Omalyzer shows
-          you honest, absolute measurements of the sound you're making right now; it
-          deliberately does <strong>not</strong> turn a one-off reading into a statement about
-          your state. Any feature labeled "experimental" in the app is exactly that —
-          exploratory, and not validated against an independent physiological signal.
+          <strong>This build does not yet keep that personal baseline</strong>, so omalyzer
+          shows you absolute measurements of the sound you're making right now. Features labeled
+          "experimental" in the app are exactly that — exploratory.
         </p>
       </Reveal>
 
       <hr />
 
       <Reveal>
-        <Label roman="VI">your voice, your device, your choice</Label>
+        <Label roman="V">your voice, your device, your choice</Label>
         <h2>
           Your voice, your device, your choice —{' '}
           <span className={styles.tag}>privacy stance</span>
@@ -211,14 +172,14 @@ export default function SciencePage() {
       <hr />
 
       <Reveal>
-        <Label roman="VII">the honest bottom line</Label>
+        <Label roman="VI">the honest bottom line</Label>
         <h3>The honest bottom line</h3>
         <p>
-          Omalyzer is a precise instrument for <em>hearing the acoustics of your own voice</em>{' '}
+          omalyzer is a precise instrument for <em>hearing the acoustics of your own voice</em>{' '}
           — pitch, resonance, and steadiness — in real time. The voice–physiology link is real
-          and is why this is worth building. But reading your <em>state</em> from your voice
-          would require a personal baseline and validation this version doesn't have, so we
-          don't claim it. What you see is what we measured.
+          and is why this is worth building. Reading your <em>state</em> from your voice
+          would require a personal baseline and validation this version doesn't yet have. What
+          you see is what we measured.
         </p>
       </Reveal>
     </main>

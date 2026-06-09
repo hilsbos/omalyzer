@@ -76,8 +76,7 @@ export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
 
       <p className={styles.framing}>
         A within-person acoustic steadiness measure. Community figures are
-        anonymized aggregates from people who opted in — not a ranking, score, or
-        diagnosis.
+        anonymized aggregates from people who opted in.
       </p>
     </section>
   );

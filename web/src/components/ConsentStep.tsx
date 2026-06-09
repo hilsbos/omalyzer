@@ -31,8 +31,7 @@ export default function ConsentStep({ saving, error, onSave }: Props) {
     <div className={styles.card}>
       <p className={styles.intro}>
         Analysis already happened on your device. Saving uploads the audio
-        recording plus its acoustic features to your private Omalyzer account.{' '}
-        <strong>A within-person acoustic measure — not a diagnosis.</strong>
+        recording plus its acoustic features to your private omalyzer account.
       </p>
 
       <label className={styles.row}>
@@ -43,7 +42,7 @@ export default function ConsentStep({ saving, error, onSave }: Props) {
         />
         <span>
           <strong>Store this recording.</strong> Save the audio (FLAC) and its
-          acoustic features in my private Omalyzer account on Supabase. I can
+          acoustic features in my private omalyzer account on Supabase. I can
           delete it anytime.
         </span>
       </label>

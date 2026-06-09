@@ -57,7 +57,7 @@ export default function CoherenceBar({
       style={{
         flex: 1,
         height,
-        minWidth: 80,
+        minWidth: 0,
         borderRadius: 0,
         background: track,
         border: `1px solid ${border}`,

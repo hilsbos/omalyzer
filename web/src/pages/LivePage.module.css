@@ -558,21 +558,23 @@
     position: static;
     display: flex;
     flex-direction: column;
+    width: 100vw;
+    max-width: 100vw;
     height: 100dvh;
     overflow: hidden;
     gap: 1px;
     grid-template: none;
   }
-  /* Kill horizontal overflow: flex children default to min-width:auto and won't
-     shrink below their content, which the console's overflow:hidden then clips.
-     Let every cell shrink to the viewport and wrap its contents. */
+  /* Kill horizontal overflow: cap every cell at the VIEWPORT (100vw, not 100% of
+     a parent that can itself stretch to content), and let flex children shrink. */
   .console > * {
     min-width: 0;
-    max-width: 100%;
+    max-width: 100vw;
   }
   .cellBody,
   .railScroll {
     min-width: 0;
+    max-width: 100%;
     overflow-x: hidden;
   }
   .appbar {
@@ -658,3 +660,4 @@
     max-width: 100%;
   }
 }
+

@@ -441,7 +441,7 @@ export default function LivePage() {
                   Recorded {result.windowSeconds}s window ({result.frames} samples)
                 </strong>
                 <p className={styles.exportNote}>
-                  A within-person acoustic measure, not a diagnosis. Use this export to compare
+                  A within-person acoustic measure. Use this export to compare
                   capture fidelity across devices (built-in vs. Bluetooth, etc.). f0{' '}
                   {f1(result.averaged.f0Hz)} Hz · HNR {f1(result.averaged.hnrDb)} dB
                 </p>

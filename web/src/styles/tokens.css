@@ -73,11 +73,14 @@
   --error:     #9E3B2E;          /* oxide-red (replaces crimson/#b00020) */
   --on-accent: var(--bg);        /* parchment text on navy buttons (was #04243a) */
 
-  /* ── Type ─────────────────────────────────────────────────────────────── */
-  --serif:        'Newsreader', 'Newsreader Fallback', Georgia, serif;  /* body */
-  --serif-display:'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* headings/wordmark */
-  --num:          'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* tabular readouts */
-  --mono:         'IBM Plex Mono', 'IBM Plex Mono Fallback', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; /* the analyzer / app surfaces */
+  /* ── Type ─────────────────────────────────────────────────────────────────
+     One font type across the whole site: IBM Plex Mono. The --serif/--num names
+     are kept (many components resolve through them) but now all point at --mono,
+     so headings, body, readouts and the wordmark are uniformly monospace. */
+  --mono:         'IBM Plex Mono', 'IBM Plex Mono Fallback', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --serif:        var(--mono);  /* (alias) body */
+  --serif-display: var(--mono); /* (alias) headings/wordmark */
+  --num:          var(--mono);  /* (alias) tabular readouts */
   --devanagari:   'Tiro Devanagari Sanskrit', 'Noto Serif Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', serif; /* the Om (ॐ) mark */
 
   /* ── Golden-ratio spacing scale (φ = 1.618) ───────────────────────────── */

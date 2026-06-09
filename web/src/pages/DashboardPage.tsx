@@ -49,9 +49,8 @@ export default function DashboardPage() {
 
       <p className={styles.framing}>
         These are your own saved recordings and their acoustic features. The
-        coherence index is a within-person measure of vocal steadiness — not a
-        diagnosis, score, or health assessment. Your audio is private to your
-        account and is never played to anyone else.
+        coherence index is a within-person measure of vocal steadiness. Your audio
+        is private to your account and is never played to anyone else.
       </p>
 
       {loading ? (

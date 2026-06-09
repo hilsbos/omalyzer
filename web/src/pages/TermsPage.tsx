@@ -22,21 +22,20 @@ export default function TermsPage() {
     <main className={styles.prose}>
       <h1>Terms of Service</h1>
       <p className={styles.lede}>
-        Plain-language terms for using Omalyzer. By using the app you agree to
+        Plain-language terms for using omalyzer. By using the app you agree to
         these.
       </p>
 
       <hr />
 
       <Reveal>
-      <Label roman="I">what Omalyzer is</Label>
-      <h2>What Omalyzer is</h2>
+      <Label roman="I">what omalyzer is</Label>
+      <h2>What omalyzer is</h2>
       <p>
-        Omalyzer is a tool for measuring within-person acoustic properties of
+        omalyzer is a tool for measuring within-person acoustic properties of
         vowel chanting — pitch, formants, harmonics-to-noise ratio, and a
         coherence index that tracks the steadiness of a sustained tone. It is a
-        wellness and exploration tool. It is <strong>not</strong> a medical device,
-        and it provides no diagnosis or health advice.
+        wellness and exploration tool.
       </p>
       </Reveal>
 
@@ -44,7 +43,7 @@ export default function TermsPage() {
       <Label roman="II">your account &amp; content</Label>
       <h2>Your account &amp; content</h2>
       <p>
-        You own your recordings. By saving them, you grant Omalyzer the limited
+        You own your recordings. By saving them, you grant omalyzer the limited
         right to store and process them solely to provide the service — and, only
         if you opt in, to include anonymized aggregate statistics. We do not sell
         your data or play your audio to others.
@@ -56,7 +55,7 @@ export default function TermsPage() {
       <h2>Acceptable use</h2>
       <p>
         Record only your own voice, or voices you have permission to record. Do
-        not use Omalyzer for any unlawful or harmful purpose.
+        not use omalyzer for any unlawful or harmful purpose.
       </p>
       </Reveal>
 

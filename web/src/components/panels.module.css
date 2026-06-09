@@ -11,21 +11,22 @@
 }
 
 .panelTitle {
-  font-family: var(--serif-display);
-  font-size: var(--t-md);
-  font-weight: 420;
-  letter-spacing: var(--ls-tight);
+  font-family: var(--mono);
+  font-size: var(--t-body);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
   margin: 0;
 }
 
 .legend {
-  font-family: var(--serif);
+  font-family: var(--mono);
   font-size: var(--t-label);
   color: var(--fg-weak);
 }
 
 .scopeNote {
-  font-family: var(--serif);
+  font-family: var(--mono);
   font-size: var(--t-label);
   color: var(--fg-weak);
 }
@@ -58,6 +59,9 @@
   flex-direction: column;
   gap: var(--s-2xs);
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   min-height: var(--tap);
   padding: var(--s-2xs) var(--s-2xs);
   background: none;
@@ -80,12 +84,13 @@
   display: flex;
   align-items: center;
   gap: var(--s-xs);
-  font-family: var(--serif);
-  font-size: var(--t-body);
+  font-family: var(--mono);
+  font-size: var(--t-label);
 }
 
 .rowName {
-  flex: 0 0 5.5rem;
+  flex: 0 1 5.5rem;
+  min-width: 0;
 }
 
 /* Raw / diagnostic numbers — true mono, the instrument register. */
@@ -99,12 +104,15 @@
 }
 .rowHead {
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   flex-wrap: wrap;
 }
 
 .caption {
-  font-size: 0.82rem;
-  line-height: 1.45;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  line-height: 1.5;
   color: var(--fg-muted);
 }
 
@@ -112,9 +120,12 @@
   display: flex;
   align-items: center;
   gap: var(--s-xs);
-  font-family: var(--num);
-  font-weight: 420;
-  font-size: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: var(--t-label);
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: 'tnum', 'lnum', 'kern';
 }
@@ -123,17 +134,30 @@
   flex: 0 0 auto;
 }
 
+/* The coherence bar's comfortable desktop width is driven from CSS (not an inline
+   style) so the mobile media query can relax it to 0 and let the row collapse. */
+.rowHead [role='meter'],
+.indexRow [role='meter'] {
+  min-width: 4rem;
+}
+@media (max-width: 52rem) {
+  .rowHead [role='meter'],
+  .indexRow [role='meter'] {
+    min-width: 0;
+  }
+}
+
 .placeholder {
   display: flex;
   align-items: center;
   gap: var(--s-xs);
-  font-family: var(--serif);
-  font-size: var(--t-body);
+  font-family: var(--mono);
+  font-size: var(--t-label);
   min-height: var(--tap);
   padding: var(--s-2xs) var(--s-2xs);
 }
 .placeholderTag {
   color: var(--fg-weak);
   font-style: italic;
-  font-size: 0.82rem;
+  font-size: var(--t-label);
 }

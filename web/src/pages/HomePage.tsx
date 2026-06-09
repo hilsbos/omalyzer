@@ -13,13 +13,13 @@ export default function HomePage() {
       <div className={styles.hero}>
         {/* Manuscript hero wordmark — the Om lockup at display scale, runs the
             "the Om is intoned" load inscription once. */}
-        <OmLockup to="/" className={styles.heroLockup} ariaLabel="Omalyzer" />
+        <OmLockup to="/" className={styles.heroLockup} ariaLabel="omalyzer" />
 
         <h1>Hear the shape of your own voice.</h1>
 
         <p className={styles.lede}>
           <strong>
-            Omalyzer is a real-time vowel- and OM-chant analyzer. Sustain a tone and watch
+            omalyzer is a real-time vowel- and OM-chant analyzer. Sustain a tone and watch
             your pitch, formants, harmonics, and a Vocal Coherence Index — the steadiness of
             your vocal production — render live in your browser.
           </strong>
@@ -41,7 +41,7 @@ export default function HomePage() {
         <h2>What it does</h2>
         <p>
           Open the analyzer, allow your mic, and chant a sustained vowel or OM. As you hold
-          the note, Omalyzer measures the acoustics of your voice frame by frame:
+          the note, omalyzer measures the acoustics of your voice frame by frame:
         </p>
         <ul>
           <li>
@@ -93,10 +93,8 @@ export default function HomePage() {
 
       <Reveal as="div">
         <blockquote className={styles.callout}>
-          Omalyzer measures the acoustics of your voice (pitch, resonance, steadiness). It is
-          not a medical, diagnostic, or emotional-state tool, and it does not read stress or
-          mood. See the <Link to="/science">science page</Link> for exactly what it does and
-          doesn't claim.
+          omalyzer measures the acoustics of your voice (pitch, resonance, steadiness). See the{' '}
+          <Link to="/science">science page</Link> for how it works.
         </blockquote>
       </Reveal>
     </main>

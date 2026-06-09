@@ -36,25 +36,25 @@ export default function StateSignals({ snapshot }: { snapshot: Snapshot | null }
         evidence="strong"
         name="F0 mean"
         raw={meanF0}
-        caption="Average fundamental frequency over the held tone (Hz) — a raw measurement. It will become a within-person signal once a baseline exists; on its own it is not a state, mood, or health reading."
+        caption="Average fundamental frequency over the held tone (Hz) — a raw measurement. It will become a within-person signal once a baseline exists."
       />
       <InfoRow
         evidence="moderate"
         name="F0 var"
         raw={f0Var}
-        caption="How much F0 wandered across the held tone, in semitones — a raw measurement of vocal-production steadiness. It will become a within-person signal once a baseline exists; it makes no nervous-system claim."
+        caption="How much F0 wandered across the held tone, in semitones — a raw measurement of vocal-production steadiness. It will become a within-person signal once a baseline exists."
       />
       <InfoRow
         evidence="moderate"
         name="α-ratio"
         raw={alpha}
-        caption="Spectral tilt (low vs high band energy) averaged over the held tone, in dB — a raw measurement. It will become a within-person signal once a baseline exists; shown here only as a measured acoustic, not a state."
+        caption="Spectral tilt (low vs high band energy) averaged over the held tone, in dB — a raw measurement. It will become a within-person signal once a baseline exists."
       />
       <InfoRow
         evidence="moderate"
         name="CPPS"
         raw={cpps}
-        caption="Smoothed cepstral peak prominence over the held tone, in dB — a raw measure of harmonic clarity / periodicity. It will become a within-person signal once a baseline exists; it is not a diagnosis."
+        caption="Smoothed cepstral peak prominence over the held tone, in dB — a raw measure of harmonic clarity / periodicity. It will become a within-person signal once a baseline exists."
       />
 
       {/* The measured│inferred divider — the inferred side carries only the
@@ -62,7 +62,7 @@ export default function StateSignals({ snapshot }: { snapshot: Snapshot | null }
       <div className={styles.divider} role="separator">
         measured │ inferred (needs baseline)
       </div>
-      <div className={styles.placeholder} title="Experimental, deferred. An autonomic index would require a personal baseline centroid (a Mahalanobis distance from it) that this build does not keep — so no number and no state word is shown. It is a placeholder only, never a nervous-system or health reading.">
+      <div className={styles.placeholder} title="Experimental, deferred. An autonomic index would require a personal baseline centroid (a Mahalanobis distance from it) that this build does not yet keep. Placeholder only.">
         <EvidenceDot evidence="experimental" />
         <span>Auto idx</span>
         <span className={styles.placeholderTag}>⚗ needs baseline</span>

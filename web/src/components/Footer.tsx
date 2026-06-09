@@ -24,7 +24,7 @@ export default function Footer() {
           alignItems: 'center',
         }}
       >
-        <span>Omalyzer — a within-person acoustic measure, not a diagnosis.</span>
+        <span>omalyzer — a within-person acoustic measure.</span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s-lg)' }}>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>

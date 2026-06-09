@@ -21,7 +21,7 @@ export default function PrivacyPage() {
     <main className={styles.prose}>
       <h1>Privacy</h1>
       <p className={styles.lede}>
-        Omalyzer analyzes your voice on your own device. Nothing leaves your
+        omalyzer analyzes your voice on your own device. Nothing leaves your
         browser unless you explicitly choose to save a recording.
       </p>
 
@@ -90,13 +90,9 @@ export default function PrivacyPage() {
       </Reveal>
 
       <Reveal>
-      <Label roman="VI">what this is not</Label>
-      <h2>What this is not</h2>
-      <p>
-        Omalyzer reports the acoustic steadiness of your voice. It is{' '}
-        <strong>not</strong> a medical, psychological, stress, or energetic
-        assessment, and nothing here is a diagnosis.
-      </p>
+      <Label roman="VI">what we measure</Label>
+      <h2>What we measure</h2>
+      <p>omalyzer reports the acoustic steadiness of your voice.</p>
       </Reveal>
 
       <Reveal>

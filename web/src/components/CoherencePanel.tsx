@@ -58,7 +58,7 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
         <div className={styles.legend}>0 = unstable / noisy … 1 = steady / clear</div>
       )}
       <div className={styles.scopeNote}>
-        reflects vocal-production steadiness — no nervous-system claim
+        reflects vocal-production steadiness
       </div>
 
       <div className={styles.indexRow}>
@@ -100,7 +100,7 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
       />
 
       <div className={styles.scopeNote}>
-        A within-person acoustic measure, not a diagnosis. (Sub-metric values:{' '}
+        A within-person acoustic measure. (Sub-metric values:{' '}
         {f2(s?.pitch_coherence)} / {f2(s?.amplitude_coherence)} / {f2(s?.harmonic_coherence)} /{' '}
         {f2(s?.spectral_stability)} / {f2(s?.resonance_match)}.)
       </div>
