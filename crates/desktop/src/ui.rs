@@ -5,8 +5,8 @@ use std::collections::VecDeque;
 
 use eframe::egui::{self, Color32, ColorImage, Pos2, Rect, Stroke, TextureHandle, TextureOptions};
 
-use crate::coherence::CoherenceMetrics;
-use crate::colormap::colormap;
+use omalyzer_core::coherence::CoherenceMetrics;
+use omalyzer_core::colormap::colormap;
 
 // Distinct, semi-transparent colors for the formant overlay lines.
 const F1_COLOR: Color32 = Color32::from_rgb(255, 120, 120);
