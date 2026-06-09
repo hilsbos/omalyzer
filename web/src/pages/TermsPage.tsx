@@ -85,7 +85,7 @@ export default function TermsPage() {
       <h2>Changes &amp; contact</h2>
       <p>
         We may update these terms; material changes will be reflected here.
-        Questions: <a href="mailto:patrick@hilsbos.com">patrick@hilsbos.com</a>.
+        Questions: <a href="mailto:info@shushu.be">info@shushu.be</a>.
       </p>
       </Reveal>
 

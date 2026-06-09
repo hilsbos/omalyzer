@@ -101,7 +101,7 @@ export default function PrivacyPage() {
       <p>
         Data is hosted on Supabase. Row-level security restricts every record to
         its owner. For data requests, contact{' '}
-        <a href="mailto:patrick@hilsbos.com">patrick@hilsbos.com</a>.
+        <a href="mailto:info@shushu.be">info@shushu.be</a>.
       </p>
       </Reveal>
 
