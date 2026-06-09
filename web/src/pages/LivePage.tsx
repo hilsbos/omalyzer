@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAnalyzer } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
-import Hero from '../components/Hero';
 import CoherencePanel from '../components/CoherencePanel';
 import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
@@ -55,6 +54,7 @@ export default function LivePage() {
     dbCeil: -30,
   });
   const [tab, setTab] = useState<SecondaryTab>('coherence');
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState<RecordResult | null>(null);
   const recTimerRef = useRef<number | null>(null);
@@ -67,6 +67,57 @@ export default function LivePage() {
 
   const s: Snapshot | null = snapshot;
   const latestHop = s?.hop_index ?? 0;
+
+  // ── Transport: elapsed timer (wraps start/stop; never touches DSP) ──────────
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startTsRef = useRef<number | null>(null);
+  const elapsedTimerRef = useRef<number | null>(null);
+
+  const handleStart = useCallback(() => {
+    void start();
+    startTsRef.current = performance.now();
+    setElapsedMs(0);
+    if (elapsedTimerRef.current == null) {
+      elapsedTimerRef.current = window.setInterval(() => {
+        if (startTsRef.current != null) {
+          setElapsedMs(performance.now() - startTsRef.current);
+        }
+      }, 500);
+    }
+  }, [start]);
+
+  const handleStop = useCallback(() => {
+    stop();
+    if (elapsedTimerRef.current != null) {
+      window.clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+    startTsRef.current = null;
+    setElapsedMs(0);
+  }, [stop]);
+
+  useEffect(
+    () => () => {
+      if (elapsedTimerRef.current != null) window.clearInterval(elapsedTimerRef.current);
+    },
+    [],
+  );
+
+  const mmss = (ms: number) => {
+    const t = Math.floor(ms / 1000);
+    return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  };
+
+  // ── Live level meter: rms_db [-60,0] → [0,1] → N segments ──
+  const LEVEL_SEGMENTS = 12;
+  const levelNorm = Math.min(1, Math.max(0, ((s?.rms_db ?? -60) + 60) / 60));
+  const levelLit = Math.round(levelNorm * LEVEL_SEGMENTS);
+
+  // A completed recording surfaces a "results ready — open" affordance until
+  // the user opens the drawer to act on it.
+  const hasUnseenResult = result != null && !drawerOpen;
+
+  const openResults = useCallback(() => setDrawerOpen(true), []);
 
   const record = useCallback(() => {
     if (!status.running || recording) return;
@@ -200,35 +251,50 @@ export default function LivePage() {
   );
 
   return (
-    <div className={`${styles.app} instrument`}>
-      {/* Toolbar */}
-      <div className={`${styles.toolbar} ${styles.toolbarBar}`}>
-        <span className={styles.toolbarTitle}>Omalyzer — Live</span>
-        <span>
-          {status.sampleRate ? `${status.sampleRate} Hz` : 'sample rate —'}
+    <div className={`${styles.console} instrument`} data-running={status.running}>
+      {/* ── APP BAR ─────────────────────────────────────────────────────────── */}
+      <header className={styles.appbar}>
+        <Link to="/" className={styles.brand} aria-label="omalyzer home">
+          <span className={styles.om}>ॐ</span>
+          <span className={styles.wordmark}>omalyzer</span>
+          <span className={styles.liveTag}>· LIVE</span>
+        </Link>
+        <span className={styles.appbarSpacer} />
+        <span className={styles.device}>
+          {status.sampleRate ? `${(status.sampleRate / 1000).toFixed(0)} kHz` : '— kHz'}
         </span>
+        <span className={styles.sep}>·</span>
+        <span className={styles.device}>{deriveDeviceLabel(status.settings) ?? 'Mic'}</span>
+        <span
+          className={styles.statusDot}
+          data-state={recording ? 'rec' : status.running ? 'live' : 'idle'}
+          aria-label={recording ? 'recording' : status.running ? 'live' : 'idle'}
+        />
         <button
           type="button"
-          className={styles.recordBtn}
-          onClick={record}
-          disabled={!status.running || recording}
+          className={styles.gear}
+          aria-label="controls and results"
+          aria-expanded={drawerOpen}
+          onClick={() => setDrawerOpen((o) => !o)}
         >
-          {recording ? `Recording ${RECORD_SECONDS}s…` : `Record ${RECORD_SECONDS}s + export JSON`}
+          ⚙{hasUnseenResult && <span className={styles.gearDot} aria-hidden />}
         </button>
-        {status.error && <span className={styles.error}>{status.error}</span>}
-        {status.warnings.length > 0 && (
-          <span className={styles.warn}>⚠ {status.warnings.join('  |  ')}</span>
-        )}
-      </div>
+      </header>
 
-      {/* Hero */}
-      <div className={styles.hero}>
-        <Hero snapshot={s} running={status.running} onStart={start} onStop={stop} />
-      </div>
+      {/* Warnings / errors strip (honest framing, kept verbatim). */}
+      {(status.error || status.warnings.length > 0) && (
+        <div className={styles.alerts}>
+          {status.error && <span className={styles.error}>{status.error}</span>}
+          {status.warnings.length > 0 && (
+            <span className={styles.warn}>⚠ {status.warnings.join('  |  ')}</span>
+          )}
+        </div>
+      )}
 
-      {/* Spectrogram — dark instrument plate */}
-      <div className={`${styles.spectro} ${styles.plate}`}>
-        <div className={styles.plateCanvas}>
+      {/* ── SPECTROGRAM — the hero plate (cols 1–2, top row) ─────────────────── */}
+      <section className={`${styles.cell} ${styles.spectro}`} data-active="true">
+        <div className={styles.cellHead}>spectrogram · 0–{STORE_MAX_HZ} Hz</div>
+        <div className={styles.cellBody}>
           <Spectrogram
             getHistory={getHistory}
             snapshot={s}
@@ -237,96 +303,183 @@ export default function LivePage() {
             dbCeil={controls.dbCeil}
           />
         </div>
-        <div className={styles.plateCaption}>
-          low-frequency spectrogram · 0–{STORE_MAX_HZ} Hz
-        </div>
-      </div>
+      </section>
 
-      {/* Phone tab bar (hidden on desktop) */}
+      {/* ── RIGHT RAIL — coherence dial + sub-metrics + measured│inferred ────── */}
+      <aside
+        className={`${styles.cell} ${styles.rail}`}
+        data-active={tab === 'coherence' || tab === 'state'}
+      >
+        <div className={styles.cellHead}>coherence · state signals</div>
+        <div className={styles.cellBody}>
+          <div className={styles.railScroll}>
+            <CoherencePanel snapshot={s} />
+            <StateSignals snapshot={s} />
+          </div>
+        </div>
+      </aside>
+
+      {/* ── PITCH — col 1, lower row ─────────────────────────────────────────── */}
+      <section className={`${styles.cell} ${styles.pitch}`} data-active={tab === 'pitch'}>
+        <div className={styles.cellHead}>∿ pitch track · F0 over time</div>
+        <div className={styles.cellBody}>
+          <PitchTrack getHistory={getHistory} latestHop={latestHop} />
+        </div>
+      </section>
+
+      {/* ── VOWEL — col 2, lower row ─────────────────────────────────────────── */}
+      <section className={`${styles.cell} ${styles.vowel}`} data-active={tab === 'vowel'}>
+        <div className={styles.cellHead}>◇ vowel · F1×F2 formant space</div>
+        <div className={styles.cellBody}>
+          <VowelChart getHistory={getHistory} snapshot={s} />
+        </div>
+      </section>
+
+      {/* Phone-only tab bar — hidden on the console grid. */}
       <div className={styles.tabbar}>
         <TabBar value={tab} onChange={setTab} />
       </div>
 
-      {/* Secondary panels. On phone only the active one shows (data-active);
-          on desktop all four show, each reassigned to its own grid area. */}
-      <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secCoherence}`}
-        data-active={tab === 'coherence'}
-      >
-        <CoherencePanel snapshot={s} />
-      </div>
-      <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secState}`}
-        data-active={tab === 'state'}
-      >
-        <StateSignals snapshot={s} />
-      </div>
-      <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secPitch} ${styles.secondaryCanvasItem} ${styles.plate}`}
-        data-active={tab === 'pitch'}
-      >
-        <div className={styles.plateCanvas}>
-          <PitchTrack getHistory={getHistory} latestHop={latestHop} />
-        </div>
-        <div className={styles.plateCaption}>pitch track · F0 over time</div>
-      </div>
-      <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secVowel} ${styles.secondaryCanvasItem} ${styles.plate}`}
-        data-active={tab === 'vowel'}
-      >
-        <div className={styles.plateCanvas}>
-          <VowelChart getHistory={getHistory} snapshot={s} />
-        </div>
-        <div className={styles.plateCaption}>vowel chart · F1×F2 formant space</div>
-      </div>
+      {/* ── TRANSPORT ───────────────────────────────────────────────────────── */}
+      <footer className={styles.transport}>
+        <button
+          type="button"
+          className={styles.startStop}
+          data-running={status.running}
+          onClick={status.running ? handleStop : handleStart}
+          aria-pressed={status.running}
+        >
+          {status.running ? 'Stop' : 'Start'}
+        </button>
+        <button
+          type="button"
+          className={styles.recBtn}
+          data-recording={recording}
+          onClick={record}
+          disabled={!status.running || recording}
+        >
+          ● {recording ? `REC ${RECORD_SECONDS}s…` : 'Record'}
+        </button>
 
-      {/* Advanced sheet */}
-      <div className={styles.advanced}>
-        <AdvancedSheet
-          controls={controls}
-          onChange={setControls}
-          gateDb={gateDb}
-          onGateChange={setGate}
-          storeMaxHz={STORE_MAX_HZ}
-        />
-        {result && (
-          <div className={styles.export} style={{ marginTop: '0.5rem' }}>
-            <strong>
-              Recorded {result.windowSeconds}s window ({result.frames} samples)
-            </strong>
-            <p className={styles.exportNote}>
-              A within-person acoustic measure, not a diagnosis. Use this export to
-              compare capture fidelity across devices (built-in vs. Bluetooth, etc.).
-              f0 {f1(result.averaged.f0Hz)} Hz · HNR {f1(result.averaged.hnrDb)} dB
-            </p>
-            <pre className={styles.pre}>{JSON.stringify(result.averaged, null, 2)}</pre>
-            <button type="button" className={styles.recordBtn} onClick={downloadJson}>
-              Download JSON
-            </button>
+        <span className={styles.elapsed} aria-label="elapsed">
+          {mmss(elapsedMs)}
+        </span>
 
-            {/* Saving is the logged-in path; Download JSON above works logged out. */}
-            <div style={{ marginTop: '0.75rem' }}>
-              {saveState === 'saved' ? (
-                <p className={styles.exportNote}>
-                  Saved to your account.{' '}
-                  <Link to="/dashboard">View it in your dashboard.</Link>
-                </p>
-              ) : session ? (
-                <ConsentStep
-                  saving={saveState === 'saving'}
-                  error={saveError}
-                  onSave={(c) => void handleSave(c)}
-                />
-              ) : (
-                <p className={styles.exportNote}>
-                  <Link to="/signin">Sign in</Link> to save this recording to your
-                  private account. Analysis stays on your device until you do.
-                </p>
-              )}
-            </div>
-          </div>
+        {/* LIVE LEVEL METER from snapshot.rms_db */}
+        <div
+          className={styles.meter}
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={1}
+          aria-valuenow={levelNorm}
+          aria-label="input level"
+        >
+          {Array.from({ length: LEVEL_SEGMENTS }, (_, i) => (
+            <span
+              key={i}
+              className={styles.seg}
+              data-lit={i < levelLit}
+              data-hot={i >= LEVEL_SEGMENTS - 2}
+            />
+          ))}
+        </div>
+        <span className={styles.levelDb}>{s ? `${s.rms_db.toFixed(0)} dB` : '— dB'}</span>
+
+        <span className={styles.transportMeta}>
+          gate {gateDb} dB <span className={styles.sep}>·</span> vowel{' '}
+          <span className={styles.vowel}>{s?.voiced && s.vowel ? s.vowel : '—'}</span>
+        </span>
+
+        <span className={styles.transportSpacer} />
+
+        {hasUnseenResult && (
+          <button type="button" className={styles.resultPill} onClick={openResults}>
+            results ready — open ▸
+          </button>
         )}
-      </div>
+        <button
+          type="button"
+          className={styles.drawerToggle}
+          aria-label="controls and results"
+          aria-expanded={drawerOpen}
+          onClick={() => setDrawerOpen((o) => !o)}
+        >
+          Controls & results
+        </button>
+      </footer>
+
+      {/* ── DRAWER (slide-over) — advanced controls + record results / save ──── */}
+      {drawerOpen && (
+        <>
+          <div className={styles.scrim} onClick={() => setDrawerOpen(false)} aria-hidden />
+          <div className={styles.drawer} role="dialog" aria-label="Controls and results">
+            <div className={styles.drawerHead}>
+              <span>controls &amp; results</span>
+              <button
+                type="button"
+                className={styles.drawerClose}
+                onClick={() => setDrawerOpen(false)}
+                aria-label="close"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Display & gate controls (gate is the one DSP control). */}
+            <AdvancedSheet
+              controls={controls}
+              onChange={setControls}
+              gateDb={gateDb}
+              onGateChange={setGate}
+              storeMaxHz={STORE_MAX_HZ}
+            />
+
+            {/* Record RESULT + export + consent/save flow — copy preserved verbatim. */}
+            {result ? (
+              <div className={styles.export}>
+                <strong>
+                  Recorded {result.windowSeconds}s window ({result.frames} samples)
+                </strong>
+                <p className={styles.exportNote}>
+                  A within-person acoustic measure, not a diagnosis. Use this export to compare
+                  capture fidelity across devices (built-in vs. Bluetooth, etc.). f0{' '}
+                  {f1(result.averaged.f0Hz)} Hz · HNR {f1(result.averaged.hnrDb)} dB
+                </p>
+                <pre className={styles.pre}>{JSON.stringify(result.averaged, null, 2)}</pre>
+                <button type="button" className={styles.recordBtn} onClick={downloadJson}>
+                  Download JSON
+                </button>
+
+                {/* Saving is the logged-in path; Download JSON above works logged out. */}
+                <div style={{ marginTop: '0.75rem' }}>
+                  {saveState === 'saved' ? (
+                    <p className={styles.exportNote}>
+                      Saved to your account.{' '}
+                      <Link to="/dashboard">View it in your dashboard.</Link>
+                    </p>
+                  ) : session ? (
+                    <ConsentStep
+                      saving={saveState === 'saving'}
+                      error={saveError}
+                      onSave={(c) => void handleSave(c)}
+                    />
+                  ) : (
+                    <p className={styles.exportNote}>
+                      <Link to="/signin">Sign in</Link> to save this recording to your private
+                      account. Analysis stays on your device until you do.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className={styles.drawerHint}>
+                Record a sustained tone (▶ Start, then ● Record) to capture a 5-second window.
+                Results and export will appear here.
+              </p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

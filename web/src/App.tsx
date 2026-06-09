@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Outlet, Route, Routes } from 'react-router-dom';
 import LivePage from './pages/LivePage';
 import HomePage from './pages/HomePage';
 import SciencePage from './pages/SciencePage';
@@ -74,14 +74,27 @@ function Nav() {
   );
 }
 
-export default function App() {
+/** Marketing/app chrome: parchment masthead + footer wrapping the page Outlet. */
+function SiteLayout() {
   return (
     <>
       <Nav />
-      <Routes>
+      <Outlet />
+      <Footer />
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Standalone full-viewport console — NO marketing nav/footer. */}
+      <Route path="/analyze" element={<LivePage />} />
+
+      {/* Everything else gets the parchment nav + footer chrome. */}
+      <Route element={<SiteLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/science" element={<SciencePage />} />
-        <Route path="/analyze" element={<LivePage />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
@@ -93,8 +106,7 @@ export default function App() {
             </RequireAuth>
           }
         />
-      </Routes>
-      <Footer />
-    </>
+      </Route>
+    </Routes>
   );
 }

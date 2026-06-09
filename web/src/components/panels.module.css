@@ -94,7 +94,12 @@
   font-size: 0.72rem;
   color: var(--fg-muted);
   margin-left: auto;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere; /* don't force panel min-content width on narrow screens */
+}
+.rowHead {
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .caption {

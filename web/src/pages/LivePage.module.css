@@ -1,158 +1,256 @@
-/* Two named grid templates swapped at ~48rem (769px). Phone = progressive
-   disclosure single column; desktop = dense two-column grid. The page is
-   parchment chrome ("darkroom-in-parchment"); the canvases are dark instrument
-   plates, each framed and serif-captioned. */
-.app {
-  display: grid;
-  gap: var(--s-sm);
-  padding: var(--s-sm);
-  max-width: var(--max-instrument);
-  margin: 0 auto;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    'toolbar'
-    'hero'
-    'spectro'
-    'tabbar'
-    'secondary'
-    'advanced';
-  grid-template-rows: auto auto minmax(40vh, 1fr) auto auto auto;
+/* ── Studio Console: a full-bleed dark pro-audio workspace ──────────────────
+   /analyze only. The marketing site stays parchment. `.console` (used with
+   `.instrument`) is a fixed full-viewport grid that ALSO remaps the chrome
+   tokens to their on-dark twins, so every reused parchment component renders
+   correctly on dark with no per-component edits. Below ~52rem it collapses to
+   a stacked / tabbed single-column fallback (the console grid can't fit a
+   phone). */
+
+/* ============================ TOKEN REMAP ================================= */
+.console {
+  /* surfaces */
+  --bg: var(--plate-frame);
+  --panel-bg: var(--plate-bg-2);
+  --panel-bg-2: #232a3d;
+  --rule: var(--plate-rule);
+  --panel-border: var(--plate-rule);
+  --plot-bg: var(--plate-bg);
+  --plot-border: var(--plate-rule);
+
+  /* text */
+  --fg: var(--on-plate);
+  --fg-muted: var(--on-plate-soft);
+  /* on-plate-weak (#6B7290) fails AA for the small honest-framing captions
+     (legend / scope-note / placeholder); lift to on-plate-soft (~8:1). */
+  --fg-weak: var(--on-plate-soft);
+  --ink: var(--on-plate);
+  --ink-soft: var(--on-plate-soft);
+
+  /* accent — must be LIGHT on dark so links / rings / slider thumbs read */
+  --accent: var(--on-plate);
+  --accent-soft: var(--on-plate-soft);
+  --on-accent: var(--plate-bg);
+
+  /* data ramp → brighter on-plate variants (also used by remapped paper bars) */
+  --data-low: var(--data-low-plate);
+  --data-mid: var(--data-mid-plate);
+  --data-high: var(--data-high-plate);
+  --data-track-paper: var(--data-track);
+
+  /* evidence dots — brighter so they hold >=3:1 on dark */
+  --evidence-strong: #7fa86e;
+  --evidence-moderate: #e3b652;
+  --evidence-experimental: #9aa0b4;
+
+  /* status — brighter for dark ground */
+  --warn: #e3b652;
+  --error: #d9694f;
 }
 
-.toolbar {
-  grid-area: toolbar;
+/* ============================ THE GRID ==================================== */
+.console {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  display: grid;
+  overflow: hidden;
+  gap: 1px; /* 1px seams → reads as a console */
+  background-color: var(--plate-rule); /* seam color shows through gap */
+  grid-template-columns: 1fr 1fr minmax(20rem, 22rem);
+  grid-template-rows: auto auto 1fr minmax(150px, 0.42fr) auto;
+  grid-template-areas:
+    'appbar    appbar   appbar'
+    'alerts    alerts   alerts'
+    'spectro   spectro  rail'
+    'pitch     vowel    rail'
+    'transport transport transport';
 }
-.hero {
-  grid-area: hero;
+
+.appbar {
+  grid-area: appbar;
+}
+.alerts {
+  grid-area: alerts;
 }
 .spectro {
   grid-area: spectro;
-  min-height: 40vh;
+}
+.rail {
+  grid-area: rail;
+}
+.pitch {
+  grid-area: pitch;
+}
+.vowel {
+  grid-area: vowel;
+}
+.transport {
+  grid-area: transport;
 }
 .tabbar {
-  grid-area: tabbar;
-}
-.secondary {
-  grid-area: secondary;
-  min-height: 0;
-}
-.advanced {
-  grid-area: advanced;
-}
+  display: none;
+} /* phone-only */
 
-/* ── Instrument-plate primitive ──────────────────────────────────────────────
-   A framed dark canvas: deep navy floor, inked square frame (no radius), a
-   faint parchment seam. Always sits in parchment chrome with a serif caption. */
-.plate {
+/* ====================== PANEL (cell) CHROME ============================== */
+.cell {
   background: var(--plate-bg);
-  border: 1px solid var(--plate-frame);
-  box-shadow: 0 0 0 1px var(--rule), inset 0 1px 0 rgba(231, 226, 214, 0.04);
-  border-radius: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
-.plateCanvas {
-  flex: 1;
-  min-height: 0;
-}
-.plateCaption {
-  font-family: var(--serif);
+.cellHead {
+  flex: 0 0 auto;
+  padding: var(--s-2xs) var(--s-xs);
+  background: var(--plate-bg-2);
+  border-bottom: 1px solid var(--plate-rule);
+  box-shadow:
+    inset 0 1px 0 rgba(231, 226, 214, 0.04),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
   font-size: var(--t-label);
   letter-spacing: var(--ls-smallcaps);
-  font-variant-caps: all-small-caps;
-  font-feature-settings: 'smcp', 'c2sc', 'kern';
-  color: var(--on-plate-soft);
-  padding: var(--s-2xs) var(--s-xs);
-  border-top: 1px solid var(--plate-rule);
-  background: var(--plate-bg-2);
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cellBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Phone: only the secondary matching the active tab is visible. */
-.secondaryItem[data-active='false'] {
-  display: none;
-}
-.secondaryCanvasItem {
-  height: 32vh;
-  min-height: 220px;
-}
-
-@media (min-width: 48rem) {
-  .app {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      'toolbar   toolbar'
-      'hero      hero'
-      'coherence statesignals'
-      'spectro   spectro'
-      'pitch     vowel'
-      'advanced  advanced';
-    grid-template-rows: auto auto auto minmax(45vh, 1fr) minmax(22vh, auto) auto;
-  }
-  .tabbar {
-    display: none;
-  }
-  /* On desktop all four show; place each in its own area and ignore the tab. */
-  .secondaryItem {
-    display: flex !important;
-  }
-  .secCoherence {
-    grid-area: coherence;
-  }
-  .secState {
-    grid-area: statesignals;
-  }
-  .secPitch {
-    grid-area: pitch;
-  }
-  .secVowel {
-    grid-area: vowel;
-  }
-  .secPitch,
-  .secVowel {
-    height: 26vh;
-    min-height: 200px;
-  }
+/* the spectrogram is the hero — its canvas fills the cell body */
+.spectro .cellBody > *,
+.pitch .cellBody > *,
+.vowel .cellBody > * {
+  width: 100%;
+  height: 100%;
 }
 
-/* ── Toolbar (parchment masthead strip) ─────────────────────────────────────── */
-.toolbarBar {
+/* tick/precision detailing on the canvas cells (cheap inset frame) */
+.spectro .cellBody,
+.pitch .cellBody,
+.vowel .cellBody {
+  background: var(--plate-bg);
+  box-shadow: inset 0 0 0 1px rgba(46, 54, 80, 0.6);
+}
+
+/* ====================== THE RIGHT RAIL =================================== */
+.rail .cellBody {
+  overflow: hidden;
+}
+.railScroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+}
+/* The reused CoherencePanel / StateSignals are .panel (now dark via remap).
+   Strip their card border so they read as rail sections divided by 1px rules. */
+.railScroll > :global(section) {
+  border: 0;
+  border-bottom: 1px solid var(--plate-rule);
+  background: transparent;
+}
+.railScroll > :global(section):last-child {
+  border-bottom: 0;
+}
+.railScroll::-webkit-scrollbar {
+  width: 10px;
+}
+.railScroll::-webkit-scrollbar-thumb {
+  background: var(--plate-rule);
+  border: 2px solid var(--plate-bg);
+}
+
+/* ====================== APP BAR (dark strip) ============================= */
+.appbar {
   display: flex;
   align-items: center;
+  gap: var(--s-xs);
+  padding: 0 var(--s-sm);
+  height: 2.6rem;
+  background: linear-gradient(var(--plate-bg-2), var(--plate-bg));
+  border-bottom: 1px solid var(--plate-rule);
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+}
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--on-plate);
+  text-decoration: none;
+}
+.brand .om {
+  font-family: var(--devanagari);
+  font-size: 1.25rem;
+  color: var(--on-plate);
+}
+.wordmark {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--on-plate);
+}
+.liveTag {
+  color: var(--on-plate-soft);
+  letter-spacing: var(--ls-smallcaps);
+}
+.appbarSpacer {
+  flex: 1;
+}
+.device {
+  color: var(--on-plate-soft);
+}
+.sep {
+  color: var(--on-plate-weak);
+}
+.statusDot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--on-plate-weak);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  margin-left: var(--s-xs);
+}
+.statusDot[data-state='live'] {
+  background: var(--data-high-plate);
+}
+.statusDot[data-state='rec'] {
+  background: var(--error);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ====================== ALERTS STRIP ==================================== */
+.alerts {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--s-xs) var(--s-md);
-  padding: var(--s-xs) var(--s-sm);
-  border-bottom: 1px solid var(--rule);
-  color: var(--fg-muted);
-  font-family: var(--serif);
+  padding: var(--s-2xs) var(--s-sm);
+  background: var(--plate-bg);
+  border-bottom: 1px solid var(--plate-rule);
+  font-family: var(--mono);
   font-size: var(--t-label);
-}
-.toolbarTitle {
-  font-family: var(--serif-display);
-  font-weight: 420;
-  font-size: var(--t-md);
-  color: var(--ink);
-  letter-spacing: var(--ls-tight);
-}
-.recordBtn {
-  min-height: var(--tap);
-  padding: var(--s-2xs) var(--s-md);
-  border-radius: 0;
-  border: 1px solid var(--rule);
-  background: var(--accent);
-  color: var(--on-accent);
-  cursor: pointer;
-  font-family: var(--serif);
-  font-size: var(--t-label);
-}
-.recordBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.recordBtn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 .warn {
   color: var(--warn);
@@ -161,8 +259,260 @@
   color: var(--error);
 }
 
-/* ── Export card (parchment) ────────────────────────────────────────────────── */
+/* ====================== TRANSPORT (dark strip) ========================== */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  padding: 0 var(--s-sm);
+  min-height: 3rem;
+  background: linear-gradient(var(--plate-bg), var(--plate-bg-2));
+  border-top: 1px solid var(--plate-rule);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  color: var(--on-plate-soft);
+}
+.startStop {
+  min-height: 2.4rem;
+  min-width: 5rem;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--on-plate);
+  color: var(--plate-bg);
+  font-family: var(--mono);
+  font-weight: 500;
+  cursor: pointer;
+}
+.startStop[data-running='true'] {
+  background: var(--error);
+  color: var(--plate-bg);
+}
+.recBtn {
+  min-height: 2.4rem;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--plate-bg-2);
+  color: var(--data-low-plate);
+  font-family: var(--mono);
+  cursor: pointer;
+}
+.recBtn[data-recording='true'] {
+  color: var(--error);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.recBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.startStop:focus-visible,
+.recBtn:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+.elapsed {
+  font-variant-numeric: tabular-nums;
+  color: var(--on-plate);
+  min-width: 4.5rem;
+}
+.levelDb {
+  font-variant-numeric: tabular-nums;
+  color: var(--on-plate-soft);
+  min-width: 3.5rem;
+}
+.transportMeta {
+  color: var(--on-plate-soft);
+}
+.transportMeta .vowel {
+  color: var(--on-plate);
+}
+.transportSpacer {
+  flex: 1;
+}
+
+/* segmented level meter */
+.meter {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 1.4rem;
+}
+.seg {
+  width: 5px;
+  height: 100%;
+  background: var(--data-track);
+}
+.seg[data-lit='true'] {
+  background: var(--data-high-plate);
+}
+.seg[data-lit='true'][data-hot='true'] {
+  background: var(--data-low-plate);
+}
+
+/* ====================== APP-BAR / TRANSPORT DRAWER TRIGGERS ============== */
+.gear {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  margin-left: var(--s-xs);
+  padding: 0 var(--s-2xs);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--plate-bg-2);
+  color: var(--on-plate);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.gear:hover {
+  background: var(--panel-bg-2);
+}
+.gear:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+.gearDot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--data-high-plate);
+  box-shadow: 0 0 0 1px var(--plate-frame);
+}
+.drawerToggle {
+  min-height: 2.4rem;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--plate-bg-2);
+  color: var(--on-plate);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  cursor: pointer;
+}
+.drawerToggle:hover {
+  background: var(--panel-bg-2);
+}
+.drawerToggle:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+.resultPill {
+  min-height: 2.4rem;
+  padding: 0 var(--s-md);
+  border: 1px solid var(--data-high-plate);
+  border-radius: 0;
+  background: transparent;
+  color: var(--data-high-plate);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  cursor: pointer;
+}
+.resultPill:hover {
+  background: rgba(127, 168, 110, 0.12);
+}
+.resultPill:focus-visible {
+  outline: 2px solid var(--data-high-plate);
+  outline-offset: 2px;
+}
+
+/* ====================== DRAWER (slide-over) ============================== */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.5);
+  animation: scrimIn 0.16s ease-out;
+}
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  width: min(28rem, 92vw);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-sm);
+  background: var(--plate-bg-2);
+  border-left: 1px solid var(--plate-rule);
+  box-shadow: -6px 0 28px rgba(0, 0, 0, 0.55);
+  color: var(--fg);
+  animation: drawerIn 0.18s ease-out;
+}
+@keyframes drawerIn {
+  from {
+    transform: translateX(8px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .drawer {
+    animation: none;
+  }
+}
+.drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-sm);
+  padding-bottom: var(--s-2xs);
+  border-bottom: 1px solid var(--plate-rule);
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+.drawerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--on-plate);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.drawerClose:hover {
+  background: var(--panel-bg-2);
+}
+.drawerClose:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+.drawerHint {
+  margin-top: var(--s-md);
+  color: var(--fg-muted);
+  font-size: var(--t-label);
+}
+
+/* ── Export card (reused inside the drawer; parchment-card look on dark) ── */
 .export {
+  margin-top: var(--s-md);
   background: var(--panel-bg);
   border: 1px solid var(--rule);
   border-radius: 0;
@@ -182,4 +532,129 @@
   overflow-x: auto;
   font-family: var(--mono);
   font-size: 0.72rem;
+}
+.recordBtn {
+  min-height: var(--tap);
+  padding: var(--s-2xs) var(--s-md);
+  border-radius: 0;
+  border: 1px solid var(--plate-rule);
+  background: var(--on-plate);
+  color: var(--plate-bg);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--t-label);
+}
+.recordBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ========================= RESPONSIVE FALLBACK ==========================
+   Below 52rem the console grid can't fit — fall back to a stacked / tabbed
+   single-column flow. Spectrogram stays the always-on hero; the tab bar drives
+   which secondary cell shows (data-active reused). */
+@media (max-width: 52rem) {
+  .console {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    gap: 1px;
+    grid-template: none;
+  }
+  /* Kill horizontal overflow: flex children default to min-width:auto and won't
+     shrink below their content, which the console's overflow:hidden then clips.
+     Let every cell shrink to the viewport and wrap its contents. */
+  .console > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .cellBody,
+  .railScroll {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .appbar {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--s-2xs) var(--s-sm);
+  }
+  .alerts {
+    flex: 0 0 auto;
+  }
+  .spectro {
+    flex: 1 1 auto;
+    min-height: 30vh;
+  } /* hero stays visible */
+  .tabbar {
+    display: block;
+    flex: 0 0 auto;
+  }
+
+  /* the secondary cells: only the active tab shows */
+  .rail,
+  .pitch,
+  .vowel {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .pitch[data-active='false'],
+  .vowel[data-active='false'],
+  .rail[data-active='false'] {
+    display: none;
+  }
+  .rail .railScroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .transport {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: var(--s-xs);
+    padding: var(--s-2xs) var(--s-sm);
+  }
+  /* >=44px touch targets on phone */
+  .startStop,
+  .recBtn,
+  .drawerToggle,
+  .resultPill,
+  .gear,
+  .drawerClose {
+    min-height: var(--tap);
+  }
+  /* drawer goes full-width on the narrowest screens */
+  .drawer {
+    width: min(28rem, 100vw);
+  }
+
+  /* Decisive overflow control: clip at the root, drop the grow-spacers so the
+     app-bar / transport items pack left and wrap, and hide the decorative level
+     meter (the fixed segment row is the widest rigid element) on phones. */
+  :global(html),
+  :global(body),
+  :global(#root) {
+    overflow-x: hidden;
+  }
+  .appbarSpacer,
+  .transportSpacer {
+    display: none;
+  }
+  .meter {
+    display: none;
+  }
+  .appbar,
+  .transport {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: var(--s-2xs);
+  }
+  /* Hard-clamp the rail subtree: cap every descendant at its parent's width and
+     let flex items shrink, so no wide/non-wrapping child can force the panel
+     past the viewport (which overflow:hidden then clips). */
+  .rail :global(*) {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
