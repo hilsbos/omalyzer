@@ -1,10 +1,12 @@
 /* Two named grid templates swapped at ~48rem (769px). Phone = progressive
-   disclosure single column; desktop = dense two-column grid. */
+   disclosure single column; desktop = dense two-column grid. The page is
+   parchment chrome ("darkroom-in-parchment"); the canvases are dark instrument
+   plates, each framed and serif-captioned. */
 .app {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  max-width: 1400px;
+  gap: var(--s-sm);
+  padding: var(--s-sm);
+  max-width: var(--max-instrument);
   margin: 0 auto;
   grid-template-columns: 1fr;
   grid-template-areas:
@@ -26,9 +28,6 @@
 .spectro {
   grid-area: spectro;
   min-height: 40vh;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--panel-border);
 }
 .tabbar {
   grid-area: tabbar;
@@ -37,29 +36,37 @@
   grid-area: secondary;
   min-height: 0;
 }
-.secondaryCanvas {
-  height: 32vh;
-  min-height: 220px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--panel-border);
-}
 .advanced {
   grid-area: advanced;
 }
 
-/* These four only render in the desktop template. */
-.coherence {
-  grid-area: coherence;
+/* ── Instrument-plate primitive ──────────────────────────────────────────────
+   A framed dark canvas: deep navy floor, inked square frame (no radius), a
+   faint parchment seam. Always sits in parchment chrome with a serif caption. */
+.plate {
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-frame);
+  box-shadow: 0 0 0 1px var(--rule), inset 0 1px 0 rgba(231, 226, 214, 0.04);
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-.statesignals {
-  grid-area: statesignals;
+.plateCanvas {
+  flex: 1;
+  min-height: 0;
 }
-.pitch {
-  grid-area: pitch;
-}
-.vowel {
-  grid-area: vowel;
+.plateCaption {
+  font-family: var(--serif);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  font-variant-caps: all-small-caps;
+  font-feature-settings: 'smcp', 'c2sc', 'kern';
+  color: var(--on-plate-soft);
+  padding: var(--s-2xs) var(--s-xs);
+  border-top: 1px solid var(--plate-rule);
+  background: var(--plate-bg-2);
 }
 
 /* Phone: only the secondary matching the active tab is visible. */
@@ -69,9 +76,6 @@
 .secondaryCanvasItem {
   height: 32vh;
   min-height: 220px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--panel-border);
 }
 
 @media (min-width: 48rem) {
@@ -91,7 +95,7 @@
   }
   /* On desktop all four show; place each in its own area and ignore the tab. */
   .secondaryItem {
-    display: block !important;
+    display: flex !important;
   }
   .secCoherence {
     grid-area: coherence;
@@ -109,43 +113,46 @@
   .secVowel {
     height: 26vh;
     min-height: 200px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--panel-border);
   }
 }
 
+/* ── Toolbar (parchment masthead strip) ─────────────────────────────────────── */
 .toolbarBar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  color: var(--fg);
-  font-family: var(--mono);
-  font-size: 0.78rem;
+  gap: var(--s-xs) var(--s-md);
+  padding: var(--s-xs) var(--s-sm);
+  border-bottom: 1px solid var(--rule);
+  color: var(--fg-muted);
+  font-family: var(--serif);
+  font-size: var(--t-label);
 }
 .toolbarTitle {
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-family: var(--serif-display);
+  font-weight: 420;
+  font-size: var(--t-md);
+  color: var(--ink);
+  letter-spacing: var(--ls-tight);
 }
 .recordBtn {
   min-height: var(--tap);
-  padding: 0.4rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
-  background: var(--panel-bg-2);
-  color: var(--fg);
+  padding: var(--s-2xs) var(--s-md);
+  border-radius: 0;
+  border: 1px solid var(--rule);
+  background: var(--accent);
+  color: var(--on-accent);
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-family: var(--serif);
+  font-size: var(--t-label);
 }
 .recordBtn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+.recordBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .warn {
   color: var(--warn);
@@ -153,22 +160,26 @@
 .error {
   color: var(--error);
 }
+
+/* ── Export card (parchment) ────────────────────────────────────────────────── */
 .export {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: var(--s-sm);
   color: var(--fg);
 }
 .exportNote {
   color: var(--fg-muted);
-  font-size: 0.78rem;
+  font-size: var(--t-label);
 }
 .pre {
-  background: #0c0c0c;
-  border: 1px solid var(--panel-border);
-  padding: 0.6rem;
-  border-radius: 6px;
+  background: var(--plate-bg);
+  color: var(--on-plate);
+  border: 1px solid var(--plate-rule);
+  padding: var(--s-xs);
+  border-radius: 0;
   overflow-x: auto;
+  font-family: var(--mono);
   font-size: 0.72rem;
 }

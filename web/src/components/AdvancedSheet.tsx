@@ -76,6 +76,7 @@ export default function AdvancedSheet({
             value={gateDb}
             unit="dB"
             onChange={onGateChange}
+            gate
           />
           <p className={styles.note}>
             Gate sets the silence threshold (the one control that affects analysis);
@@ -95,6 +96,7 @@ function Slider({
   value,
   unit,
   onChange,
+  gate = false,
 }: {
   label: string;
   min: number;
@@ -103,6 +105,7 @@ function Slider({
   value: number;
   unit: string;
   onChange: (v: number) => void;
+  gate?: boolean;
 }) {
   return (
     <label className={styles.slider}>
@@ -114,7 +117,7 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={styles.range}
+        className={gate ? `${styles.range} ${styles.rangeGate}` : styles.range}
       />
       <span className={styles.sliderValue}>
         {value} {unit}

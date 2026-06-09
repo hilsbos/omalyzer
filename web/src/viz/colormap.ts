@@ -1,15 +1,18 @@
-// Magma-ish colormap, transcribed verbatim from crates/core/src/colormap.rs.
-// Same 5-stop table and the same piecewise-linear interpolation.
+// Navy → ember → ivory colormap (web-only; the Rust desktop colormap is
+// untouched). Same 5-stop table and the same piecewise-linear interpolation as
+// the old magma LUT, but the endpoints are harmonized with the navy/parchment
+// "darkroom-in-parchment" system: deep navy-black floor → indigo → oxblood/ember
+// → terracotta-ochre → parchment-ivory. Preserves perceptual monotonic luminance.
 
 const STOPS: ReadonlyArray<readonly [number, number, number]> = [
-  [0.0, 0.0, 4.0],
-  [81.0, 18.0, 124.0],
-  [183.0, 55.0, 121.0],
-  [252.0, 137.0, 97.0],
-  [252.0, 253.0, 191.0],
+  [16, 19, 31], // 0.00  deep navy-black (≈ --plate-bg)
+  [44, 41, 82], // 0.25  indigo
+  [134, 58, 74], // 0.50  oxblood / ember
+  [205, 126, 58], // 0.75  terracotta-ochre
+  [246, 240, 214], // 1.00  parchment-ivory
 ];
 
-/** Magma-ish colormap, `t` in [0,1] -> [r,g,b] (0..255), matching colormap.rs. */
+/** Navy→ember→ivory colormap, `t` in [0,1] -> [r,g,b] (0..255). */
 export function colormap(t: number): [number, number, number] {
   const tc = Math.min(Math.max(t, 0), 1) * 4;
   const i = Math.min(tc | 0, 3);

@@ -34,7 +34,13 @@ export default function DeleteAccountButton() {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        style={{ color: '#b00020', borderColor: '#b00020', background: 'transparent' }}
+        style={{
+          color: 'var(--error)',
+          borderColor: 'var(--error)',
+          background: 'transparent',
+          borderRadius: 0,
+          minHeight: 'var(--tap)',
+        }}
       >
         Delete my account
       </button>
@@ -53,13 +59,29 @@ export default function DeleteAccountButton() {
         placeholder="DELETE"
         aria-label="Type DELETE to confirm account deletion"
         autoComplete="off"
+        style={{
+          fontFamily: 'var(--serif)',
+          fontSize: 'var(--t-body)',
+          padding: 'var(--s-2xs) 0',
+          border: 'none',
+          borderBottom: '1px solid var(--rule)',
+          background: 'transparent',
+          color: 'var(--ink)',
+          maxWidth: '12rem',
+        }}
       />
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button
           type="button"
           onClick={onDelete}
           disabled={typed !== 'DELETE' || busy}
-          style={{ color: '#fff', background: '#b00020', borderColor: '#b00020' }}
+          style={{
+            color: 'var(--on-accent)',
+            background: 'var(--error)',
+            borderColor: 'var(--error)',
+            borderRadius: 0,
+            minHeight: 'var(--tap)',
+          }}
         >
           {busy ? 'Deleting…' : 'Permanently delete'}
         </button>
@@ -71,12 +93,19 @@ export default function DeleteAccountButton() {
             setError(null);
           }}
           disabled={busy}
+          style={{
+            color: 'var(--accent)',
+            borderColor: 'var(--rule)',
+            background: 'transparent',
+            borderRadius: 0,
+            minHeight: 'var(--tap)',
+          }}
         >
           Cancel
         </button>
       </div>
       {error && (
-        <p role="alert" style={{ color: '#b00020' }}>
+        <p role="alert" style={{ color: 'var(--error)' }}>
           {error}
         </p>
       )}

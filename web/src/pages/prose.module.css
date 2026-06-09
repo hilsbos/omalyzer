@@ -1,85 +1,184 @@
+/* Editorial long-form + manuscript hero. Newsreader body, Fraunces headings,
+   golden rhythm, navy CTAs, asterism dividers, parchment chrome (radius 0). */
+
 .prose {
-  max-width: 46rem;
+  max-width: var(--max);
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 4rem;
+  padding: var(--s-xl) var(--s-lg) var(--s-4xl);
   color: var(--fg);
+}
+
+.prose section {
+  margin: var(--s-3xl) 0;
 }
 
 .prose h1 {
-  font-size: 1.9rem;
-  line-height: 1.2;
-  margin: 0 0 1rem;
+  font-size: var(--t-disp);
+  line-height: 1.1;
+  margin: 0 0 var(--s-md);
 }
 .prose h2 {
-  font-size: 1.3rem;
-  margin: 2rem 0 0.5rem;
+  font-size: var(--t-md);
+  margin: var(--s-2xl) 0 var(--s-xs);
 }
 .prose h3 {
-  font-size: 1.05rem;
-  margin: 1.5rem 0 0.4rem;
+  font-size: var(--t-md);
+  margin: var(--s-xl) 0 var(--s-2xs);
 }
 .prose p {
-  margin: 0.6rem 0;
+  margin: var(--s-xs) 0;
 }
-.prose ul {
-  margin: 0.6rem 0;
-  padding-left: 1.25rem;
+.prose ul,
+.prose ol {
+  margin: var(--s-xs) 0;
+  padding-left: var(--s-lg);
 }
 .prose li {
-  margin: 0.35rem 0;
+  margin: var(--s-2xs) 0;
 }
+.prose li::marker {
+  color: var(--accent);
+}
+
+/* asterism / manuscript rule between sections */
 .prose hr {
   border: none;
-  border-top: 1px solid var(--panel-border);
-  margin: 2rem 0;
+  height: var(--s-lg);
+  margin: var(--s-2xl) 0;
+  text-align: center;
 }
+.prose hr::after {
+  content: "⁂";
+  color: var(--accent-soft);
+  font-family: var(--serif-display);
+  font-size: var(--t-lg);
+}
+
 .prose strong {
-  color: #fff;
+  color: var(--ink);
+  font-weight: 600;
 }
 .prose em {
-  color: var(--fg-muted);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* Drop cap on the first paragraph of the prose body. */
+.prose > p:first-of-type::first-letter {
+  font-family: var(--serif-display);
+  font-weight: 360;
+  float: left;
+  font-size: 3.6em;
+  line-height: 0.8;
+  padding: 0.05em 0.08em 0 0;
+  margin-top: 0.04em;
+  color: var(--accent);
+}
+
+/* ── Manuscript hero ──────────────────────────────────────────────────────── */
+.hero {
+  min-height: calc(100vh - var(--s-4xl));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--s-lg);
+}
+
+/* Hero Om lockup at display scale — overrides the header lockup sizing. */
+.heroLockup {
+  display: inline-flex;
+}
+.heroLockup :global(svg) {
+  width: clamp(var(--t-disp), 11vw, var(--t-disp2));
+  height: clamp(var(--t-disp), 11vw, var(--t-disp2));
+}
+.heroLockup span {
+  font-size: clamp(var(--t-disp), 11vw, var(--t-disp2));
+  letter-spacing: var(--ls-tight);
 }
 
 .lede {
-  font-size: 1.1rem;
-  color: var(--fg);
+  font-size: var(--t-md);
+  color: var(--ink-soft);
+  max-width: var(--max);
 }
 
 .tag {
+  font-family: var(--serif-display);
   font-style: italic;
-  color: var(--fg-muted);
-  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--accent-soft);
+  font-variant-caps: all-small-caps;
+  font-feature-settings: "smcp", "c2sc", "kern";
+  font-size: 0.9em;
+  letter-spacing: var(--ls-roman);
 }
 
+/* ── CTAs ─────────────────────────────────────────────────────────────────── */
 .cta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 1.25rem 0;
+  gap: var(--s-sm);
+  margin: var(--s-lg) 0;
 }
 .ctaPrimary,
 .ctaSecondary {
   display: inline-flex;
   align-items: center;
+  gap: var(--s-2xs);
   min-height: var(--tap);
-  padding: 0.6rem 1.25rem;
-  border-radius: 8px;
+  padding: var(--s-xs) var(--s-lg);
+  border-radius: 0;
   text-decoration: none;
-  font-weight: 600;
+  font-family: var(--serif-display);
+  font-weight: 420;
 }
 .ctaPrimary {
   background: var(--accent);
-  color: #04243a;
+  color: var(--on-accent);
 }
 .ctaSecondary {
-  border: 1px solid var(--panel-border);
-  color: var(--fg);
+  border: 1px solid var(--rule);
+  color: var(--accent);
 }
 
+/* sovereign arrow — nudges right on hover, holds 200ms after mouseleave */
+.arrow {
+  display: inline-block;
+  transition: transform 250ms ease-out 200ms;
+}
+.ctaPrimary:hover .arrow,
+.ctaSecondary:hover .arrow {
+  transform: translateX(6px);
+  transition: transform 250ms ease-out;
+}
+
+/* ── Disclaimer callout — left navy rule blockquote on faint parchment ──────── */
 .callout {
-  border-left: 3px solid var(--panel-border);
-  padding: 0.5rem 0 0.5rem 1rem;
-  margin: 1.5rem 0;
-  color: var(--fg-muted);
-  font-size: 0.95rem;
+  border-left: 3px solid var(--accent);
+  background: var(--panel-bg);
+  padding: var(--s-sm) var(--s-md);
+  margin: var(--s-lg) 0;
+  color: var(--ink-soft);
+  font-size: var(--t-body);
+}
+
+/* ── Procession reveal (editorial pages only — never the live analyzer) ─────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.isVisible {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 620ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
 }

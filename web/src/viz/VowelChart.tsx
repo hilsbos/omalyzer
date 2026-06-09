@@ -43,14 +43,14 @@ export default function VowelChart({ getHistory, snapshot }: VowelChartProps) {
       const H = canvas.height;
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = 'rgb(18,18,18)';
+      ctx.fillStyle = '#14171F';
       ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgb(60,60,60)';
+      ctx.strokeStyle = '#2E3650';
       ctx.lineWidth = dpr;
       ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
 
       ctx.font = `${11 * dpr}px ui-monospace, monospace`;
-      ctx.fillStyle = 'rgba(255,255,255,0.63)';
+      ctx.fillStyle = 'rgba(231,226,214,0.63)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText('vowel chart', 6 * dpr, 2 * dpr);
@@ -71,7 +71,7 @@ export default function VowelChart({ getHistory, snapshot }: VowelChartProps) {
       const yOf = (f1: number) => plot.t + ((f1 - f1Lo) / (f1Hi - f1Lo)) * ph;
 
       // Axis hints (F2 reversed).
-      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillStyle = 'rgba(231,226,214,0.35)';
       ctx.font = `${10 * dpr}px ui-monospace, monospace`;
       ctx.textBaseline = 'top';
       ctx.textAlign = 'left';
@@ -83,12 +83,12 @@ export default function VowelChart({ getHistory, snapshot }: VowelChartProps) {
       for (const [v, f1, f2] of TARGETS) {
         const cx = xOf(f2);
         const cy = yOf(f1);
-        ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+        ctx.strokeStyle = 'rgba(231,226,214,0.24)';
         ctx.lineWidth = dpr;
         ctx.beginPath();
         ctx.arc(cx, cy, 12 * dpr, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.59)';
+        ctx.fillStyle = 'rgba(231,226,214,0.59)';
         ctx.font = `${12 * dpr}px ui-monospace, monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -106,7 +106,7 @@ export default function VowelChart({ getHistory, snapshot }: VowelChartProps) {
         if (hop < trailStart || f1 <= 0 || f2 <= 0) continue;
         const age = (latestHop - hop) / trailHops;
         const alpha = Math.max((1 - age) * 0.55, 0);
-        ctx.fillStyle = `rgba(255,210,90,${alpha})`;
+        ctx.fillStyle = `rgba(227,182,82,${alpha})`;
         ctx.beginPath();
         ctx.arc(xOf(f2), yOf(f1), 2.5 * dpr, 0, Math.PI * 2);
         ctx.fill();
@@ -115,11 +115,11 @@ export default function VowelChart({ getHistory, snapshot }: VowelChartProps) {
       // Live dot.
       if (snap?.voiced && snap.f1 != null && snap.f2 != null && snap.f1 > 0 && snap.f2 > 0) {
         const p = [xOf(snap.f2), yOf(snap.f1)] as const;
-        ctx.fillStyle = 'rgb(255,230,120)';
+        ctx.fillStyle = '#EDC766';
         ctx.beginPath();
         ctx.arc(p[0], p[1], 4.5 * dpr, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#000';
+        ctx.strokeStyle = '#14171F';
         ctx.lineWidth = dpr;
         ctx.stroke();
       }

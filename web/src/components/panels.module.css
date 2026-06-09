@@ -1,54 +1,68 @@
 .panel {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: var(--s-sm);
   color: var(--fg);
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--s-2xs);
   min-width: 0;
 }
 
 .panelTitle {
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-family: var(--serif-display);
+  font-size: var(--t-md);
+  font-weight: 420;
+  letter-spacing: var(--ls-tight);
   margin: 0;
 }
 
 .legend {
-  font-family: var(--mono);
-  font-size: 0.66rem;
+  font-family: var(--serif);
+  font-size: var(--t-label);
   color: var(--fg-weak);
 }
 
 .scopeNote {
-  font-family: var(--mono);
-  font-size: 0.66rem;
+  font-family: var(--serif);
+  font-size: var(--t-label);
   color: var(--fg-weak);
 }
 
+/* The measured│inferred divider — the ethical centerpiece. A serif-set
+   manuscript rule, given generous golden whitespace above and below. */
 .divider {
-  font-family: var(--mono);
-  font-size: 0.66rem;
-  color: var(--fg-weak);
-  border-top: 1px dashed var(--panel-border);
-  padding-top: 0.35rem;
-  margin-top: 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  margin: var(--s-lg) 0;
+  font-family: var(--serif);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  font-variant-caps: all-small-caps;
+  font-feature-settings: 'smcp', 'c2sc', 'kern';
+  color: var(--accent-soft);
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--rule);
 }
 
 /* A tap/click row: >=44px target, toggles its caption. */
 .row {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--s-2xs);
   width: 100%;
   min-height: var(--tap);
-  padding: 0.3rem 0.25rem;
+  padding: var(--s-2xs) var(--s-2xs);
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -65,15 +79,16 @@
 .rowHead {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  gap: var(--s-xs);
+  font-family: var(--serif);
+  font-size: var(--t-body);
 }
 
 .rowName {
   flex: 0 0 5.5rem;
 }
 
+/* Raw / diagnostic numbers — true mono, the instrument register. */
 .rowRaw {
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -83,17 +98,20 @@
 }
 
 .caption {
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--fg-muted);
 }
 
 .indexRow {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  font-family: var(--mono);
-  font-size: 0.95rem;
+  gap: var(--s-xs);
+  font-family: var(--num);
+  font-weight: 420;
+  font-size: 1rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum', 'kern';
 }
 
 .indexLabel {
@@ -103,14 +121,14 @@
 .placeholder {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-family: var(--mono);
-  font-size: 0.78rem;
+  gap: var(--s-xs);
+  font-family: var(--serif);
+  font-size: var(--t-body);
   min-height: var(--tap);
-  padding: 0.3rem 0.25rem;
+  padding: var(--s-2xs) var(--s-2xs);
 }
 .placeholderTag {
   color: var(--fg-weak);
   font-style: italic;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }

@@ -1,39 +1,118 @@
-/* Palette lifted verbatim from the Rust UI (crates/desktop/src/ui.rs) so the
-   DOM and the canvases share one source of truth for color. */
+/* ── Omalyzer design tokens ───────────────────────────────────────────────
+   Atmanis editorial identity (parchment / navy / golden ratio) wrapping a
+   real-time audio instrument. Model: "darkroom-in-parchment" — paper chrome,
+   framed dark instrument plates. See design-system spec.
+
+   NOTE: canvas colors (--f1/2/3, --pitch-line, --vowel-*, --plot-*) are ALSO
+   hardcoded as literals inside web/src/viz/*.tsx and colormap.ts. These tokens
+   are the source of truth; keep the viz literals in sync by hand (§3). */
 :root {
-  /* formant line colors (ui.rs F1/F2/F3_COLOR) */
-  --f1: rgb(255, 120, 120);
-  --f2: rgb(120, 200, 255);
-  --f3: rgb(180, 255, 140);
+  /* ── Atmanis core palette ─────────────────────────────────────────────── */
+  --bg:           #FAF7F1;  /* parchment ground */
+  --ink:          #1F1A14;  /* primary text — near-black warm brown */
+  --ink-soft:     #4A3F35;  /* secondary text — warm brown */
+  --rule:         #D4C9B6;  /* hairline rules (1px borders) */
+  --accent:       #1B2541;  /* navy — wordmark, CTA, glyphs, labels, bullets */
+  --accent-soft:  #4A5670;  /* quieter navy — roman numerals, "·" separators */
 
-  /* pitch-track line + vowel live/trail (ui.rs) */
-  --pitch-line: rgb(120, 220, 140);
-  --vowel-trail: rgb(255, 210, 90);
-  --vowel-live: rgb(255, 230, 120);
+  /* ── Darkroom: the framed instrument plate ────────────────────────────── */
+  --plate-bg:     #14171F;  /* deep navy-black — viz canvas floor */
+  --plate-bg-2:   #1B2030;  /* one step up — inset rows on a plate */
+  --plate-rule:   #2E3650;  /* navy hairline inside the plate */
+  --plate-frame:  #11141C;  /* the embossed outer frame edge */
+  --on-plate:        #E7E2D6;  /* parchment-tint text on the dark plate */
+  --on-plate-soft:   #A9AEC0;  /* muted on-plate (labels, captions) */
+  --on-plate-weak:   #6B7290;  /* faint on-plate (scope notes, ticks) */
 
-  /* evidence dots (ui.rs Evidence::dot_color) */
-  --evidence-strong: rgb(60, 170, 90);
-  --evidence-moderate: rgb(210, 160, 40);
-  --evidence-experimental: rgb(140, 140, 140);
+  /* ── Harmonized data-viz accent ramp ──────────────────────────────────────
+     Coherence low→high reads as a muted terracotta→ochre→sage scale that sits
+     with navy/parchment instead of saturated traffic-light. Two registers:
+     *-paper for fills that sit directly on parchment; *-plate (brighter) for
+     fills inside a dark instrument plate. */
+  --data-low:       #B2603F;  /* terracotta — weak/low coherence (on paper) */
+  --data-mid:       #C39A3C;  /* ochre — middling */
+  --data-high:      #5E7E55;  /* sage — strong/high coherence */
+  --data-low-plate:  #D9764E;  /* brighter terracotta on dark plate */
+  --data-mid-plate:  #E3B652;  /* brighter ochre on dark plate */
+  --data-high-plate: #7FA86E;  /* brighter sage on dark plate */
+  --data-track:      #232838;  /* meter track on a plate */
+  --data-track-paper:#E6DECE;  /* meter track on parchment */
 
-  /* live-hold "holding…" accent (ui.rs) */
-  --hold-green: rgb(40, 150, 70);
+  /* ── Evidence dots (consumed by EvidenceDot.tsx — tuned for BOTH grounds) ── */
+  --evidence-strong:        #5E7E55;  /* sage = strong (matches data-high) */
+  --evidence-moderate:      #9E7619;  /* ochre = moderate (darkened for >=3:1 on parchment) */
+  --evidence-experimental:  #8C8475;  /* warm grey = experimental */
 
-  /* surfaces (egui dark panel grays) */
-  --panel-bg: #121212;
-  --panel-bg-2: #1b1b1b;
-  --panel-border: #333;
-  --plot-bg: rgb(18, 18, 18);
-  --plot-border: rgb(60, 60, 60);
+  /* ── Live-hold accent ("holding…") — quiet sage, not neon green ─────────── */
+  --hold-green: #5E7E55;
 
-  /* text */
-  --fg: #e8e8e8;
-  --fg-muted: #9a9a9a;
-  --fg-weak: #6f6f6f;
-  --accent: #6cc0ff;
-  --warn: #d8a23a;
-  --error: #ff6b6b;
+  /* ── Canvas-mirrored literals (instrument palette) ────────────────────────
+     Formant lines: navy-blue / terracotta / sage so F1/F2/F3 stay separable
+     on the dark plate while echoing the system. Keep in sync with viz TSX. */
+  --f1: #E08A6A;  /* terracotta-warm */
+  --f2: #7FA8D8;  /* slate-blue */
+  --f3: #9FC27E;  /* sage */
+  --pitch-line:  #8FB4E6;  /* slate-blue F0 trace */
+  --vowel-trail: rgba(227,182,82,0.55);  /* ochre trail */
+  --vowel-live:  #EDC766;  /* ochre live dot */
 
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --tap: 44px; /* min touch target */
+  /* ── DOM surface tokens (chrome = parchment) ──────────────────────────────
+     Names preserved so existing module.css keeps resolving. Re-pointed from
+     egui grays to the parchment system. */
+  --panel-bg:     #F4EFE5;  /* faintly inset parchment card */
+  --panel-bg-2:   #ECE5D6;  /* hover / active card step */
+  --panel-border: var(--rule);  /* hairline */
+  --plot-bg:      var(--plate-bg);    /* legacy alias → plate */
+  --plot-border:  var(--plate-rule);  /* legacy alias → plate rule */
+
+  /* ── Text (chrome) ────────────────────────────────────────────────────── */
+  --fg:        var(--ink);       /* primary */
+  --fg-muted:  var(--ink-soft);  /* secondary */
+  --fg-weak:   #7A6E5E;          /* faint warm-brown (legends, scope notes) */
+  --warn:      #7E5A14;          /* ochre-ink warning on parchment (>=4.5:1 small text) */
+  --error:     #9E3B2E;          /* oxide-red (replaces crimson/#b00020) */
+  --on-accent: var(--bg);        /* parchment text on navy buttons (was #04243a) */
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  --serif:        'Newsreader', 'Newsreader Fallback', Georgia, serif;  /* body */
+  --serif-display:'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* headings/wordmark */
+  --num:          'Fraunces', 'Fraunces Fallback', Georgia, serif;      /* tabular readouts */
+  --mono:         ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; /* raw/diagnostic only */
+
+  /* ── Golden-ratio spacing scale (φ = 1.618) ───────────────────────────── */
+  --s-2xs: 0.382rem;   /* φ⁻²  */
+  --s-xs:  0.618rem;   /* φ⁻¹  */
+  --s-sm:  1rem;       /* base */
+  --s-md:  1.272rem;   /* √φ   */
+  --s-lg:  1.618rem;   /* φ    */
+  --s-xl:  2.058rem;   /* φ·√φ */
+  --s-2xl: 2.618rem;   /* φ²   */
+  --s-3xl: 4.236rem;   /* φ³   */
+  --s-4xl: 6.854rem;   /* φ⁴   */
+  --max:   38.2rem;    /* ~24×φ — editorial measure (prose) */
+  --max-instrument: 60rem; /* the analyzer/dashboard get a wider working width */
+
+  /* ── Golden type scale ────────────────────────────────────────────────── */
+  --t-label: 0.786rem;  /* 1/√φ — section labels, footer, viz captions */
+  --t-body:  1rem;      /* 18px base */
+  --t-md:    1.272rem;  /* √φ — pillar/principle/emph, wordmark in header */
+  --t-lg:    1.618rem;  /* φ — tagline floor, ornament */
+  --t-xl:    2.618rem;  /* φ² — tagline ceiling */
+  --t-disp:  3.330rem;  /* φ²·√φ — hero clamp floor */
+  --t-disp2: 6.854rem;  /* φ⁴ — hero clamp ceiling */
+
+  /* ── Brand letter-spacing ─────────────────────────────────────────────── */
+  --ls-smallcaps: 0.146em;  /* φ⁻⁴ — section labels */
+  --ls-tight:     -0.01em;  /* headings */
+  --ls-roman:     0.05em;   /* italic roman numerals */
+
+  /* ── Om mark theming ──────────────────────────────────────────────────── */
+  --om-ink:   #1B2541;  /* navy (light theme) */
+  --om-paper: #FAF7F1;  /* parchment (dark theme) */
+
+  --tap: 44px;  /* min touch target — unchanged */
 }
+
+/* The page never goes "dark mode"; only the favicon/Om mark invert. The
+   instrument plates are dark by intent, not by theme. */
+::selection { background: var(--accent); color: var(--bg); }

@@ -36,14 +36,14 @@ export default function PitchTrack({ getHistory, latestHop }: PitchTrackProps) {
       const H = canvas.height;
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = 'rgb(18,18,18)';
+      ctx.fillStyle = '#14171F';
       ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgb(60,60,60)';
+      ctx.strokeStyle = '#2E3650';
       ctx.lineWidth = dpr;
       ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
 
       ctx.font = `${11 * dpr}px ui-monospace, monospace`;
-      ctx.fillStyle = 'rgba(255,255,255,0.63)';
+      ctx.fillStyle = 'rgba(231,226,214,0.63)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText('pitch track', 6 * dpr, 2 * dpr);
@@ -95,7 +95,7 @@ export default function PitchTrack({ getHistory, latestHop }: PitchTrackProps) {
         const y = yOf(f);
         const isOctave = ((midi % 12) + 12) % 12 === 0;
         const alpha = isOctave ? 0.24 : 0.086;
-        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.strokeStyle = `rgba(231,226,214,${alpha})`;
         ctx.beginPath();
         ctx.moveTo(plot.l, y);
         ctx.lineTo(plot.r, y);
@@ -103,7 +103,7 @@ export default function PitchTrack({ getHistory, latestHop }: PitchTrackProps) {
         if (isOctave) {
           const name = NOTE_NAMES[(((midi % 12) + 12) % 12)];
           const octave = Math.floor(midi / 12) - 1;
-          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.fillStyle = 'rgba(231,226,214,0.55)';
           ctx.font = `${9 * dpr}px ui-monospace, monospace`;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
@@ -118,8 +118,8 @@ export default function PitchTrack({ getHistory, latestHop }: PitchTrackProps) {
       const windowHops = Math.max(latestHop - oldest, 1);
       const xOf = (hop: number) => plot.r - ((latestHop - hop) / windowHops) * pw;
 
-      // F0 line, broken across >2-hop gaps (unvoiced spans).
-      ctx.strokeStyle = 'rgb(120,220,140)';
+      // F0 line, broken across >2-hop gaps (unvoiced spans). Slate-blue trace.
+      ctx.strokeStyle = '#8FB4E6';
       ctx.lineWidth = Math.max(dpr * 1.5, 1);
       let prev: [number, number, number] | null = null;
       for (const [hop, f] of history) {

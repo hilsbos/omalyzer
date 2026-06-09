@@ -45,15 +45,15 @@ export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
       <h2>You vs. the community</h2>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{fmt(yourLatest)}</span>
+          <span className={`${styles.statValue} readout`}>{fmt(yourLatest)}</span>
           <span className={styles.statLabel}>your latest</span>
         </div>
         <div className={styles.stat}>
-          <span className={styles.statValue}>{fmt(yourMedian)}</span>
+          <span className={`${styles.statValue} readout`}>{fmt(yourMedian)}</span>
           <span className={styles.statLabel}>your median ({mine.length})</span>
         </div>
         <div className={styles.stat}>
-          <span className={styles.statValue}>
+          <span className={`${styles.statValue} readout`}>
             {loading ? '…' : fmt(stats?.median)}
           </span>
           <span className={styles.statLabel}>

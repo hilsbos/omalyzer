@@ -65,7 +65,7 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
         <span className={styles.indexLabel}>
           index {s?.last_coherence_index != null ? s.last_coherence_index.toFixed(2) : dash}
         </span>
-        <CoherenceBar value={s?.last_coherence_index ?? null} height={14} ariaLabel="overall index" />
+        <CoherenceBar value={s?.last_coherence_index ?? null} height={14} ariaLabel="overall index" variant="paper" />
       </div>
 
       <InfoRow

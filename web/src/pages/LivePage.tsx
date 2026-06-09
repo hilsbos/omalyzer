@@ -226,15 +226,20 @@ export default function LivePage() {
         <Hero snapshot={s} running={status.running} onStart={start} onStop={stop} />
       </div>
 
-      {/* Spectrogram */}
-      <div className={styles.spectro}>
-        <Spectrogram
-          getHistory={getHistory}
-          snapshot={s}
-          maxFreqHz={controls.maxFreqHz}
-          dbFloor={controls.dbFloor}
-          dbCeil={controls.dbCeil}
-        />
+      {/* Spectrogram — dark instrument plate */}
+      <div className={`${styles.spectro} ${styles.plate}`}>
+        <div className={styles.plateCanvas}>
+          <Spectrogram
+            getHistory={getHistory}
+            snapshot={s}
+            maxFreqHz={controls.maxFreqHz}
+            dbFloor={controls.dbFloor}
+            dbCeil={controls.dbCeil}
+          />
+        </div>
+        <div className={styles.plateCaption}>
+          low-frequency spectrogram · 0–{STORE_MAX_HZ} Hz
+        </div>
       </div>
 
       {/* Phone tab bar (hidden on desktop) */}
@@ -257,16 +262,22 @@ export default function LivePage() {
         <StateSignals snapshot={s} />
       </div>
       <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secPitch} ${styles.secondaryCanvasItem}`}
+        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secPitch} ${styles.secondaryCanvasItem} ${styles.plate}`}
         data-active={tab === 'pitch'}
       >
-        <PitchTrack getHistory={getHistory} latestHop={latestHop} />
+        <div className={styles.plateCanvas}>
+          <PitchTrack getHistory={getHistory} latestHop={latestHop} />
+        </div>
+        <div className={styles.plateCaption}>pitch track · F0 over time</div>
       </div>
       <div
-        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secVowel} ${styles.secondaryCanvasItem}`}
+        className={`${styles.secondary} ${styles.secondaryItem} ${styles.secVowel} ${styles.secondaryCanvasItem} ${styles.plate}`}
         data-active={tab === 'vowel'}
       >
-        <VowelChart getHistory={getHistory} snapshot={s} />
+        <div className={styles.plateCanvas}>
+          <VowelChart getHistory={getHistory} snapshot={s} />
+        </div>
+        <div className={styles.plateCaption}>vowel chart · F1×F2 formant space</div>
       </div>
 
       {/* Advanced sheet */}

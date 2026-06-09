@@ -41,7 +41,9 @@ export default function InfoRow({
       <span className={styles.rowHead}>
         {evidence && <EvidenceDot evidence={evidence} />}
         <span className={styles.rowName}>{name}</span>
-        {showBar && <CoherenceBar value={barValue} height={9} ariaLabel={`${name} score`} />}
+        {showBar && (
+          <CoherenceBar value={barValue} height={9} ariaLabel={`${name} score`} variant="paper" />
+        )}
         {raw != null && <span className={styles.rowRaw}>{raw}</span>}
       </span>
       <span id={capId} className={styles.caption} hidden={!open}>

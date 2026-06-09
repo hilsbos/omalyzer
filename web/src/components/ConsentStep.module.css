@@ -1,42 +1,43 @@
 .card {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: var(--s-md);
   color: var(--fg);
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-family: var(--serif);
+  font-size: var(--t-body);
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: var(--s-sm);
 }
 .intro {
   margin: 0;
   color: var(--fg-muted);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 .intro strong {
-  color: var(--fg);
+  color: var(--ink);
 }
 .row {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--s-xs);
   align-items: flex-start;
-  line-height: 1.4;
+  line-height: 1.5;
   cursor: pointer;
 }
 .row input {
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
   min-width: 1rem;
   min-height: 1rem;
+  accent-color: var(--accent);
 }
 .row strong {
-  color: var(--fg);
+  color: var(--ink);
 }
 .fine {
   margin: 0;
   color: var(--fg-muted);
-  font-size: 0.74rem;
+  font-size: var(--t-label);
 }
 .fine a {
   color: var(--accent);
@@ -48,15 +49,15 @@
 .saveBtn {
   align-self: flex-start;
   min-height: var(--tap);
-  padding: 0.45rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
+  padding: var(--s-xs) var(--s-md);
+  border-radius: 0;
+  border: 1px solid var(--rule);
   background: var(--accent);
-  color: #04243a;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-family: var(--serif-display);
+  font-weight: 420;
   cursor: pointer;
-  font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: var(--t-body);
 }
 .saveBtn:disabled {
   opacity: 0.5;
@@ -66,5 +67,5 @@
 }
 .hint {
   color: var(--fg-muted);
-  font-size: 0.72rem;
+  font-size: var(--t-label);
 }

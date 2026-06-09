@@ -5,25 +5,44 @@ export default function Footer() {
   return (
     <footer
       style={{
-        marginTop: '2rem',
-        padding: '1rem',
-        borderTop: '1px solid var(--panel-border)',
-        background: 'var(--panel-bg)',
-        fontFamily: 'var(--mono)',
-        fontSize: '0.78rem',
+        marginTop: 'var(--s-3xl)',
+        paddingTop: 'var(--s-xl)',
+        paddingBottom: 'var(--s-xl)',
+        paddingLeft: 'var(--s-lg)',
+        paddingRight: 'var(--s-lg)',
+        borderTop: '1px solid var(--rule)',
+        fontFamily: 'var(--serif)',
+        fontSize: 'var(--t-label)',
         color: 'var(--fg-muted)',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '0.5rem 1.25rem',
-        alignItems: 'center',
       }}
     >
-      <span>Omalyzer — a within-person acoustic measure, not a diagnosis.</span>
-      <span style={{ marginLeft: 'auto', display: 'flex', gap: '1.25rem' }}>
-        <Link to="/privacy">Privacy</Link>
-        <Link to="/terms">Terms</Link>
-        <Link to="/science">Science</Link>
-      </span>
+      {/* centered asterism above the standing line */}
+      <div
+        style={{
+          textAlign: 'center',
+          color: 'var(--accent-soft)',
+          fontFamily: 'var(--serif-display)',
+          marginBottom: 'var(--s-lg)',
+        }}
+        aria-hidden="true"
+      >
+        ⁂
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 'var(--s-2xs) var(--s-lg)',
+          alignItems: 'center',
+        }}
+      >
+        <span>Omalyzer — a within-person acoustic measure, not a diagnosis.</span>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s-lg)' }}>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/science">Science</Link>
+        </span>
+      </div>
     </footer>
   );
 }

@@ -7,8 +7,19 @@ import DashboardPage from './pages/DashboardPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import Footer from './components/Footer';
+import OmLockup from './components/OmLockup';
 import RequireAuth from './auth/RequireAuth';
 import { useAuth } from './auth/AuthProvider';
+
+const navLinkStyle: React.CSSProperties = {
+  color: 'var(--accent)',
+  textDecoration: 'none',
+  fontFamily: 'var(--serif)',
+  fontSize: 'var(--t-label)',
+  letterSpacing: 'var(--ls-smallcaps)',
+  fontVariantCaps: 'all-small-caps',
+  fontFeatureSettings: '"smcp", "c2sc", "kern"',
+};
 
 function Nav() {
   const { user, signOut } = useAuth();
@@ -17,33 +28,36 @@ function Nav() {
     <nav
       style={{
         display: 'flex',
-        gap: '1.25rem',
+        gap: 'var(--s-lg)',
         alignItems: 'center',
-        padding: '0.6rem 1rem',
-        borderBottom: '1px solid var(--panel-border)',
-        background: 'var(--panel-bg)',
-        fontFamily: 'var(--mono)',
-        fontSize: '0.9rem',
+        padding: 'var(--s-sm) var(--s-lg)',
+        borderBottom: '1px solid var(--rule)',
+        // parchment masthead — transparent so the body grain shows through
+        background: 'transparent',
       }}
     >
-      <Link to="/" style={{ fontWeight: 700 }}>
-        Omalyzer
-      </Link>
-      <Link to="/science">Science</Link>
-      <Link to="/analyze">Analyze</Link>
-      <span style={{ marginLeft: 'auto', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+      {/* Masthead lockup — runs the inscription draw once on load. */}
+      <OmLockup to="/" />
+      <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s-lg)', alignItems: 'center' }}>
+        <Link to="/science" style={navLinkStyle}>
+          Science
+        </Link>
+        <Link to="/analyze" style={navLinkStyle}>
+          Analyze
+        </Link>
         {user ? (
           <>
-            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/dashboard" style={navLinkStyle}>
+              Dashboard
+            </Link>
             <button
               type="button"
               onClick={() => void signOut()}
               style={{
+                ...navLinkStyle,
                 background: 'none',
                 border: 'none',
-                color: 'var(--accent)',
                 cursor: 'pointer',
-                font: 'inherit',
                 padding: 0,
               }}
             >
@@ -51,7 +65,9 @@ function Nav() {
             </button>
           </>
         ) : (
-          <Link to="/signin">Sign in</Link>
+          <Link to="/signin" style={navLinkStyle}>
+            Sign in
+          </Link>
         )}
       </span>
     </nav>

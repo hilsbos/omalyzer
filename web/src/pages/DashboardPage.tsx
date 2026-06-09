@@ -79,8 +79,8 @@ export default function DashboardPage() {
               <tr key={o.id}>
                 <td>{fmtDate(o.created_at)}</td>
                 <td>{o.vowel ?? '—'}</td>
-                <td>{fmtCoh(o.coherence_index)}</td>
-                <td>{fmtDur(o.duration_secs)}</td>
+                <td className="readout">{fmtCoh(o.coherence_index)}</td>
+                <td className="readout">{fmtDur(o.duration_secs)}</td>
                 <td>
                   <OmPlayer audioPath={o.audio_path} />
                 </td>
@@ -95,7 +95,7 @@ export default function DashboardPage() {
 
       <CommunityCompare oms={oms} />
 
-      <section style={{ marginTop: '3rem', borderTop: '1px solid var(--border, #ddd)', paddingTop: '1.5rem' }}>
+      <section style={{ marginTop: '3rem', borderTop: '1px solid var(--rule)', paddingTop: '1.5rem' }}>
         <h2>Account</h2>
         <p className={styles.framing}>
           You can permanently delete your account and all associated data —

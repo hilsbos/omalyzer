@@ -50,7 +50,7 @@ export default function Spectrogram({
       const columns = getHistory().columns;
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = '#000';
+      ctx.fillStyle = '#14171F';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       if (binHz <= 0 || storedBins <= 0 || columns.length === 0) return;
@@ -107,7 +107,7 @@ export default function Spectrogram({
   return (
     <div
       ref={wrapRef}
-      style={{ width: '100%', height: '100%', minHeight: 0, background: '#000' }}
+      style={{ width: '100%', height: '100%', minHeight: 0, background: '#14171F' }}
     >
       <canvas
         ref={canvasRef}
@@ -137,12 +137,12 @@ function drawOverlay(
   ctx.lineWidth = Math.max(dpr * 0.5, 1);
   for (let f = step; f < maxFreq; f += step) {
     const y = yOf(f);
-    ctx.strokeStyle = 'rgba(255,255,255,0.11)';
+    ctx.strokeStyle = 'rgba(231,226,214,0.11)';
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.47)';
+    ctx.fillStyle = 'rgba(231,226,214,0.47)';
     ctx.textAlign = 'left';
     ctx.fillText(`${f.toFixed(0)} Hz`, 4 * dpr, y - 2 * dpr);
   }
@@ -151,7 +151,7 @@ function drawOverlay(
   const f0 = snap?.f0 ?? null;
   if (f0 != null && f0 > 0) {
     const tickLen = 10 * dpr;
-    ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+    ctx.strokeStyle = 'rgba(231,226,214,0.78)';
     ctx.lineWidth = Math.max(dpr * 1.5, 1);
     for (let k = 1; k <= 20; k++) {
       const fk = k * f0;
@@ -185,8 +185,9 @@ function drawOverlay(
     ctx.fillText(label, w - 14 * dpr, y);
     ctx.textBaseline = 'alphabetic';
   };
-  // line uses ~0.65 gamma of the label color (ui.rs gamma_multiply(0.65)).
-  formant(snap?.f1, 'rgb(196,78,78)', 'F1', 'rgb(255,120,120)');
-  formant(snap?.f2, 'rgb(78,154,210)', 'F2', 'rgb(120,200,255)');
-  formant(snap?.f3, 'rgb(138,210,90)', 'F3', 'rgb(180,255,140)');
+  // Instrument palette (tokens --f1/2/3): label = token color; line uses
+  // ~0.65 gamma of it (ui.rs gamma_multiply(0.65)). Terracotta / slate-blue / sage.
+  formant(snap?.f1, 'rgb(146,90,69)', 'F1', '#E08A6A');
+  formant(snap?.f2, 'rgb(83,109,140)', 'F2', '#7FA8D8');
+  formant(snap?.f3, 'rgb(104,126,82)', 'F3', '#9FC27E');
 }
