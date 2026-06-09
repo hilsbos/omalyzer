@@ -53,6 +53,7 @@ pub struct Analyzer {
 
     // Analysis.
     last_result: AnalysisResult,
+    last_col_db: Vec<f32>, // most recent dB spectrogram column (display range)
     tracker: PitchTracker,
     hop_index: u64,
 
@@ -90,6 +91,7 @@ impl Analyzer {
             gate_hold: 0,
             gate_db: DEFAULT_GATE_DB,
             last_result: AnalysisResult::default(),
+            last_col_db: Vec::new(),
             tracker: PitchTracker::new(hops_per_sec(sample_rate)),
             hop_index: 0,
             held_segment: None,
@@ -121,6 +123,7 @@ impl Analyzer {
         self.gate_open = false;
         self.gate_hold = 0;
         self.last_result = AnalysisResult::default();
+        self.last_col_db.clear();
         // Rebuild pitch state from scratch at the (possibly new) hop rate so
         // stale F0 history from the old device can't leak into jitter/drift.
         self.tracker = PitchTracker::new(hops_per_sec(self.sample_rate));
@@ -219,6 +222,10 @@ impl Analyzer {
                 // Return the scratch buffer for reuse on the next hop.
                 self.win_scratch = win;
                 self.last_result = result.clone();
+                // Retain the latest display column so pollers (e.g. the wasm
+                // snapshot) can read it without consuming the HopOutput stream.
+                self.last_col_db.clear();
+                self.last_col_db.extend_from_slice(&col);
 
                 out.push(HopOutput {
                     hop_index,
@@ -236,6 +243,12 @@ impl Analyzer {
 
     pub fn last_result(&self) -> &AnalysisResult {
         &self.last_result
+    }
+
+    /// Most recent dB spectrogram column (display range, `stored_bins` long).
+    /// Empty until the first full FFT window has been processed.
+    pub fn last_col_db(&self) -> &[f32] {
+        &self.last_col_db
     }
 
     pub fn last_coherence(&self) -> Option<&CoherenceMetrics> {
@@ -264,6 +277,10 @@ impl Analyzer {
 
     pub fn bin_hz(&self) -> f32 {
         bin_hz(self.sample_rate)
+    }
+
+    pub fn sample_rate(&self) -> f32 {
+        self.sample_rate
     }
 
     pub fn hop_index(&self) -> u64 {

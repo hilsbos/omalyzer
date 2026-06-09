@@ -1,0 +1,39 @@
+/* Palette lifted verbatim from the Rust UI (crates/desktop/src/ui.rs) so the
+   DOM and the canvases share one source of truth for color. */
+:root {
+  /* formant line colors (ui.rs F1/F2/F3_COLOR) */
+  --f1: rgb(255, 120, 120);
+  --f2: rgb(120, 200, 255);
+  --f3: rgb(180, 255, 140);
+
+  /* pitch-track line + vowel live/trail (ui.rs) */
+  --pitch-line: rgb(120, 220, 140);
+  --vowel-trail: rgb(255, 210, 90);
+  --vowel-live: rgb(255, 230, 120);
+
+  /* evidence dots (ui.rs Evidence::dot_color) */
+  --evidence-strong: rgb(60, 170, 90);
+  --evidence-moderate: rgb(210, 160, 40);
+  --evidence-experimental: rgb(140, 140, 140);
+
+  /* live-hold "holding…" accent (ui.rs) */
+  --hold-green: rgb(40, 150, 70);
+
+  /* surfaces (egui dark panel grays) */
+  --panel-bg: #121212;
+  --panel-bg-2: #1b1b1b;
+  --panel-border: #333;
+  --plot-bg: rgb(18, 18, 18);
+  --plot-border: rgb(60, 60, 60);
+
+  /* text */
+  --fg: #e8e8e8;
+  --fg-muted: #9a9a9a;
+  --fg-weak: #6f6f6f;
+  --accent: #6cc0ff;
+  --warn: #d8a23a;
+  --error: #ff6b6b;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --tap: 44px; /* min touch target */
+}

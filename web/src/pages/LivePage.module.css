@@ -1,0 +1,174 @@
+/* Two named grid templates swapped at ~48rem (769px). Phone = progressive
+   disclosure single column; desktop = dense two-column grid. */
+.app {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'toolbar'
+    'hero'
+    'spectro'
+    'tabbar'
+    'secondary'
+    'advanced';
+  grid-template-rows: auto auto minmax(40vh, 1fr) auto auto auto;
+}
+
+.toolbar {
+  grid-area: toolbar;
+}
+.hero {
+  grid-area: hero;
+}
+.spectro {
+  grid-area: spectro;
+  min-height: 40vh;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+.tabbar {
+  grid-area: tabbar;
+}
+.secondary {
+  grid-area: secondary;
+  min-height: 0;
+}
+.secondaryCanvas {
+  height: 32vh;
+  min-height: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+.advanced {
+  grid-area: advanced;
+}
+
+/* These four only render in the desktop template. */
+.coherence {
+  grid-area: coherence;
+}
+.statesignals {
+  grid-area: statesignals;
+}
+.pitch {
+  grid-area: pitch;
+}
+.vowel {
+  grid-area: vowel;
+}
+
+/* Phone: only the secondary matching the active tab is visible. */
+.secondaryItem[data-active='false'] {
+  display: none;
+}
+.secondaryCanvasItem {
+  height: 32vh;
+  min-height: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+}
+
+@media (min-width: 48rem) {
+  .app {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'toolbar   toolbar'
+      'hero      hero'
+      'coherence statesignals'
+      'spectro   spectro'
+      'pitch     vowel'
+      'advanced  advanced';
+    grid-template-rows: auto auto auto minmax(45vh, 1fr) minmax(22vh, auto) auto;
+  }
+  .tabbar {
+    display: none;
+  }
+  /* On desktop all four show; place each in its own area and ignore the tab. */
+  .secondaryItem {
+    display: block !important;
+  }
+  .secCoherence {
+    grid-area: coherence;
+  }
+  .secState {
+    grid-area: statesignals;
+  }
+  .secPitch {
+    grid-area: pitch;
+  }
+  .secVowel {
+    grid-area: vowel;
+  }
+  .secPitch,
+  .secVowel {
+    height: 26vh;
+    min-height: 200px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+  }
+}
+
+.toolbarBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.toolbarTitle {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.recordBtn {
+  min-height: var(--tap);
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg-2);
+  color: var(--fg);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+}
+.recordBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.warn {
+  color: var(--warn);
+}
+.error {
+  color: var(--error);
+}
+.export {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--fg);
+}
+.exportNote {
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+}
+.pre {
+  background: #0c0c0c;
+  border: 1px solid var(--panel-border);
+  padding: 0.6rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.72rem;
+}

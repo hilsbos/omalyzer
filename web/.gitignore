@@ -1,0 +1,9 @@
+node_modules
+dist
+src/wasm/pkg
+
+# Local env files with secrets (Supabase URL/anon key, etc.) — never commit.
+.env
+.env.*
+!.env.example
+*.local

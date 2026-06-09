@@ -1,0 +1,85 @@
+.prose {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  color: var(--fg);
+}
+
+.prose h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+.prose h2 {
+  font-size: 1.3rem;
+  margin: 2rem 0 0.5rem;
+}
+.prose h3 {
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.4rem;
+}
+.prose p {
+  margin: 0.6rem 0;
+}
+.prose ul {
+  margin: 0.6rem 0;
+  padding-left: 1.25rem;
+}
+.prose li {
+  margin: 0.35rem 0;
+}
+.prose hr {
+  border: none;
+  border-top: 1px solid var(--panel-border);
+  margin: 2rem 0;
+}
+.prose strong {
+  color: #fff;
+}
+.prose em {
+  color: var(--fg-muted);
+}
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--fg);
+}
+
+.tag {
+  font-style: italic;
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.ctaPrimary {
+  background: var(--accent);
+  color: #04243a;
+}
+.ctaSecondary {
+  border: 1px solid var(--panel-border);
+  color: var(--fg);
+}
+
+.callout {
+  border-left: 3px solid var(--panel-border);
+  padding: 0.5rem 0 0.5rem 1rem;
+  margin: 1.5rem 0;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
