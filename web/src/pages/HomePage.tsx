@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import OmLockup from '../components/OmLockup';
 import Reveal from '../components/Reveal';
+import { useAuth } from '../auth/AuthProvider';
 
 /**
  * Landing page (/). Copy is the approved paste-ready text, verbatim — written
  * inside the §4.4 honest-framing rules (no medical/stress/chakra/energy claims).
  */
 export default function HomePage() {
+  const { user } = useAuth();
+
   return (
     <main className={styles.prose}>
       <div className={styles.hero}>
@@ -29,9 +32,15 @@ export default function HomePage() {
           <Link className={styles.ctaPrimary} to="/analyze">
             Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.ctaSecondary} to="/signin">
-            Sign up to contribute your oms
-          </Link>
+          {user ? (
+            <Link className={styles.ctaSecondary} to="/dashboard">
+              Go to your dashboard <span className={styles.arrow} aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <Link className={styles.ctaSecondary} to="/signin">
+              Sign up to contribute your oms
+            </Link>
+          )}
         </div>
       </div>
 
@@ -73,19 +82,24 @@ export default function HomePage() {
       <Reveal>
         <h2>Contribute your oms</h2>
         <p>
-          Like a clear readout of your own voice? Sign up and you can save each om you chant —
-          the audio plus its measured features — and watch how your sustained tones look over
-          time. You choose what to save; nothing is uploaded unless you decide to contribute
-          it.
+          Like a clear readout of your own voice? Save each om you chant — the audio plus its
+          measured features — and watch how your sustained tones look over time. You choose what
+          to save; nothing is uploaded unless you decide to contribute it.
         </p>
         <div className={styles.cta}>
           <Link className={styles.ctaPrimary} to="/analyze">
             Try it now — no account needed{' '}
             <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
-          <Link className={styles.ctaSecondary} to="/signin">
-            Create an account
-          </Link>
+          {user ? (
+            <Link className={styles.ctaSecondary} to="/dashboard">
+              Go to your dashboard <span className={styles.arrow} aria-hidden="true">→</span>
+            </Link>
+          ) : (
+            <Link className={styles.ctaSecondary} to="/signin">
+              Create an account
+            </Link>
+          )}
         </div>
       </Reveal>
 
