@@ -322,11 +322,14 @@ pub fn cpps(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     // cepstrum (~85 ms → ~12 Hz/bin at 48 kHz). At 16 kHz this is 2048.
     let window = next_pow2((sr * 0.085) as usize).clamp(256, 8192);
     let hop = window / 2; // 50% overlap
-    // Bound cost on a long held tone: real_cepstrum is naive O(window^2), so the
-    // frame count is the cost knob. Drift-robustness comes from per-frame
-    // prominence (each frame sees a near-stationary F0), not from frame count, so
-    // ~16 evenly-spaced frames give a stable average at a fraction of the cost.
-    const MAX_FRAMES: usize = 16;
+    // Bound cost on a long held tone by averaging at most this many evenly-spaced
+    // frames. CPPS is computed once per completed sustained tone (finish_held_note),
+    // NOT per hop, so this is a one-shot cost at note-end — never in the real-time
+    // audio path — and the metric's quality matters more than its speed: averaging
+    // N per-frame prominences has standard error ~1/sqrt(N), so more frames give a
+    // tighter estimate. (real_cepstrum is naive O(window^2); if this ever gets hot,
+    // make it FFT-based rather than dropping frames.)
+    const MAX_FRAMES: usize = 32;
 
     let n = samples.len();
     if n < window {
