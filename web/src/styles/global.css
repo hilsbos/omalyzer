@@ -75,3 +75,36 @@ p, li { text-wrap: pretty; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
 .roman { font-family: var(--serif-display); font-style: italic; font-weight: 400;
          letter-spacing: var(--ls-roman); color: var(--accent-soft); margin-right: 0.382rem; }
 .roman::after { content: "·"; margin-left: 0.382rem; color: var(--accent-soft); }
+
+/* ── The Om (ॐ) mark ───────────────────────────────────────────────────────
+   A single Devanagari glyph that inherits currentColor and themes with context.
+   Default size is the masthead; the hero scales it via font-size. */
+.om-mark {
+  font-family: var(--devanagari);
+  font-weight: 500;
+  color: currentColor;
+  line-height: 1;
+  display: inline-block;
+  font-size: 1.7rem;
+  transform: translateY(0.06em);  /* optical centering against Fraunces caps */
+}
+
+/* ── Instrument register: the analyzer + app surfaces ──────────────────────
+   The marketing pages stay editorial serif; the working app is clean monospace.
+   Because every component resolves its type through the font tokens, redefining
+   those tokens within this one scope flips the whole subtree to ui-monospace —
+   no per-component edits, fully consistent. */
+.instrument {
+  font-family: var(--mono);
+  --serif: var(--mono);
+  --serif-display: var(--mono);
+  --num: var(--mono);
+  font-feature-settings: "kern";
+  font-variant-numeric: tabular-nums;
+}
+.instrument h1, .instrument h2, .instrument h3 {
+  letter-spacing: 0;
+  font-weight: 500;
+  font-feature-settings: "kern";
+  text-transform: none;
+}

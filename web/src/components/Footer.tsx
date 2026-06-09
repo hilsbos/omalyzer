@@ -16,18 +16,6 @@ export default function Footer() {
         color: 'var(--fg-muted)',
       }}
     >
-      {/* centered asterism above the standing line */}
-      <div
-        style={{
-          textAlign: 'center',
-          color: 'var(--accent-soft)',
-          fontFamily: 'var(--serif-display)',
-          marginBottom: 'var(--s-lg)',
-        }}
-        aria-hidden="true"
-      >
-        ⁂
-      </div>
       <div
         style={{
           display: 'flex',

@@ -28,7 +28,7 @@ export default function SignInPage() {
 
   if (status === 'sent') {
     return (
-      <main style={card}>
+      <main className="instrument" style={card}>
         <div className="section-label">
           <span className="roman">II</span>check your email
         </div>
@@ -44,7 +44,7 @@ export default function SignInPage() {
   }
 
   return (
-    <main style={card}>
+    <main className="instrument" style={card}>
       <div className="section-label">
         <span className="roman">I</span>sign in
       </div>

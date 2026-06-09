@@ -40,18 +40,13 @@
   color: var(--accent);
 }
 
-/* asterism / manuscript rule between sections */
+/* quiet hairline rule between sections (no ornament) */
 .prose hr {
   border: none;
-  height: var(--s-lg);
-  margin: var(--s-2xl) 0;
-  text-align: center;
-}
-.prose hr::after {
-  content: "⁂";
-  color: var(--accent-soft);
-  font-family: var(--serif-display);
-  font-size: var(--t-lg);
+  border-top: 1px solid var(--rule);
+  width: 3.6rem;
+  height: 0;
+  margin: var(--s-2xl) auto;
 }
 
 .prose strong {
@@ -89,13 +84,13 @@
 .heroLockup {
   display: inline-flex;
 }
-.heroLockup :global(svg) {
-  width: clamp(var(--t-disp), 11vw, var(--t-disp2));
-  height: clamp(var(--t-disp), 11vw, var(--t-disp2));
-}
+/* Size both the ॐ mark and the wordmark (both <span>s) to display scale. */
 .heroLockup span {
   font-size: clamp(var(--t-disp), 11vw, var(--t-disp2));
   letter-spacing: var(--ls-tight);
+}
+.heroLockup :global(.om-mark) {
+  font-size: clamp(var(--t-disp), 11vw, var(--t-disp2));
 }
 
 .lede {

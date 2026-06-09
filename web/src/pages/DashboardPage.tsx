@@ -41,7 +41,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} instrument`}>
       <h1>Your oms</h1>
       <p className={styles.sub}>
         Signed in as <strong>{user?.email}</strong>.

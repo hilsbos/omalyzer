@@ -4,10 +4,10 @@ import OmMark from './OmMark';
 import styles from './OmLockup.module.css';
 
 /**
- * The site lockup: Om mark + "Omalyzer" wordmark (Fraunces wght 360). Runs the
- * "the Om is intoned" inscription motion once, gated on document.fonts.ready and
- * short-circuited by prefers-reduced-motion (handled in CSS). Used in the nav and,
- * at display scale, as the manuscript hero wordmark.
+ * The site lockup: the Om (ॐ) mark + "Omalyzer" wordmark (Fraunces). Runs a quiet
+ * fade/bloom intro once, gated on document.fonts.ready and short-circuited by
+ * prefers-reduced-motion (handled in CSS). Used in the nav and, at display scale,
+ * as the manuscript hero wordmark.
  */
 export interface OmLockupProps {
   /** Routes to "/". */
@@ -56,7 +56,7 @@ export default function OmLockup({
 
   return (
     <Link to={to} className={lockupClass} aria-label={ariaLabel}>
-      <OmMark drawing={introing} />
+      <OmMark />
       <span className={styles.wordmark} aria-hidden="true">
         Omalyzer
       </span>

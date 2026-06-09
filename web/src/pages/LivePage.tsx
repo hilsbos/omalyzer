@@ -200,7 +200,7 @@ export default function LivePage() {
   );
 
   return (
-    <div className={styles.app}>
+    <div className={`${styles.app} instrument`}>
       {/* Toolbar */}
       <div className={`${styles.toolbar} ${styles.toolbarBar}`}>
         <span className={styles.toolbarTitle}>Omalyzer — Live</span>
