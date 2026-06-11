@@ -322,7 +322,6 @@ export default function SourceFilter(props: { className?: string }) {
       ref={rootRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="auto"
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Source and filter: a vocal-tract silhouette morphs from a neutral shape into the om vowel, and its computed resonances shape a flat harmonic buzz into a vowel spectrum with formant peaks F1 near 420 hertz and F2 near 760 hertz."

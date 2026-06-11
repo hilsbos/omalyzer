@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAnalyzer, type Om } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
@@ -7,14 +7,44 @@ import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
 import ConsentStep, { type ConsentChoice } from '../components/ConsentStep';
+import ScoreReveal from '../components/ScoreReveal';
 import Spectrogram from '../viz/Spectrogram';
 import PitchTrack from '../viz/PitchTrack';
 import VowelChart from '../viz/VowelChart';
 import { useAuth } from '../auth/AuthProvider';
 import { saveOm, type OmContribution } from '../lib/contributions';
+import { blinkOpacity, useRafLoop } from '../components/science/motion';
 import styles from './LivePage.module.css';
 
 const STORE_MAX_HZ = 4000; // matches core STORE_MAX_HZ
+
+/* ── Practice / console split ────────────────────────────────────────────────
+   First-time visitors (often arriving mid-story from the landing hero) get the
+   still room: spectrogram, one number, transport. The full console is one
+   toggle away and the choice is REMEMBERED — anyone who opens the console
+   stays in the console on every return until they close it. The mode is
+   purely presentational: useAnalyzer mounts once regardless, so the audio
+   lifecycle never notices. */
+type AnalyzeView = 'practice' | 'console';
+const VIEW_KEY = 'omalyzer.analyze.view';
+/** Once any om has ever been captured on this device, the breath cue is
+ *  retired permanently — erased by being answered, never a nag. */
+const HAS_CAPTURED_KEY = 'omalyzer.analyze.hasCaptured';
+
+function readStoredView(): AnalyzeView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'console' ? 'console' : 'practice';
+  } catch {
+    return 'practice'; // storage unavailable (private mode) → first-time default
+  }
+}
+function readHasCaptured(): boolean {
+  try {
+    return localStorage.getItem(HAS_CAPTURED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** A coarse capture-device hint stored as a fidelity covariate (not identifying). */
 function deriveDeviceLabel(settings: MediaTrackSettings | null): string | null {
@@ -36,17 +66,68 @@ export default function LivePage() {
   });
   const [tab, setTab] = useState<SecondaryTab>('coherence');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  /* The dialog convention cuts both ways: focus moves INTO the drawer on
+     open (the close button's autoFocus) and must come BACK to whichever
+     button opened it on close — otherwise Escape strands focus on <body>.
+     Two triggers can open it (the appbar gear, the console's transport
+     toggle), so the ref records the one actually used. */
+  const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const toggleDrawer = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    drawerTriggerRef.current = e.currentTarget;
+    setDrawerOpen((o) => !o);
+  }, []);
+  useEffect(() => {
+    if (!drawerOpen && drawerTriggerRef.current) {
+      drawerTriggerRef.current.focus();
+      drawerTriggerRef.current = null;
+    }
+  }, [drawerOpen]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Practice/console view — lazy init from localStorage, written on toggle.
+  const [view, setView] = useState<AnalyzeView>(readStoredView);
+  const toggleView = useCallback(() => {
+    setView((v) => {
+      const next: AnalyzeView = v === 'practice' ? 'console' : 'practice';
+      try {
+        localStorage.setItem(VIEW_KEY, next);
+      } catch {
+        /* private mode — the toggle still works for this visit */
+      }
+      return next;
+    });
+  }, []);
+  const [hasCaptured, setHasCaptured] = useState(readHasCaptured);
 
   const s: Snapshot | null = snapshot;
   const latestHop = s?.hop_index ?? 0;
 
-  // A fresh om (new completed tone) replaces the prior card — reset its save UI.
+  // A fresh om (new completed tone) replaces the prior card — reset its save
+  // UI, and permanently retire the breath cue (answered, not dismissed).
   useEffect(() => {
     setSaveState('idle');
     setSaveError(null);
+    if (lastOm != null) {
+      setHasCaptured(true);
+      try {
+        localStorage.setItem(HAS_CAPTURED_KEY, '1');
+      } catch {
+        /* private mode — session-scoped retirement still holds */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastOm?.capturedAt]);
+
+  // Ceremony beat per capture: the session's FIRST om earns the full 3.2 s
+  // braid; every om after plays the same gesture compressed (~1.8 s) — kinder
+  // to a practitioner chaining oms. Render-time ref bump is idempotent
+  // (StrictMode-safe): same capturedAt → no increment.
+  const ceremonyRef = useRef<{ seenAt: number; count: number }>({ seenAt: 0, count: 0 });
+  if (lastOm && lastOm.capturedAt !== ceremonyRef.current.seenAt) {
+    ceremonyRef.current = { seenAt: lastOm.capturedAt, count: ceremonyRef.current.count + 1 };
+  }
+  const revealCompressed = ceremonyRef.current.count > 1;
 
   // ── Transport: elapsed timer (wraps start/stop; never touches DSP) ──────────
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -207,7 +288,12 @@ export default function LivePage() {
   }, [lastOm, status.settings, status.warnings]);
 
   return (
-    <div className={`${styles.console} instrument`} data-running={status.running}>
+    <div
+      className={`${styles.console} instrument`}
+      data-running={status.running}
+      data-view={view}
+      data-captured={lastOm != null}
+    >
       {/* ── APP BAR ─────────────────────────────────────────────────────────── */}
       <header className={styles.appbar}>
         <Link to="/" className={styles.brand} aria-label="omalyzer home">
@@ -216,22 +302,35 @@ export default function LivePage() {
           <span className={styles.liveTag}>· LIVE</span>
         </Link>
         <span className={styles.appbarSpacer} />
-        <span className={styles.device}>
-          {status.sampleRate ? `${(status.sampleRate / 1000).toFixed(0)} kHz` : '— kHz'}
-        </span>
-        <span className={styles.sep}>·</span>
-        <span className={styles.device}>{deriveDeviceLabel(status.settings) ?? 'Mic'}</span>
+        {view === 'console' && (
+          <>
+            <span className={styles.device}>
+              {status.sampleRate ? `${(status.sampleRate / 1000).toFixed(0)} kHz` : '— kHz'}
+            </span>
+            <span className={styles.sep}>·</span>
+            <span className={styles.device}>{deriveDeviceLabel(status.settings) ?? 'Mic'}</span>
+          </>
+        )}
         <span
           className={styles.statusDot}
           data-state={capturing ? 'rec' : status.running ? 'live' : 'idle'}
           aria-label={capturing ? 'capturing' : status.running ? 'live' : 'idle'}
         />
+        {/* The door between the two rooms — same position from either side.
+            No aria-pressed: a state-changing label + pressed-state is a mixed
+            signal ("close the console, pressed") — the two honest command
+            labels carry the state by themselves. */}
+        <button type="button" className={styles.viewToggle} onClick={toggleView}>
+          {view === 'practice' ? 'open the console' : 'close the console'}
+        </button>
+        {/* The gear stays in BOTH modes: the gate slider is the one DSP
+            control a beginner in a noisy room genuinely needs. */}
         <button
           type="button"
           className={styles.gear}
           aria-label="display and gate"
           aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen((o) => !o)}
+          onClick={toggleDrawer}
         >
           ⚙
         </button>
@@ -261,46 +360,98 @@ export default function LivePage() {
         </div>
       </section>
 
-      {/* ── RIGHT RAIL — coherence dial + sub-metrics + measured│inferred ────── */}
-      <aside
-        className={`${styles.cell} ${styles.rail}`}
-        data-active={tab === 'coherence' || tab === 'state'}
-      >
-        <div className={styles.cellHead}>coherence · state signals</div>
-        <div className={styles.cellBody}>
-          <div className={styles.railScroll}>
-            <CoherencePanel snapshot={s} />
-            <StateSignals snapshot={s} />
+      {/* ── PRACTICE FOCUS — the one number, where the cockpit would be ──────
+          While a tone is held: the live index, breathing hop-by-hop (the
+          number IS the during-hold affordance). After a capture: the last
+          index, at rest. Before anything: the breath cue (until the first om
+          ever captured on this device answers it) or an em-dash. */}
+      {view === 'practice' && (
+        <section className={styles.focus} aria-label="coherence">
+          <span className={styles.focusLabel}>coherence</span>
+          {s?.live_coherence_index != null ? (
+            <span className={styles.focusValue} data-state="live">
+              {s.live_coherence_index.toFixed(2)}
+            </span>
+          ) : s?.last_coherence_index != null ? (
+            <span className={styles.focusValue} data-state="rest">
+              {s.last_coherence_index.toFixed(2)}
+            </span>
+          ) : status.running && !hasCaptured && !s?.voiced ? (
+            /* displaced the moment a tone crosses the gate (voiced), not 2.5 s
+               later when the live index first exists — while the first-ever
+               tone builds toward its index, the number's seat sits empty */
+            <span className={styles.focusValue} data-state="cue">
+              <BreathCue />
+            </span>
+          ) : (
+            <span className={styles.focusValue} data-state="empty">
+              —
+            </span>
+          )}
+        </section>
+      )}
+
+      {/* ── CONSOLE-ONLY CELLS — unmounted in practice (purely presentational:
+          useAnalyzer runs regardless; pitch/vowel rebuild from getHistory()'s
+          ring on remount). ─────────────────────────────────────────────────── */}
+      {view === 'console' && (
+        <>
+          {/* ── RIGHT RAIL — coherence dial + sub-metrics + measured│inferred ── */}
+          <aside
+            className={`${styles.cell} ${styles.rail}`}
+            data-active={tab === 'coherence' || tab === 'state'}
+          >
+            <div className={styles.cellHead}>coherence · state signals</div>
+            <div className={styles.cellBody}>
+              <div className={styles.railScroll}>
+                <CoherencePanel snapshot={s} />
+                <StateSignals snapshot={s} />
+              </div>
+            </div>
+          </aside>
+
+          {/* ── PITCH — col 1, lower row ─────────────────────────────────────── */}
+          <section className={`${styles.cell} ${styles.pitch}`} data-active={tab === 'pitch'}>
+            <div className={styles.cellHead}>∿ pitch track · F0 over time</div>
+            <div className={styles.cellBody}>
+              <PitchTrack getHistory={getHistory} latestHop={latestHop} />
+            </div>
+          </section>
+
+          {/* ── VOWEL — col 2, lower row ─────────────────────────────────────── */}
+          <section className={`${styles.cell} ${styles.vowel}`} data-active={tab === 'vowel'}>
+            <div className={styles.cellHead}>◇ vowel · F1×F2 formant space</div>
+            <div className={styles.cellBody}>
+              <VowelChart getHistory={getHistory} snapshot={s} />
+            </div>
+          </section>
+
+          {/* Phone-only tab bar — hidden on the console grid. */}
+          <div className={styles.tabbar}>
+            <TabBar value={tab} onChange={setTab} />
           </div>
-        </div>
-      </aside>
+        </>
+      )}
 
-      {/* ── PITCH — col 1, lower row ─────────────────────────────────────────── */}
-      <section className={`${styles.cell} ${styles.pitch}`} data-active={tab === 'pitch'}>
-        <div className={styles.cellHead}>∿ pitch track · F0 over time</div>
-        <div className={styles.cellBody}>
-          <PitchTrack getHistory={getHistory} latestHop={latestHop} />
-        </div>
-      </section>
-
-      {/* ── VOWEL — col 2, lower row ─────────────────────────────────────────── */}
-      <section className={`${styles.cell} ${styles.vowel}`} data-active={tab === 'vowel'}>
-        <div className={styles.cellHead}>◇ vowel · F1×F2 formant space</div>
-        <div className={styles.cellBody}>
-          <VowelChart getHistory={getHistory} snapshot={s} />
-        </div>
-      </section>
-
-      {/* Phone-only tab bar — hidden on the console grid. */}
-      <div className={styles.tabbar}>
-        <TabBar value={tab} onChange={setTab} />
-      </div>
+      {/* Persistent visually-hidden status (the HeroInstrument idiom): mounted
+          from the first render so the capture is ANNOUNCED — a live region
+          inserted with the band would stay silent, and the transport hint
+          flips back to the instruction on completion, so without this an SR
+          user never hears the index. */}
+      <p className={styles.srOnly} role="status">
+        {lastOm
+          ? `om captured — coherence index ${
+              lastOm.snapshot.last_coherence_index?.toFixed(2) ?? 'unavailable'
+            }, sustained /${lastOm.snapshot.last_coherence_vowel ?? lastOm.snapshot.vowel ?? '—'}/, ${lastOm.durationSecs.toFixed(1)} seconds`
+          : ''}
+      </p>
 
       {/* ── CAPTURED OM — full-width band above the transport (renders only when
           a tone has completed). The thing you just made. ──────────────────── */}
       {lastOm && (
         <CapturedOmCard
           om={lastOm}
+          revealCompressed={revealCompressed}
           signedIn={session != null}
           saveState={saveState}
           saveError={saveError}
@@ -337,49 +488,69 @@ export default function LivePage() {
           {mmss(elapsedMs)}
         </span>
 
-        {/* LIVE LEVEL METER from snapshot.rms_db */}
-        <div
-          className={styles.meter}
-          role="meter"
-          aria-valuemin={0}
-          aria-valuemax={1}
-          aria-valuenow={levelNorm}
-          aria-label="input level"
-        >
-          {Array.from({ length: LEVEL_SEGMENTS }, (_, i) => (
-            <span
-              key={i}
-              className={styles.seg}
-              data-lit={i < levelLit}
-              data-hot={i >= LEVEL_SEGMENTS - 2}
-            />
-          ))}
-        </div>
-        <span className={styles.levelDb}>{s ? `${s.rms_db.toFixed(0)} dB` : '— dB'}</span>
+        {/* Console-only transport detail — practice keeps the thin sill:
+            Start/Stop, the factual capture hint, and the clock. */}
+        {view === 'console' && (
+          <>
+            {/* LIVE LEVEL METER from snapshot.rms_db */}
+            <div
+              className={styles.meter}
+              role="meter"
+              aria-valuemin={0}
+              aria-valuemax={1}
+              aria-valuenow={levelNorm}
+              aria-label="input level"
+            >
+              {Array.from({ length: LEVEL_SEGMENTS }, (_, i) => (
+                <span
+                  key={i}
+                  className={styles.seg}
+                  data-lit={i < levelLit}
+                  data-hot={i >= LEVEL_SEGMENTS - 2}
+                />
+              ))}
+            </div>
+            <span className={styles.levelDb}>{s ? `${s.rms_db.toFixed(0)} dB` : '— dB'}</span>
 
-        <span className={styles.transportMeta}>
-          gate {gateDb} dB <span className={styles.sep}>·</span> vowel{' '}
-          <span className={styles.vowel}>{s?.voiced && s.vowel ? s.vowel : '—'}</span>
-        </span>
+            <span className={styles.transportMeta}>
+              gate {gateDb} dB <span className={styles.sep}>·</span> vowel{' '}
+              <span className={styles.vowel}>{s?.voiced && s.vowel ? s.vowel : '—'}</span>
+            </span>
+          </>
+        )}
 
         <span className={styles.transportSpacer} />
 
-        <button
-          type="button"
-          className={styles.drawerToggle}
-          aria-label="display and gate"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen((o) => !o)}
-        >
-          Display & gate
-        </button>
+        {view === 'console' && (
+          <button
+            type="button"
+            className={styles.drawerToggle}
+            aria-label="display and gate"
+            aria-expanded={drawerOpen}
+            onClick={toggleDrawer}
+          >
+            Display & gate
+          </button>
+        )}
       </footer>
 
       {/* ── DRAWER (slide-over) — display + gate controls only ───────────────── */}
       {drawerOpen && (
         <>
           <div className={styles.scrim} onClick={() => setDrawerOpen(false)} aria-hidden />
-          <div className={styles.drawer} role="dialog" aria-label="Display & gate">
+          {/* Initial focus moves to the close button (the dialog convention;
+              previously focus stayed on the trigger behind the scrim), Escape
+              closes, and on close focus returns to the opening button (the
+              drawerTriggerRef effect above) — still no trap: every control
+              stays a real tabbable element. */}
+          <div
+            className={styles.drawer}
+            role="dialog"
+            aria-label="Display & gate"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setDrawerOpen(false);
+            }}
+          >
             <div className={styles.drawerHead}>
               <span>display &amp; gate</span>
               <button
@@ -387,6 +558,7 @@ export default function LivePage() {
                 className={styles.drawerClose}
                 onClick={() => setDrawerOpen(false)}
                 aria-label="close"
+                autoFocus
               >
                 ×
               </button>
@@ -409,6 +581,9 @@ export default function LivePage() {
 
 interface CapturedOmCardProps {
   om: Om;
+  /** False for the session's first capture (full 3.2 s braid), true after
+   *  (same gesture at 9/16 time). */
+  revealCompressed: boolean;
   signedIn: boolean;
   saveState: 'idle' | 'saving' | 'saved';
   saveError: string | null;
@@ -418,12 +593,17 @@ interface CapturedOmCardProps {
 }
 
 /**
- * The prominent captured-om band, pinned directly above the transport. Renders
- * the tone's acoustic facts (vowel, seconds, coherence index). The save path
+ * The prominent captured-om band, pinned directly above the transport. The
+ * braid reckoning (ScoreReveal) composes INSIDE the band — the earned number
+ * and the save decision are physically one object; no overlay, no dismissal,
+ * input never blocked. key={om.capturedAt} remounts the reveal per capture so
+ * every om gets a fresh t=0 beat. The head prints the facts (vowel, seconds);
+ * the braid readout is the index of record — printed once. The save path
  * reuses ConsentStep (the two-checkbox consent gate).
  */
 function CapturedOmCard({
   om,
+  revealCompressed,
   signedIn,
   saveState,
   saveError,
@@ -436,36 +616,84 @@ function CapturedOmCard({
   const vowel = d.last_coherence_vowel ?? d.vowel ?? '—';
   return (
     <section className={styles.captured} role="region" aria-label="captured om">
-      <div className={styles.capturedHead}>
-        <strong>om captured</strong>
-        <span className={styles.sep}>·</span> /{vowel}/
-        <span className={styles.sep}>·</span> {om.durationSecs.toFixed(1)}s
-        <span className={styles.sep}>·</span> coherence {idx != null ? idx.toFixed(2) : '—'}
-      </div>
+      {idx != null && (
+        <ScoreReveal
+          key={om.capturedAt}
+          className={styles.capturedReveal}
+          metrics={{
+            pitch: d.pitch_coherence,
+            amplitude: d.amplitude_coherence,
+            harmonic: d.harmonic_coherence,
+            spectral: d.spectral_stability,
+            resonance: d.resonance_match,
+          }}
+          index={idx}
+          vowel={d.last_coherence_vowel ?? d.vowel ?? null}
+          seconds={om.durationSecs}
+          compressed={revealCompressed}
+        />
+      )}
 
-      <div className={styles.capturedActions}>
-        {saveState === 'saved' ? (
-          <span className={styles.savedMsg}>
-            saved · <Link to="/dashboard">view in dashboard</Link>
-          </span>
-        ) : signedIn ? (
-          <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />
-        ) : (
-          <span className={styles.signInMsg}>
-            <Link to="/signin">sign in to save</Link> — analysis stays on your device. export
-            still works.
-          </span>
-        )}
+      <div className={styles.capturedRow}>
+        <div className={styles.capturedHead}>
+          <strong>om captured</strong>
+          <span className={styles.sep}>·</span> /{vowel}/
+          <span className={styles.sep}>·</span> {om.durationSecs.toFixed(1)}s
+          {/* the index prints in the braid readout above; repeat it here only
+              if there is no reveal to carry it */}
+          {idx == null && (
+            <>
+              <span className={styles.sep}>·</span> coherence —
+            </>
+          )}
+        </div>
 
-        <div className={styles.capturedBtns}>
-          <button type="button" className={styles.recordBtn} onClick={onExport}>
-            export json
-          </button>
-          <button type="button" className={styles.discardBtn} onClick={onDiscard}>
-            discard
-          </button>
+        <div className={styles.capturedActions}>
+          {saveState === 'saved' ? (
+            <span className={styles.savedMsg}>
+              saved · <Link to="/dashboard">view in dashboard</Link>
+            </span>
+          ) : signedIn ? (
+            <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />
+          ) : (
+            <span className={styles.signInMsg}>
+              <Link to="/signin">sign in to save</Link> — analysis stays on your device. export
+              still works.
+            </span>
+          )}
+
+          <div className={styles.capturedBtns}>
+            <button type="button" className={styles.recordBtn} onClick={onExport}>
+              export json
+            </button>
+            <button type="button" className={styles.discardBtn} onClick={onDiscard}>
+              discard
+            </button>
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * One line, self-erasing: the pre-first-tone affordance in the practice focus
+ * band, with the house cursor-block blinking on the ~3 s listening period
+ * (the HeroInstrument idiom). It is displaced by the live index the moment a
+ * tone crosses the gate, and retired permanently once any om has been
+ * captured on this device — erased by being answered, never dismissed. Under
+ * reduced motion the loop never ticks and the cursor parks at 0.6 opacity.
+ */
+function BreathCue() {
+  const ref = useRef<HTMLSpanElement>(null);
+  const cursorRef = useRef<HTMLSpanElement>(null);
+  useRafLoop(ref, (t) => {
+    cursorRef.current?.style.setProperty('opacity', blinkOpacity(t % 3, 2.0, 0.6).toFixed(3));
+  });
+  return (
+    <span ref={ref} className={styles.breathCue}>
+      one breath in · then one long, easy tone
+      <span ref={cursorRef} className={styles.cueCursor} aria-hidden="true" />
+    </span>
   );
 }

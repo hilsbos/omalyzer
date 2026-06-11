@@ -47,7 +47,9 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
       <h2 className={styles.panelTitle}>
         {header}
         {live != null && (
-          <span style={{ color: 'var(--hold-green)', marginLeft: '0.5rem' }}>
+          // --data-high-plate, not --hold-green: #5E7E55 is ~3.9:1 on the
+          // #14171F plate — the plate register passes where the paper one fails.
+          <span style={{ color: 'var(--data-high-plate)', marginLeft: '0.5rem' }}>
             · holding… {live.toFixed(2)}
           </span>
         )}

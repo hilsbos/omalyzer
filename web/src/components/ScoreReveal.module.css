@@ -1,0 +1,21 @@
+/* ── ScoreReveal — inset plate for the braid reckoning ──────────────────────
+   Composes INSIDE the captured-om band (no overlay, no modal): plate ground,
+   one hairline frame, nothing else — the SVG carries the whole ceremony.
+   Console plate tokens only. */
+
+.reveal {
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-rule);
+  padding: var(--s-xs) var(--s-sm);
+}
+
+.reveal svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* The ceremony never claims the column: on short viewports the drawing
+     scales down (preserveAspectRatio="meet") instead of pushing the save row
+     and the transport below the fold. No effect at normal heights — the
+     intrinsic height (viewBox 611×200 at ≤44rem wide) stays under the cap. */
+  max-height: 26vh;
+}

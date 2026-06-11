@@ -226,7 +226,6 @@ export default function VagusBridge(props: { className?: string }): ReactElement
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="auto"
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="One continuous line links a heart glyph to a larynx glyph — the vagus nerve. A single pulse travels it from heart to voice, its beat-to-beat interval slowly breathing."

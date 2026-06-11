@@ -17,14 +17,13 @@ import {
   useRafLoop,
   usePrefersReducedMotion,
   makeNoise,
-  smootherstep,
   smoothstep,
-  clamp,
   clamp01,
   lerp,
   weightedHarmonicMean,
   weightedArithmeticMean,
 } from './motion';
+import { makeBraid } from '../braid';
 import {
   TOKEN,
   STROKE,
@@ -85,53 +84,37 @@ function dipAt(s: number): number {
   return -DIP_DEPTH * u * u;
 }
 
-/** m_i(s) = m* + (m0 − m*)·e^(−s/τ) + ρ·(1−r)·ξ_i(s) (+ the harmonic dip). */
-function metric(i: number, s: number, settled: boolean): number {
-  if (settled) return TARGETS[i];
-  let m = TARGETS[i] + (STARTS[i] - TARGETS[i]) * Math.exp(-s / TAUS[i]);
-  m += RIPPLE * (1 - smootherstep(0, BEAT, s)) * NOISES[i](s);
-  if (i === 2) m += dipAt(s);
-  return clamp(m, 0.05, 0.98);
-}
+/* The strand kinematics are the SHARED braid (components/braid.ts) — the same
+   makeBraid the console's ScoreReveal drives with real measured sub-metrics;
+   here it gets the scripted targets and the pedagogical harmonic dip. Same
+   gesture, different inputs — provably, by import. */
+const BRAID = makeBraid({
+  laneY: LANE_Y,
+  laneAmp: LANE_AMP,
+  x0: X0,
+  xConv0: X_CONV0,
+  xConv1: X_CONV1,
+  braidY: BRAID_Y,
+  beat: BEAT,
+  targets: TARGETS,
+  starts: STARTS,
+  taus: TAUS,
+  ripple: RIPPLE,
+  noises: NOISES,
+  dip: (i, s) => (i === 2 ? dipAt(s) : 0),
+});
 
 function metricsAt(s: number): number[] {
-  return TAUS.map((_, i) => metric(i, s, false));
+  return TAUS.map((_, i) => BRAID.metric(i, s, false));
 }
 
 /* Final settled values — the parked Index and its near-coincident ghost. */
 const I_FINAL = weightedHarmonicMean(TARGETS, WEIGHTS); //  ≈ 0.87
 const A_FINAL = weightedArithmeticMean(TARGETS, WEIGHTS); // ≈ 0.88
 
-/* ════════════════════════════ trace geometry ═══════════════════════════ */
-
 /** The x-axis IS time: s∈[0, BEAT] sweeps X0 → X_CONV1. */
-const xOf = (s: number): number => X0 + ((X_CONV1 - X0) * s) / BEAT;
-
-/** Lane value + convergence bend + braid weave, all from one s. */
-function strandY(i: number, s: number, settled: boolean): number {
-  const x = xOf(s);
-  const base = LANE_Y[i] + (0.5 - metric(i, s, settled)) * LANE_AMP;
-  const cv = smootherstep(X_CONV0, X_CONV1, x);
-  let y = lerp(base, BRAID_Y, cv);
-  if (cv > 0 && cv < 1) {
-    // 1¼-turn weave, zero at both ends, phase-offset per strand → the braid.
-    const u = (x - X_CONV0) / (X_CONV1 - X_CONV0);
-    y += 4.5 * Math.sin(Math.PI * u) * Math.sin(2.5 * Math.PI * u + (2 * Math.PI * i) / 5);
-  }
-  return y;
-}
-
-function strandPath(i: number, sEnd: number, settled: boolean): string {
-  const end = Math.min(sEnd, BEAT);
-  if (end <= 0) return '';
-  const n = Math.max(2, Math.ceil((220 * end) / BEAT));
-  let d = '';
-  for (let j = 0; j <= n; j++) {
-    const s = (end * j) / n;
-    d += `${j ? 'L' : 'M'}${xOf(s).toFixed(2)} ${strandY(i, s, settled).toFixed(2)}`;
-  }
-  return d;
-}
+const xOf = BRAID.xOf;
+const strandPath = BRAID.strandPath;
 
 const BRAID_FULL = `M${X_CONV1} ${BRAID_Y} L${X_METER} ${BRAID_Y}`;
 
@@ -250,7 +233,6 @@ export default function FiveDimensions({ className }: { className?: string }) {
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="auto"
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Five sub-metric traces — pitch, amplitude, harmonic, spectral, resonance — settle, braid into a single strand, and feed the Coherence Index meter; a brief harmonic dip drags the Index down far more than an arithmetic average would move."

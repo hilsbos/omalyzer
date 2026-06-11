@@ -38,13 +38,26 @@ export default function InfoRow({
       aria-describedby={capId}
       onClick={() => setOpen((o) => !o)}
     >
-      <span className={styles.rowHead}>
+      {/* data-kind drives the variant-conditional head layout in
+          panels.module.css: 'bar' rows are an intrinsic grid (name/raw/bar),
+          evidence/plain rows stay flex. */}
+      <span
+        className={styles.rowHead}
+        data-kind={showBar ? 'bar' : evidence ? 'evidence' : 'plain'}
+      >
         {evidence && <EvidenceDot evidence={evidence} />}
         <span className={styles.rowName}>{name}</span>
         {showBar && (
           <CoherenceBar value={barValue} height={9} ariaLabel={`${name} score`} variant="plate" />
         )}
-        {raw != null && <span className={styles.rowRaw}>{raw}</span>}
+        {raw != null && (
+          /* title carries the full reading when the one-line grid has to
+             ellipsize a long raw value (e.g. "HNR 21 dB · entropy 0.31") —
+             the full console loses nothing */
+          <span className={styles.rowRaw} title={typeof raw === 'string' ? raw : undefined}>
+            {raw}
+          </span>
+        )}
       </span>
       <span id={capId} className={styles.caption} hidden={!open}>
         {caption}

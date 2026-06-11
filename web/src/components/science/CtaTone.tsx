@@ -43,7 +43,6 @@ export default function CtaTone({ className }: { className?: string }) {
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="auto"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
       className={[styles.root, !breathing && styles.paused, className]

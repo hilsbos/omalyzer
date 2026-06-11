@@ -97,6 +97,85 @@
   display: none;
 } /* phone-only */
 
+/* ── PRACTICE VIEW — the still room ──────────────────────────────────────────
+   Three planes: the spectrogram as a living wall, one floating number, the
+   transport as a thin sill. The console-only cells (rail / pitch / vowel /
+   tabbar) are unmounted by the component, so this grid simply gives the
+   remaining bands a single centered column. Console mode is byte-for-byte
+   the grid above — practice subtracts, it never rearranges. */
+.console[data-view='practice'] {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto 1fr auto auto auto;
+  grid-template-areas:
+    'appbar'
+    'alerts'
+    'spectro'
+    'focus'
+    'captured'
+    'transport';
+}
+.focus {
+  grid-area: focus;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2xs);
+  padding: var(--s-md) var(--s-sm);
+  background: var(--plate-bg);
+  text-align: center;
+  font-family: var(--mono);
+}
+.focusLabel {
+  color: var(--on-plate-soft);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+.focusValue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.15em;
+  color: var(--on-plate);
+  font-size: clamp(2.4rem, 8vw, 4rem);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum', 'kern';
+  line-height: 1.15;
+}
+.focusValue[data-state='rest'] {
+  color: var(--on-plate-soft);
+}
+.focusValue[data-state='empty'] {
+  color: var(--on-plate-weak);
+}
+/* the breath cue sits where the number will appear, in the quiet register */
+.breathCue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6ch;
+  color: var(--on-plate-weak);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+.cueCursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  background: currentColor;
+  opacity: 1; /* the rAF blink owns this while animating */
+}
+@media (prefers-reduced-motion: reduce) {
+  .cueCursor {
+    opacity: 0.6; /* parked — the loop never ticks */
+  }
+}
+/* in practice the captured band reads as the centered ~44rem column */
+.console[data-view='practice'] .captured {
+  padding-inline: max(var(--s-sm), calc((100% - 44rem) / 2));
+}
+
 /* ====================== PANEL (cell) CHROME ============================== */
 .cell {
   background: var(--plate-bg);
@@ -241,6 +320,14 @@
   }
   50% {
     opacity: 0.35;
+  }
+}
+/* the brand rule: reduced motion is honored — the rec dot and capture hint
+   hold steady instead of pulsing */
+@media (prefers-reduced-motion: reduce) {
+  .statusDot[data-state='rec'],
+  .captureHint[data-capturing='true'] {
+    animation: none;
   }
 }
 
@@ -389,18 +476,67 @@
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
+/* the practice/console door — appbar right slot, same vocabulary as .gear */
+.viewToggle {
+  min-height: 2rem;
+  margin-left: var(--s-xs);
+  padding: 0 var(--s-xs);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--plate-bg-2);
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.viewToggle:hover {
+  background: var(--panel-bg-2);
+  color: var(--on-plate);
+}
+.viewToggle:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+/* visually hidden, still read by assistive tech (the capture announcement) —
+   the HeroInstrument srOnly-status idiom */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ====================== CAPTURED-OM BAND ================================ */
 .captured {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--s-sm);
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s-xs);
   padding: var(--s-xs) var(--s-sm);
   background: var(--plate-bg-2);
   border-top: 1px solid var(--data-high-plate); /* a lit seam: "new" */
   font-family: var(--mono);
   font-size: var(--t-label);
   color: var(--fg);
+}
+/* the braid reckoning — an inset plate above the facts + save row */
+.capturedReveal {
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+}
+.capturedRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-sm);
 }
 .capturedHead {
   display: flex;
@@ -592,6 +728,9 @@
     flex: 1 1 auto;
     min-height: 30vh;
   } /* hero stays visible */
+  .focus {
+    flex: 0 0 auto;
+  }
   .tabbar {
     display: block;
     flex: 0 0 auto;
@@ -603,6 +742,27 @@
   .vowel {
     flex: 1 1 auto;
     min-height: 0;
+  }
+  /* a real flex-basis + floor so the rail claims honest height in the 100dvh
+     column instead of collapsing to a sliver; railScroll stays the scroll
+     region, so its content is always reachable. When the captured band (the
+     reveal + save flow) is open it needs real room — the spectrogram cedes
+     some of its minimum rather than letting the rail or transport vanish. */
+  .rail {
+    flex-basis: 22rem;
+    min-height: 6rem;
+  }
+  .console[data-captured='true'] .spectro {
+    min-height: 14vh;
+  }
+  /* With the band open, even the floors can exceed the shortest viewports
+     (320×568 console: the wrapped appbar + transport alone near 340px) — the
+     column scrolls rather than clipping. On viewports where the floors fit
+     (≥375×667 measured) nothing scrolls and the console stays a fixed plate;
+     where they don't, every control is reachable by construction. */
+  .console[data-captured='true'] {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .pitch[data-active='false'],
   .vowel[data-active='false'],
@@ -625,26 +785,58 @@
   .gear,
   .drawerClose,
   .recordBtn,
-  .discardBtn {
+  .discardBtn,
+  .viewToggle {
     min-height: var(--tap);
   }
-  /* captured-om band falls naturally between the active cell and the transport */
+  /* Captured-om band falls naturally between the active cell and the
+     transport — and may SHRINK: in the 100dvh overflow:hidden column a rigid
+     band (reveal + facts + save row) pushed the transport below the fold on
+     phone heights (568/640/667/740) with no scroll ancestor, stranding the
+     user mid-capture. It scrolls internally instead; the floor keeps the
+     reveal head and the band's identity visible while Stop / save / discard
+     stay reachable beneath it. */
   .captured {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    min-height: min(8rem, 22dvh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    /* Scroll affordance: scrolling shadows (covers scroll with the content,
+       edge shadows stay put), so a soft seam appears at whichever edge hides
+       more — the facts + save row below the reveal announce themselves
+       without chrome. Pure background layers: nothing animates, nothing
+       intercepts input, and at the scroll ends the cover slides over the
+       shadow and the band reads as the plain plate again. */
+    background-image: linear-gradient(var(--plate-bg-2) 33%, transparent),
+      linear-gradient(transparent, var(--plate-bg-2) 66%),
+      radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.6), transparent),
+      radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.6), transparent);
+    background-position:
+      0 0,
+      0 100%,
+      0 0,
+      0 100%;
+    background-size:
+      100% 2.25rem,
+      100% 2.25rem,
+      100% 0.75rem,
+      100% 0.75rem;
+    background-repeat: no-repeat;
+    background-attachment: local, local, scroll, scroll;
   }
   /* drawer goes full-width on the narrowest screens */
   .drawer {
     width: min(28rem, 100vw);
   }
 
-  /* Decisive overflow control: clip at the root, drop the grow-spacers so the
-     app-bar / transport items pack left and wrap, and hide the decorative level
-     meter (the fixed segment row is the widest rigid element) on phones. */
-  :global(html),
-  :global(body),
-  :global(#root) {
-    overflow-x: hidden;
-  }
+  /* Drop the grow-spacers so the app-bar / transport items pack left and wrap,
+     and hide the decorative level meter (the fixed segment row is the widest
+     rigid element) on phones. The old html/body/#root overflow-x:hidden hammer
+     and the universal `.rail *` min/max-width clamp are GONE: the rail rows
+     are now intrinsically sized (panels.module.css grid with minmax(0, …)
+     tracks), so min-content can never propagate past the viewport — overflow
+     is prevented by layout, not clipped after the fact. */
   .appbarSpacer,
   .transportSpacer {
     display: none;
@@ -657,13 +849,6 @@
     flex-wrap: wrap;
     height: auto;
     row-gap: var(--s-2xs);
-  }
-  /* Hard-clamp the rail subtree: cap every descendant at its parent's width and
-     let flex items shrink, so no wide/non-wrapping child can force the panel
-     past the viewport (which overflow:hidden then clips). */
-  .rail :global(*) {
-    min-width: 0;
-    max-width: 100%;
   }
 }
 

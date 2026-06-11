@@ -236,7 +236,6 @@ export default function HeroTone({ className }: { className?: string }) {
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="auto"
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="A jittery, noisy vocal waveform settles into one clean sustained tone: harmonics-to-noise ratio rises from 4 to 22 decibels as pitch jitter falls from 70 to 4 cents."

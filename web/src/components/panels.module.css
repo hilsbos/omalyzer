@@ -60,8 +60,6 @@
   gap: var(--s-2xs);
   width: 100%;
   min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
   min-height: var(--tap);
   padding: var(--s-2xs) var(--s-2xs);
   background: none;
@@ -80,12 +78,47 @@
   outline-offset: 1px;
 }
 
+/* The head line. Two variants share it (data-kind set by InfoRow):
+   · 'bar'  (CoherencePanel sub-metrics: name | bar | raw in DOM order) —
+     an intrinsic grid, name / raw / bar across one line. minmax(0, …)
+     tracks make min-content propagation past the viewport structurally
+     impossible; only the two text cells need min-width: 0.
+   · 'evidence' / 'plain' (StateSignals: dot | name | raw) — simple flex. */
 .rowHead {
   display: flex;
   align-items: center;
   gap: var(--s-xs);
+  min-width: 0;
   font-family: var(--mono);
   font-size: var(--t-label);
+}
+.rowHead[data-kind='bar'] {
+  display: grid;
+  /* The bar takes at most 30% so the raw readout (the longest is harmonic's
+     "HNR · entropy" pair) fits untruncated at the default 20–22rem rail
+     width; the ellipsis + title remain the guard for narrower panels. */
+  grid-template-columns: auto minmax(0, 1fr) minmax(4rem, 30%);
+  align-items: center;
+  column-gap: var(--s-xs);
+}
+/* DOM order is name, bar, raw — place explicitly: name / raw / bar. */
+.rowHead[data-kind='bar'] .rowName {
+  grid-column: 1;
+  grid-row: 1;
+}
+.rowHead[data-kind='bar'] .rowRaw {
+  grid-column: 2;
+  grid-row: 1;
+  /* No auto margin here: an auto margin defeats justify-self stretch, so the
+     cell would size to max-content and overflow its track (overlapping the
+     bar). Stretch to the track and right-align the text instead — ellipsis
+     then truly governs the too-narrow case. */
+  margin-left: 0;
+  text-align: right;
+}
+.rowHead[data-kind='bar'] [role='meter'] {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .rowName {
@@ -93,20 +126,18 @@
   min-width: 0;
 }
 
-/* Raw / diagnostic numbers — true mono, the instrument register. */
+/* Raw / diagnostic numbers — true mono, the instrument register. Never
+   shattered mid-token: the two-line phone grid gives the cell room, and
+   ellipsis (not anywhere-wrap) handles the truly too-narrow case. */
 .rowRaw {
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--fg-muted);
   margin-left: auto;
   min-width: 0;
-  overflow-wrap: anywhere; /* don't force panel min-content width on narrow screens */
-}
-.rowHead {
-  min-width: 0;
-  max-width: 100%;
+  white-space: nowrap;
   overflow: hidden;
-  flex-wrap: wrap;
+  text-overflow: ellipsis;
 }
 
 .caption {
@@ -117,12 +148,11 @@
 }
 
 .indexRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(4rem, 1fr);
   align-items: center;
-  gap: var(--s-xs);
+  column-gap: var(--s-xs);
   min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
   font-family: var(--mono);
   font-weight: 500;
   font-size: var(--t-label);
@@ -131,19 +161,29 @@
 }
 
 .indexLabel {
-  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
 }
 
-/* The coherence bar's comfortable desktop width is driven from CSS (not an inline
-   style) so the mobile media query can relax it to 0 and let the row collapse. */
-.rowHead [role='meter'],
-.indexRow [role='meter'] {
-  min-width: 4rem;
-}
+/* ≤52rem: the sub-metric head becomes two lines — name + raw on line one,
+   the bar full-width on line two. Grid tracks, not clamps: nothing here can
+   exceed the viewport, so the bars' right edges stay inside it by layout. */
 @media (max-width: 52rem) {
-  .rowHead [role='meter'],
-  .indexRow [role='meter'] {
-    min-width: 0;
+  .rowHead[data-kind='bar'] {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: var(--s-2xs);
+  }
+  .rowHead[data-kind='bar'] .rowName {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .rowHead[data-kind='bar'] .rowRaw {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .rowHead[data-kind='bar'] [role='meter'] {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }
 

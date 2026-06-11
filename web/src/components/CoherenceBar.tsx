@@ -15,7 +15,7 @@ export interface CoherenceBarProps {
 }
 
 /** Linear interpolation between two #rrggbb hex colors, t in [0,1]. */
-function lerpHex(a: string, b: string, t: number): string {
+export function lerpHex(a: string, b: string, t: number): string {
   const k = Math.min(Math.max(t, 0), 1);
   const pa = [parseInt(a.slice(1, 3), 16), parseInt(a.slice(3, 5), 16), parseInt(a.slice(5, 7), 16)];
   const pb = [parseInt(b.slice(1, 3), 16), parseInt(b.slice(3, 5), 16), parseInt(b.slice(5, 7), 16)];
@@ -26,7 +26,9 @@ function lerpHex(a: string, b: string, t: number): string {
 }
 
 // On the dark instrument plate: brighter terracotta → ochre → sage.
-function fillColorPlate(v: number): string {
+// Exported: ScoreReveal's meter uses the SAME ramp, so the revealed index and
+// the CoherencePanel bars are one instrument by construction, not by copy.
+export function fillColorPlate(v: number): string {
   if (v < 0.5) return lerpHex('#D9764E', '#E3B652', v / 0.5);
   return lerpHex('#E3B652', '#7FA86E', (v - 0.5) / 0.5);
 }
@@ -55,9 +57,11 @@ export default function CoherenceBar({
       aria-valuenow={v ?? undefined}
       aria-label={ariaLabel}
       style={{
+        // No inline minWidth: overflow:hidden already zeroes the automatic
+        // minimum size in flex/grid, and the rail's track sizing now lives in
+        // panels.module.css (an inline style here would override it).
         flex: 1,
         height,
-        minWidth: 0,
         borderRadius: 0,
         background: track,
         border: `1px solid ${border}`,
