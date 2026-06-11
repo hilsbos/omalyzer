@@ -17,12 +17,12 @@
 
   /* ── Darkroom: the framed instrument plate ────────────────────────────── */
   --plate-bg:     #14171F;  /* deep navy-black — viz canvas floor */
-  --plate-bg-2:   #1B2030;  /* one step up — inset rows on a plate */
+  --plate-bg-2:   #1F2538;  /* one step up — inset rows on a plate (1.18:1 vs plate-bg) */
   --plate-rule:   #2E3650;  /* navy hairline inside the plate */
-  --plate-frame:  #11141C;  /* the embossed outer frame edge */
+  --plate-frame:  #0D1017;  /* the embossed outer frame edge */
   --on-plate:        #E7E2D6;  /* parchment-tint text on the dark plate */
-  --on-plate-soft:   #A9AEC0;  /* muted on-plate (labels, captions) */
-  --on-plate-weak:   #6B7290;  /* faint on-plate (scope notes, ticks) */
+  --on-plate-soft:   #A8A49D;  /* muted on-plate (labels, captions) — warm stone, 7.22:1 */
+  --on-plate-weak:   #89837A;  /* faint on-plate (scope notes, ticks) — warm stone, 4.77:1 */
 
   /* ── Harmonized data-viz accent ramp ──────────────────────────────────────
      Coherence low→high reads as a muted terracotta→ochre→sage scale that sits
@@ -32,9 +32,9 @@
   --data-low:       #B2603F;  /* terracotta — weak/low coherence (on paper) */
   --data-mid:       #C39A3C;  /* ochre — middling */
   --data-high:      #5E7E55;  /* sage — strong/high coherence */
-  --data-low-plate:  #D9764E;  /* brighter terracotta on dark plate */
+  --data-low-plate:  #C66240;  /* terracotta on dark plate (CVD: deutan low-vs-high 1.88:1) */
   --data-mid-plate:  #E3B652;  /* brighter ochre on dark plate */
-  --data-high-plate: #7FA86E;  /* brighter sage on dark plate */
+  --data-high-plate: #A2C690;  /* lifted sage on dark plate (7.69:1 on track) */
   --data-track:      #232838;  /* meter track on a plate */
   --data-track-paper:#E6DECE;  /* meter track on parchment */
 

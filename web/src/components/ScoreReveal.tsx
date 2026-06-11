@@ -39,7 +39,7 @@ import {
 } from './science/motion';
 import { STROKE, CURSOR, SVG_LABEL_STYLE, SVG_READOUT_STYLE } from './science/palette';
 import { makeBraid, FIVE_DIMENSIONS_BASE } from './braid';
-/* The meter-fill ramp is CoherenceBar's own (#D9764E→#E3B652→#7FA86E) — the
+/* The meter-fill ramp is CoherenceBar's own (#C66240→#E3B652→#A2C690) — the
    revealed meter and the panel bars are the same instrument by import. */
 import { fillColorPlate } from './CoherenceBar';
 import styles from './ScoreReveal.module.css';

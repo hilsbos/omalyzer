@@ -1,15 +1,16 @@
-// Navy → ember → ivory colormap (web-only; the Rust desktop colormap is
+// Navy → ember → parchment colormap (web-only; the Rust desktop colormap is
 // untouched). Same 5-stop table and the same piecewise-linear interpolation as
 // the old magma LUT, but the endpoints are harmonized with the navy/parchment
-// "darkroom-in-parchment" system: deep navy-black floor → indigo → oxblood/ember
-// → terracotta-ochre → parchment-ivory. Preserves perceptual monotonic luminance.
+// "darkroom-in-parchment" system: exact --plate-bg floor → brand-navy haze →
+// oxblood/ember → terracotta-ochre → exact parchment --bg. Preserves perceptual
+// monotonic luminance; the peak burns through to the paper the day pages use.
 
 const STOPS: ReadonlyArray<readonly [number, number, number]> = [
-  [16, 19, 31], // 0.00  deep navy-black (≈ --plate-bg)
-  [44, 41, 82], // 0.25  indigo
+  [20, 23, 31], // 0.00  deep navy-black (= --plate-bg #14171F exactly — no seam)
+  [33, 45, 77], // 0.25  navy haze (--accent #1B2541 hue at the old stop's luminance)
   [134, 58, 74], // 0.50  oxblood / ember
   [205, 126, 58], // 0.75  terracotta-ochre
-  [246, 240, 214], // 1.00  parchment-ivory
+  [250, 247, 241], // 1.00  exact parchment (= --bg #FAF7F1)
 ];
 
 /** Navy→ember→ivory colormap, `t` in [0,1] -> [r,g,b] (0..255). */

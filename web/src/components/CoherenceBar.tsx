@@ -29,8 +29,8 @@ export function lerpHex(a: string, b: string, t: number): string {
 // Exported: ScoreReveal's meter uses the SAME ramp, so the revealed index and
 // the CoherencePanel bars are one instrument by construction, not by copy.
 export function fillColorPlate(v: number): string {
-  if (v < 0.5) return lerpHex('#D9764E', '#E3B652', v / 0.5);
-  return lerpHex('#E3B652', '#7FA86E', (v - 0.5) / 0.5);
+  if (v < 0.5) return lerpHex('#C66240', '#E3B652', v / 0.5);
+  return lerpHex('#E3B652', '#A2C690', (v - 0.5) / 0.5);
 }
 // Directly on parchment: muted terracotta → ochre → sage.
 function fillColorPaper(v: number): string {

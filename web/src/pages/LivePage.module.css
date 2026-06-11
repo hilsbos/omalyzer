@@ -20,8 +20,9 @@
   /* text */
   --fg: var(--on-plate);
   --fg-muted: var(--on-plate-soft);
-  /* on-plate-weak (#6B7290) fails AA for the small honest-framing captions
-     (legend / scope-note / placeholder); lift to on-plate-soft (~8:1). */
+  /* on-plate-weak (#89837A, 4.77:1) now clears AA, but the small
+     honest-framing captions (legend / scope-note / placeholder) keep the
+     lift to on-plate-soft (7.22:1) for comfort. */
   --fg-weak: var(--on-plate-soft);
   --ink: var(--on-plate);
   --ink-soft: var(--on-plate-soft);
@@ -38,7 +39,7 @@
   --data-track-paper: var(--data-track);
 
   /* evidence dots — brighter so they hold >=3:1 on dark */
-  --evidence-strong: #7fa86e;
+  --evidence-strong: var(--data-high-plate);
   --evidence-moderate: #e3b652;
   --evidence-experimental: #9aa0b4;
 
