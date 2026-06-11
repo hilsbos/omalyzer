@@ -274,10 +274,9 @@ export default function SciencePage() {
           breath at a time, and it is the foundation everything ahead is built on.
         </p>
         <p>
-          One Rust DSP core runs the whole program, and it wears two faces — the desktop app and
-          the same math compiled to WebAssembly in your browser. One core, about 160 KB over the
-          wire, fast enough to run live and identical everywhere it runs. The science never
-          forks.
+          One analysis runs the whole program — the same equations behind every reading, live
+          as you chant and again over every saved om, identical everywhere they run. The
+          science never forks.
         </p>
       </Reveal>
 
@@ -331,9 +330,9 @@ export default function SciencePage() {
         </p>
         <ul>
           <li>
-            <strong>Analysis runs entirely on your device.</strong> The full DSP core executes in
-            WebAssembly in your browser as you chant. Nothing is streamed to a server to be
-            analyzed; the math happens where you stand.
+            <strong>Analysis runs entirely on your device.</strong> The full analysis happens in
+            your browser as you chant. Nothing is streamed to a server to be analyzed; the math
+            happens where you stand.
           </li>
           <li>
             <strong>Nothing leaves your device unless you save an om.</strong> You can use the

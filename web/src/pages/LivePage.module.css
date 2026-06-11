@@ -503,7 +503,7 @@
   outline-offset: 2px;
 }
 /* visually hidden, still read by assistive tech (the capture announcement) —
-   the HeroInstrument srOnly-status idiom */
+   the srOnly-status idiom */
 .srOnly {
   position: absolute;
   width: 1px;

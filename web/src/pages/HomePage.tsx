@@ -1,26 +1,21 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import OmLockup from '../components/OmLockup';
 import Reveal from '../components/Reveal';
 import CtaTone from '../components/science/CtaTone';
-import HeroInstrument, { type HeroReading } from '../components/landing/HeroInstrument';
+import HeroTone from '../components/science/HeroTone';
 import { useAuth } from '../auth/AuthProvider';
 
 /**
- * Landing page (/) — the first om is the landing page. One nearly blank sheet
- * of parchment holding one drawn line, one sentence, one button: the hero IS
- * the instrument (HeroInstrument requests the mic only on the click, and the
- * visitor's own held tone becomes the page's content). Below the fold, three
- * beats — MEASURE → UNDERSTAND → CONTRIBUTE — one CTA each, then the bookend.
- *
- * The hero re-renders internally at rAF rate while the mic runs; this page
- * subscribes only to completed readings via onReading (once per tone), never
- * to the live snapshot.
+ * Landing page (/) — one nearly blank sheet of parchment holding one drawn
+ * line, one sentence, one button. The hero shows the thesis image (HeroTone:
+ * chaos resolving into a clean held tone, synthesized — no microphone here)
+ * and sends the one button straight to the studio, where the real instrument
+ * lives. Below the fold, three beats — MEASURE → UNDERSTAND → CONTRIBUTE —
+ * one CTA each, then the bookend.
  */
 export default function HomePage() {
   const { user, configured } = useAuth();
-  const [reading, setReading] = useState<HeroReading | null>(null);
 
   return (
     <main className={styles.prose}>
@@ -33,34 +28,29 @@ export default function HomePage() {
           The voice is a window into the nervous system. We&rsquo;re building the map.
         </h1>
 
-        {/* The instrument: idle breathing film → the visitor's own tone, live.
-            Owns its own button, whisper line, and printed reading. */}
-        <HeroInstrument onReading={setReading} />
+        {/* The thesis image: a jittery trace settling into one clean sustained
+            tone — and one door to the place where the line becomes yours. */}
+        <HeroTone className={styles.setPiece} />
+        <div className={styles.cta}>
+          <Link className={styles.ctaPrimary} to="/analyze">
+            Hold a tone <span className={styles.arrow} aria-hidden="true">→</span>
+          </Link>
+        </div>
+        <p className={styles.bookendLine}>
+          The analysis runs entirely in your browser. Nothing leaves your device.
+        </p>
       </div>
 
       <hr />
 
-      {/* ── MEASURE — act-aware: the copy knows whether a tone completed ── */}
+      {/* ── MEASURE ── */}
       <Reveal>
         <p className={styles.kicker}>Measure</p>
-        {reading ? (
-          <>
-            <h2>You just took a measurement.</h2>
-            <p>
-              That number was computed on this device, in real time, from the physics of
-              your held tone — pitch steadiness, loudness, harmonic order, spectral
-              stability, resonance. The studio shows every channel at once.
-            </p>
-          </>
-        ) : (
-          <>
-            <h2>One breath is a measurement.</h2>
-            <p>
-              Hold a tone above and omalyzer reads it as it happens — your pitch, your
-              note, the coherence of the hold. The studio shows every channel at once.
-            </p>
-          </>
-        )}
+        <h2>One breath is a measurement.</h2>
+        <p>
+          Hold a tone in the studio and omalyzer reads it as it happens — your pitch, your
+          note, the coherence of the hold, computed live from the physics of the sound.
+        </p>
         <div className={styles.cta}>
           <Link className={styles.ctaPrimary} to="/analyze">
             Open the studio <span className={styles.arrow} aria-hidden="true">→</span>

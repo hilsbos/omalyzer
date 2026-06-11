@@ -457,7 +457,7 @@ export default function LivePage() {
         </>
       )}
 
-      {/* Persistent visually-hidden status (the HeroInstrument idiom): mounted
+      {/* Persistent visually-hidden status (persistent sr-only status idiom): mounted
           from the first render so the capture is ANNOUNCED — a live region
           inserted with the band would stay silent, and the transport hint
           flips back to the instruction on completion, so without this an SR
@@ -737,7 +737,7 @@ function CapturedOmCard({
 /**
  * One line, self-erasing: the pre-first-tone affordance in the practice focus
  * band, with the house cursor-block blinking on the ~3 s listening period
- * (the HeroInstrument idiom). It is displaced by the live index the moment a
+ * (the sr-only status idiom). It is displaced by the live index the moment a
  * tone crosses the gate, and retired permanently once any om has been
  * captured on this device — erased by being answered, never dismissed. Under
  * reduced motion the loop never ticks and the cursor parks at 0.6 opacity.
