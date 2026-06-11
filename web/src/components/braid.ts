@@ -17,8 +17,9 @@ import { clamp, lerp, smootherstep } from './science/motion';
 /* ── The five-dimension identity, colorless ─────────────────────────────────
    {key, label, weight} only. Weights' source of truth:
    crates/core/src/coherence.rs:307–311 (0.25/0.15/0.30/0.15/0.15, combined
-   by the weighted harmonic mean). science/palette.ts zips this with paper
-   colors; the console zips it with plate colors. Order matters: it is the
+   by the weighted harmonic mean). ScoreReveal zips this with plate colors;
+   science/palette.ts still re-declares the same quintuple independently
+   (follow-up: derive it from this base). Order matters: it is the
    CoherencePanel order and the strand-target order. */
 export const FIVE_DIMENSIONS_BASE = [
   { key: 'pitch', label: 'pitch', weight: 0.25 },

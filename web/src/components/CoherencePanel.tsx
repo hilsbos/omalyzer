@@ -79,7 +79,7 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
         name="amplitude"
         raw={ampRaw}
         barValue={s?.amplitude_coherence ?? null}
-        caption="Loudness steadiness — cycle-to-cycle amplitude variation (shimmer), or RMS variation when shimmer isn't measurable."
+        caption="Loudness steadiness — cycle-to-cycle amplitude variation (shimmer), or RMS variation when shimmer isn’t measurable."
       />
       <InfoRow
         name="harmonic"

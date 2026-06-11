@@ -44,7 +44,7 @@ export default function PrivacyPage() {
       <h2>What we store, only with your consent</h2>
       <p>When you save an om, we store, in your private account:</p>
       <ul>
-        <li>The audio recording, encoded as a FLAC file, in private Supabase Storage.</li>
+        <li>The audio recording, encoded as a WAV file, in private Supabase Storage.</li>
         <li>
           Its acoustic features: fundamental frequency, formants,
           harmonics-to-noise ratio, the coherence index and its sub-metrics,
@@ -93,7 +93,13 @@ export default function PrivacyPage() {
       <Reveal>
       <Label roman="VI">what we measure</Label>
       <h2>What we measure</h2>
-      <p>omalyzer reports the acoustic steadiness of your voice.</p>
+      <p>
+        omalyzer measures the acoustics of your sustained tone — pitch, formants,
+        harmonics-to-noise ratio, and a coherence index that tracks the steadiness
+        of a held note — and builds toward reading nervous-system state from the
+        voice. Every measurement is computed from the audio you record; nothing
+        else about you is inferred or collected.
+      </p>
       </Reveal>
 
       <Reveal>

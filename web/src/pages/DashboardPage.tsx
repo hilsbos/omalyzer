@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import {
   fetchCommunityStats,
@@ -92,8 +93,8 @@ export default function DashboardPage() {
           <p className={styles.loading}>Loading…</p>
         ) : error ? null : oms.length === 0 ? (
           <p className={styles.empty}>
-            Your saved oms will land here — dated, replayable, yours alone. Hold one in the
-            still room.
+            Your saved oms will land here — dated, replayable, yours alone. Hold one in{' '}
+            <Link to="/analyze">the studio</Link>.
           </p>
         ) : (
           /* the table keeps its natural column widths; on narrow viewports it

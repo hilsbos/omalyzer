@@ -109,9 +109,9 @@ export default function HomePage() {
           <>
             <h2>Help us build the map.</h2>
             <p>
-              Every saved om grows the first open corpus of sustained human tone — the
-              baseline atlas a map of the vocal nervous system requires. Your recordings
-              stay yours; the patterns belong to everyone.
+              Every om you save and opt to share grows the first open corpus of sustained
+              human tone — the baseline atlas a map of the vocal nervous system requires.
+              Your recordings stay yours; the patterns belong to everyone.
             </p>
             <div className={styles.cta}>
               {configured ? (

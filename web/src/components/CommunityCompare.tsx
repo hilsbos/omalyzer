@@ -62,7 +62,7 @@ export default function CommunityCompare({ oms, stats, loading, error }: Communi
 
       <p className={styles.framing}>
         Your coherence against the corpus. Community figures are anonymized
-        aggregates from people who opted in — no one's raw voice is ever exposed.
+        aggregates from people who opted in — no one&rsquo;s raw voice is ever exposed.
       </p>
     </section>
   );

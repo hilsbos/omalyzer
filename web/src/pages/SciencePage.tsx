@@ -71,7 +71,7 @@ export default function SciencePage() {
         </p>
         <p>
           The source is wired directly to your autonomic state. The <strong>vagus nerve</strong> —
-          the principal parasympathetic nerve, the body's central regulator of autonomic gear —
+          the principal parasympathetic nerve, the body&rsquo;s central regulator of autonomic gear —
           innervates the larynx through its recurrent laryngeal branch. The same nerve that sets
           your heart rate sets the muscle tension of your vocal folds. One nerve reaches both the
           heart and the voice. That is the literal, anatomical reason the voice carries
@@ -176,7 +176,7 @@ export default function SciencePage() {
             <strong>Formants F1–F4</strong> — the vocal-tract resonance peaks, estimated by LPC
             (decimate, pre-emphasis, autocorrelation, Levinson-Durbin, envelope peak-pick), with
             their −3 dB bandwidths. Formants <em>are</em> what defines a vowel: F1 tracks jaw and
-            mouth openness, F2 tracks tongue front-to-back, and the (F1, F2) pair is a vowel's
+            mouth openness, F2 tracks tongue front-to-back, and the (F1, F2) pair is a vowel&rsquo;s
             address in resonance space. Bandwidth measures how sharp each resonance is — narrow and
             well-supported versus wide and muddy, with roughly 400 Hz the scale where a resonance
             stops reading as crisp.
@@ -266,11 +266,12 @@ export default function SciencePage() {
         <h2>A corpus, one breath at a time</h2>
         <p className={styles.kicker}>the data foundation of the program</p>
         <p>
-          Every om you choose to save becomes part of a real, re-analyzable research corpus. Each
-          contribution stores the audio, the full feature vector, and the capture context — device,
-          applied mic settings, sample rate — so a saved om can be re-run against tomorrow's
-          analysis, not just today's. The corpus grows one breath at a time, and it is the
-          foundation everything ahead is built on.
+          Every om you choose to save and share becomes part of a real, re-analyzable research
+          corpus. Each saved om stores the audio, the full feature vector, and the capture
+          context — device, applied mic settings, sample rate — so it can be re-run against
+          tomorrow&rsquo;s analysis, not just today&rsquo;s. Sharing is a separate, explicit opt-in: only
+          anonymized feature values reach the corpus, never your audio. The corpus grows one
+          breath at a time, and it is the foundation everything ahead is built on.
         </p>
         <p>
           One Rust DSP core runs the whole program, and it wears two faces — the desktop app and
@@ -284,7 +285,7 @@ export default function SciencePage() {
 
       <Reveal>
         <Label roman="V">the road ahead</Label>
-        <h2>The map we're building</h2>
+        <h2>The map we&rsquo;re building</h2>
         <p className={styles.kicker}>from a reading to a signature</p>
         <p>
           Every reading the instrument takes today is a precise acoustic portrait of a single tone.
@@ -293,7 +294,7 @@ export default function SciencePage() {
         <p>
           <strong>Personal baselines.</strong> The core construct is the personal{' '}
           <strong>Vocal Resonance Signature</strong> — a per-person, per-sound distribution built
-          up over many sessions. Vocal-tract geometry makes each person's signature genuinely their
+          up over many sessions. Vocal-tract geometry makes each person&rsquo;s signature genuinely their
           own; speaker identification works precisely because those individual signatures are real
           and stable. The trajectory is to express each session as a meaningful movement from your
           own norm: <em>your /o/ rings cleaner than your 30-day baseline tonight.</em>
@@ -301,7 +302,7 @@ export default function SciencePage() {
         <p>
           <strong>Community aggregates.</strong> Anonymized, corpus-wide distributions let you
           place a session against the whole — your coherence against the community median, with no
-          one's raw voice ever exposed.
+          one&rsquo;s raw voice ever exposed.
         </p>
         <p>
           <strong>State inference — the horizon.</strong> The destination is mapping vocal
@@ -335,12 +336,12 @@ export default function SciencePage() {
             analyzed; the math happens where you stand.
           </li>
           <li>
-            <strong>Nothing leaves your device unless you save an om.</strong> You can use the live
-            analyzer with no account at all. Only when you explicitly contribute an om does its
+            <strong>Nothing leaves your device unless you save an om.</strong> You can use the
+            studio with no account at all. Only when you explicitly contribute an om does its
             audio and its features get stored to your account.
           </li>
           <li>
-            <strong>Deletion is real and complete.</strong> Any om you've saved — audio and
+            <strong>Deletion is real and complete.</strong> Any om you&rsquo;ve saved — audio and
             features alike — you can delete entirely, at any time.
           </li>
         </ul>
@@ -360,7 +361,7 @@ export default function SciencePage() {
         </p>
         <div className={styles.cta}>
           <Link className={styles.ctaPrimary} to="/analyze">
-            Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
+            Open the studio <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
         </div>
         {/* The bookend — the hero's settled tone, returned in the page's own

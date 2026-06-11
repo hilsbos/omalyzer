@@ -309,12 +309,15 @@ export default function LivePage() {
   }, [lastOm, status.settings, status.warnings]);
 
   return (
-    <div
+    <main
       className={`${styles.console} instrument`}
       data-running={status.running}
       data-view={view}
       data-captured={lastOm != null}
     >
+      {/* page title for assistive tech — the visible header is the wordmark link */}
+      <h1 className={styles.srOnly}>omalyzer studio — live vowel-chant analyzer</h1>
+
       {/* ── APP BAR ─────────────────────────────────────────────────────────── */}
       <header className={styles.appbar}>
         <Link to="/" className={styles.brand} aria-label="omalyzer home">
@@ -597,7 +600,7 @@ export default function LivePage() {
           </div>
         </>
       )}
-    </div>
+    </main>
   );
 }
 

@@ -1,4 +1,4 @@
-// contributions.ts — the Model B "save an om" flow: encode captured PCM to FLAC,
+// contributions.ts — the Model B "save an om" flow: encode captured PCM to WAV,
 // upload it to the user's private prefix in the `oms` Storage bucket, then insert
 // the `oms` + `om_features` rows from the in-memory analysis. No new DSP: every
 // value comes from the snapshot/record result the analyzer already produced.
@@ -11,7 +11,7 @@ import { pcmToWavBlob } from './wav';
 
 /** The analysis payload the LivePage record produces, flattened for storage. */
 export interface OmContribution {
-  /** captured mono PCM at `sampleRate` (the FLAC source). */
+  /** captured mono PCM at `sampleRate` (the WAV source). */
   pcm: Float32Array;
   sampleRate: number;
   durationSecs: number;
@@ -122,7 +122,7 @@ export async function saveOm(c: OmContribution): Promise<SavedOm> {
 /** Delete an om completely: its Storage object, then the row (cascades features).
  *
  * The biometric audio is removed FIRST and its failure is surfaced, so we never
- * report a recording deleted while its FLAC lingers orphaned in the bucket. If
+ * report a recording deleted while its WAV lingers orphaned in the bucket. If
  * the row delete then fails the caller can retry; the (idempotent) audio removal
  * has already guaranteed the sensitive data is gone. */
 export async function deleteOm(id: string, audioPath: string | null): Promise<void> {

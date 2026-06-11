@@ -40,7 +40,7 @@ export default function ConsentStep({ saving, error, onSave }: Props) {
           onChange={(e) => setStore(e.target.checked)}
         />
         <span>
-          <strong>Store this recording.</strong> Save the audio (FLAC) and its
+          <strong>Store this recording.</strong> Save the audio (WAV) and its
           acoustic features in my private omalyzer account on Supabase. I can
           delete it anytime.
         </span>

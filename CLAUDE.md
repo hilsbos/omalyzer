@@ -9,7 +9,7 @@ omalyzer (lowercase brand) is a real-time vowel-chant analyzer: it extracts per-
 - `crates/core` (`omalyzer-core`) — all DSP plus the `Analyzer` (FFT, hop/RMS-gate framing, sustained-tone capture state machine). Only non-std dependency is rustfft.
 - `crates/desktop` (`omalyzer-live`) — macOS eframe/egui app; thin consumer of core (cpal mic input, spectrogram + readout UI).
 - `crates/wasm` (`omalyzer-wasm`) — wasm-bindgen shim over `Analyzer`; owns no DSP. The browser's AudioWorklet pushes hops in; the render loop polls a flat `Snapshot`.
-- `web/` — Vite + React + TS app at omalyzer.com (landing, science, `/analyze` "Studio Console", sign-in, dashboard). All analysis is client-side WASM.
+- `web/` — Vite + React + TS app at omalyzer.com. All analysis is client-side WASM. Four named worlds: landing "ONE BREATH" (`components/landing/HeroInstrument` — "Hold a tone" drives the real mic pipeline), `/science` "THE OBSERVATORY" (`components/science/` — four SVG ink set-pieces over a shared graticule + palette/motion utilities), `/analyze` "STILL ROOM / OPEN CONSOLE" (practice-first with console toggle, `ScoreReveal` braid ceremony on capture), dashboard "THE CONSTELLATION" (`components/signature/SignaturePlate` — the forming Vocal Resonance Signature). Shared braid kinematics live in `components/braid.ts`.
 - `supabase/` — the only backend: auth + saved-om contributions (RLS Model B: users see only their own raw recordings, plus anonymized corpus aggregates).
 - `web-proof/` — minimal M1 proof (mic → worklet → WASM); superseded by `web/`.
 - `recordings/` — gitignored scratch space for audio files.
@@ -59,4 +59,4 @@ Design convention: the DSP modules are pure functions on slices — std-only, no
 
 The analysis spectrum is wider than the displayed spectrogram (harmonic/HNR analysis needs up to 20·F0 and a 0–5 kHz noise-floor median) — don't truncate it to the display range.
 
-Web design system: the whole site is IBM Plex Mono; the ॐ glyph renders in Tiro Devanagari. Contact email is info@shushu.be.
+Web design system: the whole site is IBM Plex Mono; the ॐ glyph renders in Tiro Devanagari. Light = reading (prose pages, parchment), dark = measuring (/analyze, dashboard plate) — one page, one atmosphere, never scroll-driven shifts. No animation libraries (SVG + rAF + CSS only, no Math.random); every animation honors prefers-reduced-motion with a composed static frame and pauses off-screen. Copy is expansive and forward-looking — trajectory, never deficiency. Contact email is info@shushu.be.

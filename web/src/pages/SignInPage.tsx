@@ -52,7 +52,7 @@ export default function SignInPage() {
         Sign in
       </h1>
       <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
-        Enter your email and we'll send a one-time magic link. No password to
+        Enter your email and we&rsquo;ll send a one-time magic link. No password to
         remember.
       </p>
       <form
