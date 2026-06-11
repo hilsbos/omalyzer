@@ -1,4 +1,5 @@
-import { Link, Outlet, Route, Routes } from 'react-router-dom';
+import { useLayoutEffect } from 'react';
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import LivePage from './pages/LivePage';
 import HomePage from './pages/HomePage';
 import SciencePage from './pages/SciencePage';
@@ -74,6 +75,17 @@ function Nav() {
   );
 }
 
+/** SPA route changes keep the old scroll position — reset to the top on every
+ *  navigation (before paint, so the new page never flashes mid-scroll). The
+ *  /analyze console is position-fixed and unaffected either way. */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 /** Marketing/app chrome: parchment masthead + footer wrapping the page Outlet. */
 function SiteLayout() {
   return (
@@ -87,7 +99,9 @@ function SiteLayout() {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       {/* Standalone full-viewport console — NO marketing nav/footer. */}
       <Route path="/analyze" element={<LivePage />} />
 
@@ -107,6 +121,7 @@ export default function App() {
           }
         />
       </Route>
-    </Routes>
+      </Routes>
+    </>
   );
 }
