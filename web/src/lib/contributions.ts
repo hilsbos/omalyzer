@@ -6,7 +6,7 @@
 // On any failure after the upload, the orphaned Storage object is removed so we
 // never leave a file with no row pointing at it.
 
-import { supabase } from './supabase';
+import { requireSupabase } from './supabase';
 import { pcmToWavBlob } from './wav';
 
 /** The analysis payload the LivePage record produces, flattened for storage. */
@@ -59,6 +59,7 @@ export interface SavedOm {
  * the caller's own user_id / prefix).
  */
 export async function saveOm(c: OmContribution): Promise<SavedOm> {
+  const supabase = requireSupabase();
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userData.user) {
     throw new Error('You must be signed in to save an om.');
@@ -125,6 +126,7 @@ export async function saveOm(c: OmContribution): Promise<SavedOm> {
  * the row delete then fails the caller can retry; the (idempotent) audio removal
  * has already guaranteed the sensitive data is gone. */
 export async function deleteOm(id: string, audioPath: string | null): Promise<void> {
+  const supabase = requireSupabase();
   if (audioPath) {
     const { error: rmErr } = await supabase.storage.from('oms').remove([audioPath]);
     if (rmErr) throw new Error(`Removing audio failed: ${rmErr.message}`);
@@ -141,6 +143,7 @@ export async function deleteOm(id: string, audioPath: string | null): Promise<vo
  * auth.users. The caller should sign out and redirect afterwards.
  */
 export async function deleteMyAccount(): Promise<void> {
+  const supabase = requireSupabase();
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr || !userData.user) throw new Error('You must be signed in.');
   const userId = userData.user.id;

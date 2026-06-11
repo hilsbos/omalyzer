@@ -71,6 +71,11 @@ export function useAnalyzer() {
   const analyzerRef = useRef<WasmAnalyzer | null>(null);
   const rafRef = useRef<number | null>(null);
   const runningRef = useRef(false);
+  // Generation token: stop() and every new start() bump it. An in-flight
+  // start() re-checks it after EVERY await and, if stale, releases whatever
+  // it acquired and bails — so unmounting (or stopping) while the permission
+  // prompt is pending can never strand a hot mic or an orphaned poll loop.
+  const genRef = useRef(0);
 
   // Per-hop histories (mutated in place; canvases read them each frame). Kept in
   // a ref so accumulation never triggers a React re-render — only the latest
@@ -181,6 +186,7 @@ export function useAnalyzer() {
 
   // Teardown: cancel rAF, disconnect graph, stop tracks, close ctx, drop wasm.
   const stop = useCallback(() => {
+    genRef.current += 1; // cancel any in-flight start()
     runningRef.current = false;
     rollingRef.current = { chunks: [], length: 0 };
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
@@ -204,12 +210,26 @@ export function useAnalyzer() {
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
+    const gen = ++genRef.current;
     resetHistory();
     setStatus((s) => ({ ...s, error: null, warnings: [] }));
 
+    // Everything below is acquired into LOCALS and committed to the refs only
+    // after the LAST await has passed a generation check — so a stop() (user,
+    // unmount, scroll-out) or a newer start() landing during any await means
+    // this attempt releases its own acquisitions and vanishes without trace.
+    let stream: MediaStream | null = null;
+    let ctx: AudioContext | null = null;
+    let analyzer: WasmAnalyzer | null = null;
+    const cancelled = () => gen !== genRef.current;
+    const release = () => {
+      stream?.getTracks().forEach((t) => t.stop());
+      ctx?.close().catch(() => {}); // may already be closed — ignore
+      analyzer?.free();
+    };
+
     // 1. Raw-as-possible mic — PLAIN booleans (not {exact:...}) so capture
     //    never fails on a device that can't satisfy the constraint.
-    let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -220,81 +240,116 @@ export function useAnalyzer() {
         video: false,
       });
     } catch (e) {
-      setStatus((s) => ({ ...s, error: `getUserMedia failed: ${e}` }));
+      if (!cancelled()) setStatus((s) => ({ ...s, error: `getUserMedia failed: ${e}` }));
       return;
     }
-    streamRef.current = stream;
-
-    // Readback: warn if the browser silently kept processing on.
-    const track = stream.getAudioTracks()[0];
-    const settings = track.getSettings();
-    const warnings: string[] = [];
-    if (settings.echoCancellation) warnings.push('echoCancellation is ON (not honored)');
-    if (settings.noiseSuppression) warnings.push('noiseSuppression is ON');
-    if (settings.autoGainControl)
-      warnings.push('autoGainControl is ON (corrupts HNR/jitter)');
-
-    // 2. AudioContext — READ sampleRate at runtime, never hardcode.
-    const ctx = new AudioContext();
-    ctxRef.current = ctx;
-    await ctx.resume(); // gesture-gated; runs inside the user click handler
-    const sr = ctx.sampleRate;
-    sampleRateRef.current = sr;
-    if (sr <= 16000) {
-      warnings.push(
-        `sampleRate ${sr} Hz looks like a 16 kHz Bluetooth route — ` +
-          `use built-in/wired mic for valid formants/HNR.`,
-      );
+    if (cancelled()) {
+      release(); // permission granted after we were stopped: kill the mic now
+      return;
     }
 
-    // 3. WASM core — instantiate with the ACTUAL sample rate.
-    await init(); // explicit init gate (loads *_bg.wasm)
-    const analyzer = new WasmAnalyzer(sr);
-    analyzer.set_gate_db(gateRef.current);
-    analyzerRef.current = analyzer;
+    try {
+      // Readback: warn if the browser silently kept processing on.
+      const track = stream.getAudioTracks()[0];
+      const settings = track.getSettings();
+      const warnings: string[] = [];
+      if (settings.echoCancellation) warnings.push('echoCancellation is ON (not honored)');
+      if (settings.noiseSuppression) warnings.push('noiseSuppression is ON');
+      if (settings.autoGainControl)
+        warnings.push('autoGainControl is ON (corrupts HNR/jitter)');
 
-    // 4. Worklet — DSP-FREE; just tiles 4096-sample hops. WASM stays main-thread.
-    await ctx.audioWorklet.addModule(new URL('/worklet.js', import.meta.url).href);
-    const src = ctx.createMediaStreamSource(stream);
-    srcRef.current = src;
-    const node = new AudioWorkletNode(ctx, 'hop-processor', {
-      numberOfInputs: 1,
-      numberOfOutputs: 0, // sink only
-      channelCount: 1,
-      channelCountMode: 'explicit',
-    });
-    nodeRef.current = node;
-
-    // 5. Each hop -> push into the WASM core (per 4096-sample boundary).
-    node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
-      const hop = ev.data;
-      // Continuous rolling tap: copy the hop BEFORE handing it to WASM
-      // (push_samples may neuter/consume the transferred buffer). Independent
-      // memory; trim oldest chunks once the ring exceeds the cap.
-      const roll = rollingRef.current;
-      roll.chunks.push(Float32Array.from(hop));
-      roll.length += hop.length;
-      while (roll.length > MAX_ROLLING_SAMPLES && roll.chunks.length > 1) {
-        roll.length -= roll.chunks[0].length;
-        roll.chunks.shift();
+      // 2. AudioContext — READ sampleRate at runtime, never hardcode.
+      ctx = new AudioContext();
+      await ctx.resume(); // gesture-gated; runs inside the user click handler
+      if (cancelled()) {
+        release();
+        return;
       }
-      analyzerRef.current?.push_samples(hop);
-    };
-    src.connect(node); // no connect to destination (numberOfOutputs:0 still pulls)
+      const sr = ctx.sampleRate;
+      if (sr <= 16000) {
+        warnings.push(
+          `sampleRate ${sr} Hz looks like a 16 kHz Bluetooth route — ` +
+            `use built-in/wired mic for valid formants/HNR.`,
+        );
+      }
 
-    // 6. rAF paint loop — poll snapshot() into React state (decoupled from hops).
-    runningRef.current = true;
-    const paint = () => {
-      if (!runningRef.current || !analyzerRef.current) return;
-      const snap = analyzerRef.current.snapshot() as Snapshot;
-      accumulate(snap);
-      captureCompletedOm(snap);
-      setSnapshot(snap);
+      // 3. WASM core — instantiate with the ACTUAL sample rate.
+      await init(); // explicit init gate (loads *_bg.wasm)
+      if (cancelled()) {
+        release();
+        return;
+      }
+      analyzer = new WasmAnalyzer(sr);
+      analyzer.set_gate_db(gateRef.current);
+
+      // 4. Worklet — DSP-FREE; just tiles 4096-sample hops. WASM stays main-thread.
+      await ctx.audioWorklet.addModule(new URL('/worklet.js', import.meta.url).href);
+      if (cancelled()) {
+        release();
+        return;
+      }
+
+      // 5. Commit — the last await is behind us; everything below is
+      //    synchronous, so any later stop() sees fully-populated refs.
+      const src = ctx.createMediaStreamSource(stream);
+      const node = new AudioWorkletNode(ctx, 'hop-processor', {
+        numberOfInputs: 1,
+        numberOfOutputs: 0, // sink only
+        channelCount: 1,
+        channelCountMode: 'explicit',
+      });
+      streamRef.current = stream;
+      ctxRef.current = ctx;
+      sampleRateRef.current = sr;
+      analyzerRef.current = analyzer;
+      srcRef.current = src;
+      nodeRef.current = node;
+
+      // 6. Each hop -> push into the WASM core (per 4096-sample boundary).
+      node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
+        const hop = ev.data;
+        // Continuous rolling tap: copy the hop BEFORE handing it to WASM
+        // (push_samples may neuter/consume the transferred buffer). Independent
+        // memory; trim oldest chunks once the ring exceeds the cap.
+        const roll = rollingRef.current;
+        roll.chunks.push(Float32Array.from(hop));
+        roll.length += hop.length;
+        while (roll.length > MAX_ROLLING_SAMPLES && roll.chunks.length > 1) {
+          roll.length -= roll.chunks[0].length;
+          roll.chunks.shift();
+        }
+        analyzerRef.current?.push_samples(hop);
+      };
+      src.connect(node); // no connect to destination (numberOfOutputs:0 still pulls)
+
+      // 7. rAF paint loop — poll snapshot() into React state (decoupled from hops).
+      runningRef.current = true;
+      const paint = () => {
+        if (!runningRef.current || !analyzerRef.current) return;
+        const snap = analyzerRef.current.snapshot() as Snapshot;
+        accumulate(snap);
+        captureCompletedOm(snap);
+        setSnapshot(snap);
+        rafRef.current = requestAnimationFrame(paint);
+      };
       rafRef.current = requestAnimationFrame(paint);
-    };
-    rafRef.current = requestAnimationFrame(paint);
 
-    setStatus({ running: true, sampleRate: sr, settings, warnings, error: null });
+      setStatus({ running: true, sampleRate: sr, settings, warnings, error: null });
+    } catch (e) {
+      // A mid-pipeline failure must not strand a granted mic. Un-commit any
+      // refs THIS attempt set (so a later stop() can't double-free), release
+      // the locals, and rethrow for the caller's denied path.
+      runningRef.current = false;
+      if (analyzerRef.current === analyzer) analyzerRef.current = null;
+      if (streamRef.current === stream) {
+        streamRef.current = null;
+        srcRef.current = null;
+        nodeRef.current = null;
+      }
+      if (ctxRef.current === ctx) ctxRef.current = null;
+      release();
+      throw e;
+    }
   }, []);
 
   // Re-resume on tab refocus (some browsers suspend backgrounded contexts).

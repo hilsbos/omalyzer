@@ -93,6 +93,13 @@
   font-size: clamp(var(--t-disp), 11vw, var(--t-disp2));
 }
 
+/* Landing mission line — fluid below the editorial measure so the hero keeps
+   its one-screen composition (sentence + line + button) at phone widths;
+   clamps back to the full display size by ~640px. Same idiom as .heroLockup. */
+.prose .heroTitle {
+  font-size: clamp(1.9rem, 8.5vw, var(--t-disp));
+}
+
 .lede {
   font-size: var(--t-md);
   color: var(--ink-soft);
@@ -127,6 +134,13 @@
   display: block;
   width: 100%;
   margin: var(--s-xl) 0;
+}
+
+/* ── Landing bookend — the settled tone returned, then the last word ──────── */
+.bookendLine {
+  color: var(--ink-soft);
+  font-size: var(--t-md);
+  margin: var(--s-md) 0 0;
 }
 
 /* ── CTAs ─────────────────────────────────────────────────────────────────── */

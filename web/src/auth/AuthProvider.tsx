@@ -13,6 +13,9 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  /** False when the Supabase env is absent — auth degrades to signed-out and
+   *  account CTAs route elsewhere; the rest of the site runs untouched. */
+  configured: boolean;
   signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -24,6 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // No env → no client: degrade to { user: null, configured: false }.
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // 1. hydrate from any persisted session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -43,7 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       loading,
+      configured: supabase !== null,
       signInWithOtp: async (email: string) => {
+        if (!supabase) {
+          return { error: new Error('Accounts are not configured on this deployment.') };
+        }
         const { error } = await supabase.auth.signInWithOtp({
           email,
           options: { emailRedirectTo: window.location.origin },
@@ -51,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error };
       },
       signOut: async () => {
-        await supabase.auth.signOut();
+        await supabase?.auth.signOut();
       },
     }),
     [session, loading],

@@ -2,7 +2,7 @@
 // aggregate RPC. No cross-user data is ever fetched except the anonymized
 // aggregates returned by community_coherence_stats.
 
-import { supabase } from './supabase';
+import { requireSupabase } from './supabase';
 
 /** A row joining an om to its (1:1 here) features, newest first. */
 export interface OmRow {
@@ -27,6 +27,7 @@ interface RawOmRow {
 
 /** Fetch the signed-in user's own oms (RLS confines this to their rows). */
 export async function fetchMyOms(): Promise<OmRow[]> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from('oms')
     .select('id, created_at, audio_path, duration_secs, vowel, note, om_features ( coherence_index )')
@@ -53,6 +54,7 @@ export interface CommunityStats {
 
 /** Call the anonymized-aggregate RPC (security definer, opt-in rows only). */
 export async function fetchCommunityStats(vowel?: string | null): Promise<CommunityStats> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase.rpc('community_coherence_stats', {
     p_vowel: vowel ?? null,
   });

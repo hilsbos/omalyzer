@@ -19,6 +19,10 @@ export default function OmPlayer({ audioPath }: { audioPath: string | null }) {
   }
 
   const load = async () => {
+    if (!supabase) {
+      setError('Could not load audio');
+      return;
+    }
     setLoading(true);
     setError(null);
     const { data, error: e } = await supabase.storage
