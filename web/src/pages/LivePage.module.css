@@ -59,7 +59,9 @@
   gap: 1px; /* 1px seams → reads as a console */
   background-color: var(--plate-rule); /* seam color shows through gap */
   grid-template-columns: 1fr 1fr minmax(20rem, 22rem);
-  grid-template-rows: auto auto 1fr minmax(150px, 0.42fr) auto auto;
+  /* the spectro row gets a REAL floor (8rem): without one, a tall captured
+     band makes the 1fr collapse to 0px and the hero dies silently */
+  grid-template-rows: auto auto minmax(8rem, 1fr) minmax(150px, 0.42fr) auto auto;
   grid-template-areas:
     'appbar    appbar    appbar'
     'alerts    alerts    alerts'
@@ -105,7 +107,7 @@
    the grid above — practice subtracts, it never rearranges. */
 .console[data-view='practice'] {
   grid-template-columns: 1fr;
-  grid-template-rows: auto auto 1fr auto auto auto;
+  grid-template-rows: auto auto minmax(8rem, 1fr) auto auto auto;
   grid-template-areas:
     'appbar'
     'alerts'
@@ -525,6 +527,69 @@
   font-family: var(--mono);
   font-size: var(--t-label);
   color: var(--fg);
+  /* The band may NOT outgrow the plate. Its grid row is `auto` (sizes to
+     content, never shrinks), and the console is a fixed, overflow:hidden
+     viewport grid — so a tall save flow (reveal + consent card) used to clip
+     past the bottom edge, stranding the save button and the transport with no
+     scroll ancestor. Cap it and scroll INTERNALLY instead (same contract the
+     phone fallback already ships). The cap clears every other row's floor:
+     appbar 2.6rem + alerts ~1.6rem + spectro min 8rem + pitch min 150px
+     (~9.4rem) + transport 3rem + seams ≈ 25rem, +1rem slack → 26rem. By
+     construction the grid itself never overflows, so the old focus-scroll
+     drift (clicking Stop shoved the appbar off-top) is impossible. */
+  /* The 8rem floor (min-height, so the auto grid track honors it — a max()
+     inside max-height alone still lets the track squeeze the band to a slit)
+     keeps the band readable on very short desktop windows (<~500px tall); the
+     data-captured escape hatch on .console below lets the whole plate scroll
+     in that case, so the transport and save flow stay reachable by
+     construction. */
+  min-height: 8rem;
+  max-height: max(8rem, calc(100dvh - 26rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Classic (non-overlay) scrollbars must speak the console's dark vocabulary,
+     not the UA's light default — Firefox + Chromium 121+ via scrollbar-color;
+     older Chromium / Safari via the ::-webkit-scrollbar rules below (same
+     palette as .railScroll). */
+  scrollbar-color: var(--plate-rule) var(--plate-bg-2);
+  /* Scroll affordance: scrolling shadows (covers scroll with the content,
+     edge shadows stay put), so a soft seam appears at whichever edge hides
+     more — the consent card / save row below the reveal announce themselves
+     without chrome. Pure background layers: nothing animates, nothing
+     intercepts input, and when the content fits the cover slides over the
+     shadow and the band reads as the plain plate again. */
+  background-image: linear-gradient(var(--plate-bg-2) 33%, transparent),
+    linear-gradient(transparent, var(--plate-bg-2) 66%),
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.6), transparent),
+    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.6), transparent);
+  background-position:
+    0 0,
+    0 100%,
+    0 0,
+    0 100%;
+  background-size:
+    100% 2.25rem,
+    100% 2.25rem,
+    100% 0.75rem,
+    100% 0.75rem;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+.captured::-webkit-scrollbar {
+  width: 10px;
+}
+.captured::-webkit-scrollbar-thumb {
+  background: var(--plate-rule);
+  border: 2px solid var(--plate-bg-2);
+}
+/* Desktop twin of the phone escape hatch (see the ≤52rem block): when the
+   band's 8rem floor + the other rows' floors exceed a very short window
+   (<~500px tall, measured: fits at 1100×500, scrolls at 1100×450), the plate
+   scrolls rather than clipping; on normal heights the cap guarantees the grid
+   fits and nothing scrolls. */
+.console[data-captured='true'] {
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 /* the braid reckoning — an inset plate above the facts + save row */
 .capturedReveal {
@@ -587,6 +652,12 @@
 .captured *:focus-visible {
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
+}
+/* the band itself is focusable (tabIndex=0, WAI scrollable-region pattern);
+   inset ring so it isn't clipped by the overflow:hidden console grid */
+.captured:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: -2px;
 }
 
 /* ====================== DRAWER (slide-over) ============================== */
@@ -793,37 +864,18 @@
      transport — and may SHRINK: in the 100dvh overflow:hidden column a rigid
      band (reveal + facts + save row) pushed the transport below the fold on
      phone heights (568/640/667/740) with no scroll ancestor, stranding the
-     user mid-capture. It scrolls internally instead; the floor keeps the
-     reveal head and the band's identity visible while Stop / save / discard
-     stay reachable beneath it. */
+     user mid-capture. It scrolls internally instead (overflow + scrolling
+     shadows now live on the base rule, shared with desktop); the floor keeps
+     the reveal head and the band's identity visible while Stop / save /
+     discard stay reachable beneath it. The desktop max-height cap is lifted:
+     in this flex column the band is sized by flex-shrink, and the
+     data-captured escape hatch above keeps everything reachable on the
+     shortest phones. */
   .captured {
     flex: 0 1 auto;
     min-height: min(8rem, 22dvh);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    max-height: none;
     -webkit-overflow-scrolling: touch;
-    /* Scroll affordance: scrolling shadows (covers scroll with the content,
-       edge shadows stay put), so a soft seam appears at whichever edge hides
-       more — the facts + save row below the reveal announce themselves
-       without chrome. Pure background layers: nothing animates, nothing
-       intercepts input, and at the scroll ends the cover slides over the
-       shadow and the band reads as the plain plate again. */
-    background-image: linear-gradient(var(--plate-bg-2) 33%, transparent),
-      linear-gradient(transparent, var(--plate-bg-2) 66%),
-      radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 0.6), transparent),
-      radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 0.6), transparent);
-    background-position:
-      0 0,
-      0 100%,
-      0 0,
-      0 100%;
-    background-size:
-      100% 2.25rem,
-      100% 2.25rem,
-      100% 0.75rem,
-      100% 0.75rem;
-    background-repeat: no-repeat;
-    background-attachment: local, local, scroll, scroll;
   }
   /* drawer goes full-width on the narrowest screens */
   .drawer {

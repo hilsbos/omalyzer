@@ -644,7 +644,11 @@ function CapturedOmCard({
   const idx = d.last_coherence_index;
   const vowel = d.last_coherence_vowel ?? d.vowel ?? '—';
   return (
-    <section className={styles.captured} role="region" aria-label="captured om">
+    // tabIndex=0: the band is a capped scroll region (tall save flow scrolls
+    // internally instead of clipping under the fixed console) — the WAI
+    // scrollable-region pattern (role + label + tabindex) keeps it
+    // arrow-key-scrollable in every browser.
+    <section className={styles.captured} role="region" aria-label="captured om" tabIndex={0}>
       {idx != null && (
         <ScoreReveal
           key={om.capturedAt}
