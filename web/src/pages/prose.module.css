@@ -1,5 +1,5 @@
-/* Editorial long-form + manuscript hero. Newsreader body, Fraunces headings,
-   golden rhythm, navy CTAs, asterism dividers, parchment chrome (radius 0). */
+/* Editorial long-form + manuscript hero. IBM Plex Mono throughout, hairline
+   rules, small-caps roman-numeral section labels, parchment editorial chrome. */
 
 .prose {
   max-width: var(--max);
@@ -110,6 +110,16 @@
   letter-spacing: var(--ls-roman);
 }
 
+/* Bold navy dek/kicker line under a section h2 — a small-caps navigational beat. */
+.kicker {
+  margin: 0 0 var(--s-sm);
+  color: var(--accent);
+  font-variant-caps: all-small-caps;
+  font-feature-settings: "smcp", "c2sc", "kern";
+  letter-spacing: var(--ls-roman);
+  font-weight: 500;
+}
+
 /* ── CTAs ─────────────────────────────────────────────────────────────────── */
 .cta {
   display: flex;
@@ -149,7 +159,7 @@
   transition: transform 250ms ease-out;
 }
 
-/* ── Disclaimer callout — left navy rule blockquote on faint parchment ──────── */
+/* ── Callout — left accent-rule blockquote (harmonic-mean note, Section III) ── */
 .callout {
   border-left: 3px solid var(--accent);
   background: var(--panel-bg);

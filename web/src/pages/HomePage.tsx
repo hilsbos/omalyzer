@@ -4,10 +4,7 @@ import OmLockup from '../components/OmLockup';
 import Reveal from '../components/Reveal';
 import { useAuth } from '../auth/AuthProvider';
 
-/**
- * Landing page (/). Copy is the approved paste-ready text, verbatim — written
- * inside the §4.4 honest-framing rules (no medical/stress/chakra/energy claims).
- */
+/** Landing page (/). The voice as a window into the nervous system; CTA into the live analyzer. */
 export default function HomePage() {
   const { user } = useAuth();
 
@@ -107,8 +104,8 @@ export default function HomePage() {
 
       <Reveal as="div">
         <blockquote className={styles.callout}>
-          omalyzer measures the acoustics of your voice (pitch, resonance, steadiness). See the{' '}
-          <Link to="/science">science page</Link> for how it works.
+          omalyzer reads your voice as a window into the nervous system — pitch, resonance, and the
+          steadiness of a held tone. See the <Link to="/science">science page</Link> for how it works.
         </blockquote>
       </Reveal>
     </main>

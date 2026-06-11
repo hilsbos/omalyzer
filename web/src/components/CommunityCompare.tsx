@@ -16,7 +16,7 @@ function median(xs: number[]): number | null {
 /**
  * "You vs. the community". Your latest + your median against the community
  * median and interquartile band (anonymized aggregates from opt-in contributors,
- * via the community_coherence_stats RPC). Honestly framed: not a ranking or score.
+ * via the community_coherence_stats RPC).
  */
 export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
   const [stats, setStats] = useState<CommunityStats | null>(null);
@@ -75,8 +75,8 @@ export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
       {error && <p className={styles.error}>{error}</p>}
 
       <p className={styles.framing}>
-        A within-person acoustic steadiness measure. Community figures are
-        anonymized aggregates from people who opted in.
+        Your coherence against the corpus. Community figures are anonymized
+        aggregates from people who opted in — no one's raw voice is ever exposed.
       </p>
     </section>
   );

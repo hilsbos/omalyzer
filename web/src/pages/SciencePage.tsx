@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import Reveal from '../components/Reveal';
 
@@ -12,159 +13,168 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
 }
 
 /**
- * Science page (/science). Marks established vs exploratory claims and keeps the
- * measured-vs-inferred boundary (a measurement now needs a personal baseline to
- * become a state signal) visible without adding state/diagnosis claims.
+ * Science page (/science). Lays out the program: the physiology that makes voice
+ * a nervous-system readout, the DSP omalyzer extracts, the Vocal Coherence Index,
+ * the corpus, the road ahead, and the client-side sovereignty stance.
  */
 export default function SciencePage() {
   return (
     <main className={styles.prose}>
-      <h1>The science behind omalyzer</h1>
+      <h1>The voice is a window into the nervous system</h1>
       <p>
-        This page lays out the idea omalyzer rests on and what its measurements mean.
-        Throughout, we mark which claims are <strong>established</strong>{' '}
-        and which are <strong>exploratory</strong>, so you always know which is which.
+        Speak, hum, or hold a vowel, and you set a muscle vibrating that your nervous system is
+        wiring in real time. The pitch you land on, the steadiness you can hold, the cleanliness
+        of the harmonics stacked above it — these are not aesthetic accidents. They are the
+        audible state of the system that runs you. A sustained om is the cleanest possible look
+        through the window: one tone, held long enough to measure, stripped of the noise of
+        speech. This page is the program behind the instrument — the physiology that makes the
+        voice a window, the math that opens it, and where we are taking it next.
       </p>
 
       <hr />
 
       <Reveal>
-        <Label roman="I">why voice carries information</Label>
-        <h2>
-          Why voice carries information at all — <span className={styles.tag}>established</span>
-        </h2>
+        <Label roman="I">what the voice carries</Label>
+        <h2>One nerve reaches the heart and the voice</h2>
+        <p className={styles.kicker}>the source and the filter</p>
+
+        <h3>The anatomical bridge</h3>
         <p>
-          Your voice is produced by a <strong>source</strong> (the vocal folds vibrating)
-          shaped by a <strong>filter</strong> (the vocal tract — tongue, jaw, lips). When you
-          change vowels, you physically reconfigure that filter, and each configuration
-          produces a distinct, measurable pattern of resonances called{' '}
-          <strong>formants</strong>. This is why /a/, /i/, /u/, and a hummed OM each have their
-          own acoustic fingerprint. That much is settled acoustic science.
+          A voice is built in two stages. A <strong>source</strong> — the vocal folds in the
+          larynx, vibrating — produces a buzzing tone. A <strong>filter</strong> — the vocal
+          tract, the moving geometry of throat, tongue, jaw, and lips — shapes that tone into the
+          sound you recognize. This is the source–filter model, and it is settled acoustics. When
+          you sustain a vowel, you are physically reconfiguring the filter; when you change the
+          steadiness or pitch of the note, you are tuning the source.
         </p>
         <p>
-          There is also a real, active scientific field of <strong>voice acoustics</strong> —
-          extracting well-defined features like fundamental frequency, formants,
-          harmonics-to-noise ratio, and cepstral peak prominence from short voice samples.
-          omalyzer computes features from that same established toolbox. We're applying a known
-          method, not inventing one.
+          The source is wired directly to your autonomic state. The <strong>vagus nerve</strong> —
+          the principal parasympathetic nerve, the body's central regulator of autonomic gear —
+          innervates the larynx through its recurrent laryngeal branch. The same nerve that sets
+          your heart rate sets the muscle tension of your vocal folds. One nerve reaches both the
+          heart and the voice. That is the literal, anatomical reason the voice carries
+          nervous-system information: the regulator and the instrument share a line.{' '}
+          <strong>One nerve, heart and voice.</strong>
+        </p>
+        <p>
+          Read through the polyvagal lens, the pattern is legible. A calm, regulated,
+          ventral-vagal state produces a melodic, prosodic, resonant voice. Sympathetic activation
+          — fight or flight — pushes pitch up, flattens prosody, and tightens the tone. A dorsal,
+          shut-down state goes flat, low, and monotone. The ventral vagal complex coordinates
+          face, larynx, and heart as one system. And the line runs both ways: sustaining certain
+          sounds engages the parasympathetic system in return.
+        </p>
+
+        <h3>Why a held om</h3>
+        <p>
+          A prolonged vowel or nasal tone lengthens the exhale, and a long exhale is itself
+          parasympathetic-activating; humming and toning measurably raise vagal tone. fMRI of OM
+          chanting shows the tone reaching straight into the limbic brain: deactivation across the
+          amygdala, hippocampus, orbitofrontal cortex, anterior cingulate, and thalamus — the same
+          territory quieted by clinical vagus-nerve stimulation — where a control "sss" produced
+          nothing. The mechanism is direct: the vibration of the chant stimulates the auricular
+          branch of the vagus. A held tone reaches the autonomic core and quiets it.
+        </p>
+        <p>
+          This is the same paradigm voice-biomarker research already runs at scale: acoustic
+          features pulled from short voice samples track cardiovascular, neurological, respiratory,
+          and psychiatric state. omalyzer applies that paradigm to the one sound a practice is
+          built around — the sustained om.
         </p>
       </Reveal>
 
       <hr />
 
       <Reveal>
-        <Label roman="II">what the index measures</Label>
-        <h2>
-          What the Vocal Coherence Index measures —{' '}
-          <span className={styles.tag}>established measurement, exploratory composite</span>
-        </h2>
+        <Label roman="II">what omalyzer extracts</Label>
+        <h2>The tone, taken apart</h2>
+        <p className={styles.kicker}>computed live, on your own device</p>
         <p>
-          "Coherence" here has a specific, narrow meaning: <strong>how steady your vocal
-          production is over a sustained tone.</strong> It is borrowed, by analogy, from the
-          idea of an ordered, smooth rhythm versus a jagged, chaotic one.
+          Everything below is computed live, on your own device, the moment you make a sound. The
+          analyzer runs 4096-sample hops over a 16384-sample FFT window — about 11.7 readings every
+          second — behind an RMS silence gate with hysteresis, and it listens far wider than it
+          draws: the analysis spectrum reaches up to twenty times the fundamental and takes a
+          noise-floor median across 0–5 kHz. The spectrogram you see is a window onto a much larger
+          measurement. The features split along the same source–filter line as the anatomy.
         </p>
-        <p>
-          On a held vowel, omalyzer measures five things and combines them into one 0–1 index:
-        </p>
-        <ol>
-          <li>
-            <strong>Pitch steadiness</strong> — how little your fundamental frequency wanders
-            over the note.
-          </li>
-          <li>
-            <strong>Loudness steadiness</strong> — how even your volume stays.
-          </li>
-          <li>
-            <strong>Harmonic order</strong> — how clean and evenly the harmonics stack up
-            versus how much noise is mixed in.
-          </li>
-          <li>
-            <strong>Spectral stability</strong> — how consistent the tone's spectral shape is
-            from moment to moment.
-          </li>
-          <li>
-            <strong>Resonance sharpness</strong> — how cleanly and crisply the formants for
-            that vowel land.
-          </li>
-        </ol>
-        <p>
-          Each underlying measurement is a standard, established acoustic quantity. The way we{' '}
-          <em>combine</em> them into a single "Coherence Index," and the thresholds we use, are
-          our own <strong>exploratory</strong> construction — a useful, repeatable summary of
-          vocal steadiness.
-        </p>
-      </Reveal>
 
-      <hr />
-
-      <Reveal>
-        <Label roman="III">the measured–inferred boundary</Label>
-        <h2>
-          The measured–inferred boundary —{' '}
-          <span className={styles.tag}>measured vs inferred</span>
-        </h2>
         <p>
-          It is genuinely <strong>established</strong> that the nervous system and the voice
-          are physically linked — the same nerve that helps regulate the heart also innervates
-          the larynx — and that this is why voice is studied as a signal at all. That is the
-          honest grounding for the whole project.
+          <strong>The source — the vocal folds.</strong> This is what the vagus directly tunes, so
+          it carries the most nervous-system signal.
         </p>
-        <p>
-          Everything omalyzer shows you — Hz, decibels, formant positions, a steadiness index —
-          is a direct <strong>measurement</strong> of the sound you just made. Reading a{' '}
-          <strong>state</strong> from those numbers is a separate inference step, which depends
-          on a personal baseline (read on).
-        </p>
-        <p>We keep that boundary visible in the interface, not just in this page.</p>
-      </Reveal>
-
-      <hr />
-
-      <Reveal>
-        <Label roman="IV">why baseline matters</Label>
-        <h2>
-          Why a personal baseline matters —{' '}
-          <span className={styles.tag}>established caveat</span>
-        </h2>
-        <p>
-          The research literature is emphatic on one point: <strong>no single voice feature
-          has a fixed meaning across people.</strong> Pitch, breathiness, and steadiness vary
-          enormously from person to person, and from morning to evening, with hydration,
-          caffeine, a cold, how much you've been talking, and the room and microphone you're
-          using.
-        </p>
-        <p>
-          The only defensible way to read <em>change</em> from a voice is{' '}
-          <strong>within one person, against that person's own baseline</strong> — many
-          sessions, across different times and days, before any deviation means anything.{' '}
-          <strong>This build does not yet keep that personal baseline</strong>, so omalyzer
-          shows you absolute measurements of the sound you're making right now. Features labeled
-          "experimental" in the app are exactly that — exploratory.
-        </p>
-      </Reveal>
-
-      <hr />
-
-      <Reveal>
-        <Label roman="V">your voice, your device, your choice</Label>
-        <h2>
-          Your voice, your device, your choice —{' '}
-          <span className={styles.tag}>privacy stance</span>
-        </h2>
         <ul>
           <li>
-            <strong>Analysis runs entirely in your browser.</strong> The audio math happens on
-            your device, as you chant. Nothing is streamed or analyzed on a server.
+            <strong>Pitch (F0)</strong> — the vibration rate of the folds, estimated with YIN and
+            named as a musical note. A sung note is the fold cycle made audible. Pitch rises with
+            arousal — one of the more robust findings in the field.
           </li>
           <li>
-            <strong>Nothing leaves your device unless you choose to contribute it.</strong> You
-            can use the live analyzer with no account at all. Only when you explicitly save an
-            om does its audio and features get stored to your account.
+            <strong>Jitter</strong> — cycle-to-cycle variation in pitch, measured as the
+            short-term standard deviation in cents: the steadiness of the neuromuscular control
+            driving the folds. A shaky pitch versus a locked one.
           </li>
           <li>
-            <strong>Voice is personal, identifying data, and we treat it that way.</strong>{' '}
-            Contributed oms are private to your account by default, and you can delete any of
-            them — audio and features — completely, at any time.
+            <strong>Drift</strong> — the slow wander of the held note across seconds, how the
+            pitch travels over the sustain.
+          </li>
+          <li>
+            <strong>Shimmer</strong> — cycle-to-cycle variation in loudness, reflecting
+            subglottal-pressure steadiness and the symmetry of the two folds.
+          </li>
+          <li>
+            <strong>HNR</strong> — the harmonics-to-noise ratio in decibels, by the Praat
+            normalized-autocorrelation method: periodic, tonal energy against breath and
+            turbulence. A clean, ringing tone sits around 15–20 dB; lower means air in the sound.
+          </li>
+          <li>
+            <strong>CPP / CPPS</strong> — cepstral peak prominence, smoothed, in decibels: how
+            sharply the harmonic structure stands above the spectral floor. A robust overall
+            measure of periodicity and quality, often steadier than jitter or shimmer; a clear
+            voice runs near 15 dB.
+          </li>
+          <li>
+            <strong>H1–H2</strong> — the level gap between the first two harmonics, a direct read
+            on glottal tension versus breathiness.
+          </li>
+        </ul>
+
+        <p>
+          <strong>The filter — the vocal tract.</strong> This is what makes per-vowel analysis
+          principled, not decorative.
+        </p>
+        <ul>
+          <li>
+            <strong>Formants F1–F4</strong> — the vocal-tract resonance peaks, estimated by LPC
+            (decimate, pre-emphasis, autocorrelation, Levinson-Durbin, envelope peak-pick), with
+            their −3 dB bandwidths. Formants <em>are</em> what defines a vowel: F1 tracks jaw and
+            mouth openness, F2 tracks tongue front-to-back, and the (F1, F2) pair is a vowel's
+            address in resonance space. Bandwidth measures how sharp each resonance is — narrow and
+            well-supported versus wide and muddy, with roughly 400 Hz the scale where a resonance
+            stops reading as crisp.
+          </li>
+          <li>
+            <strong>Vowel</strong> — the classification falls out of the formant pattern directly,
+            with a confidence. Each vowel probes a distinct part of the tract and a distinct
+            pattern of pharyngeal and laryngeal tension.
+          </li>
+        </ul>
+
+        <p>
+          <strong>The texture — the shape of the spectrum.</strong>
+        </p>
+        <ul>
+          <li>
+            <strong>Spectral entropy</strong> — order against noise in a single number: 0 is a
+            pure, ordered tone, 1 is noise.
+          </li>
+          <li>
+            <strong>Spectral flatness, flux, and alpha ratio</strong> — flux is frame-to-frame
+            change; alpha ratio is spectral tilt across eGeMAPS bands, the energy balance between
+            low and high, a read on tension and brightness.
+          </li>
+          <li>
+            <strong>Spectral centroid</strong> — where the energy sits, the brightness and timbre
+            of the tone.
           </li>
         </ul>
       </Reveal>
@@ -172,15 +182,154 @@ export default function SciencePage() {
       <hr />
 
       <Reveal>
-        <Label roman="VI">the honest bottom line</Label>
-        <h3>The honest bottom line</h3>
+        <Label roman="III">the Vocal Coherence Index</Label>
+        <h2>How a tone holds together</h2>
+        <p className={styles.kicker}>five readings, one number</p>
         <p>
-          omalyzer is a precise instrument for <em>hearing the acoustics of your own voice</em>{' '}
-          — pitch, resonance, and steadiness — in real time. The voice–physiology link is real
-          and is why this is worth building. Reading your <em>state</em> from your voice
-          would require a personal baseline and validation this version doesn't yet have. What
-          you see is what we measured.
+          In heart-rate-variability research, <em>coherence</em> is a precise idea: a smooth,
+          ordered, sine-like rhythm versus a jagged, chaotic one — the difference corresponding to
+          autonomic balance and a felt sense of calm. The Vocal Coherence Index reads the same idea
+          off the voice: order, steadiness, and harmonic cleanliness in a held tone. Across a
+          sustained om, omalyzer measures five dimensions, each on a 0–1 scale where higher is more
+          coherent.
         </p>
+        <ol>
+          <li>
+            <strong>Pitch coherence</strong> <em>(weight 0.25)</em> — the tightness of F0 across
+            the hold. A steady pitch, low in cents spread, reads high: locked, confident phonation.
+          </li>
+          <li>
+            <strong>Amplitude coherence</strong> <em>(0.15)</em> — the steadiness of loudness
+            across the hold, from shimmer or RMS variation. An even, unwavering tone.
+          </li>
+          <li>
+            <strong>Harmonic coherence</strong> <em>(0.30 — the heaviest)</em> — the blend of HNR,
+            spectral order, and CPPS: how clean, ringing, and orderly the harmonic stack is against
+            how breathy or noisy. This is the clearest signal of whether the tone is pure, so it
+            carries the most weight.
+          </li>
+          <li>
+            <strong>Spectral stability</strong> <em>(0.15)</em> — low frame-to-frame flux: the
+            timbre holding still rather than churning.
+          </li>
+          <li>
+            <strong>Resonance match</strong> <em>(0.15)</em> — how confidently the formants land on
+            a vowel and how sharp, narrow, and well-supported those resonances are.
+          </li>
+        </ol>
+        <blockquote className={styles.callout}>
+          The index is their <strong>weighted harmonic mean</strong>, not an average. That choice
+          matters: a harmonic mean lets one weak dimension drag the whole index down instead of
+          being hidden behind strong ones. A breathy tone with low harmonic coherence cannot buy
+          back its score with a steady pitch. A high Coherence Index means the whole tone held
+          together — pitch, loudness, harmonics, timbre, and resonance at once.
+        </blockquote>
+      </Reveal>
+
+      <hr />
+
+      <Reveal>
+        <Label roman="IV">the corpus</Label>
+        <h2>A corpus, one breath at a time</h2>
+        <p className={styles.kicker}>the data foundation of the program</p>
+        <p>
+          Every om you choose to save becomes part of a real, re-analyzable research corpus. Each
+          contribution stores the audio, the full feature vector, and the capture context — device,
+          applied mic settings, sample rate — so a saved om can be re-run against tomorrow's
+          analysis, not just today's. The corpus grows one breath at a time, and it is the
+          foundation everything ahead is built on.
+        </p>
+        <p>
+          One Rust DSP core runs the whole program, and it wears two faces — the desktop app and
+          the same math compiled to WebAssembly in your browser. One core, about 160 KB over the
+          wire, fast enough to run live and identical everywhere it runs. The science never
+          forks.
+        </p>
+      </Reveal>
+
+      <hr />
+
+      <Reveal>
+        <Label roman="V">the road ahead</Label>
+        <h2>The map we're building</h2>
+        <p className={styles.kicker}>from a reading to a signature</p>
+        <p>
+          Every reading the instrument takes today is a precise acoustic portrait of a single tone.
+          The next layers turn that portrait into a personal signature — and then a map.
+        </p>
+        <p>
+          <strong>Personal baselines.</strong> The core construct is the personal{' '}
+          <strong>Vocal Resonance Signature</strong> — a per-person, per-sound distribution built
+          up over many sessions. Vocal-tract geometry makes each person's signature genuinely their
+          own; speaker identification works precisely because those individual signatures are real
+          and stable. The trajectory is to express each session as a meaningful movement from your
+          own norm: <em>your /o/ rings cleaner than your 30-day baseline tonight.</em>
+        </p>
+        <p>
+          <strong>Community aggregates.</strong> Anonymized, corpus-wide distributions let you
+          place a session against the whole — your coherence against the community median, with no
+          one's raw voice ever exposed.
+        </p>
+        <p>
+          <strong>State inference — the horizon.</strong> The destination is mapping vocal
+          signatures onto nervous-system and consciousness states. The powerful core is
+          already in hand: arousal, vocal tension, and prosodic engagement are real acoustic
+          proxies for autonomic state. The road ahead pairs voice capture against independent
+          physiological signals — HRV, breath — to validate and extend the map, breath by breath.
+          omalyzer is building toward reading state from the voice.
+        </p>
+        <p>
+          <strong>Longitudinal by design.</strong> The instrument is meant to be lived in over
+          time: trends across 30 days, the arc of your coherence, the shape of a practice as it
+          deepens.
+        </p>
+      </Reveal>
+
+      <hr />
+
+      <Reveal>
+        <Label roman="VI">sovereignty</Label>
+        <h2>Your voice, your machine</h2>
+        <p className={styles.kicker}>privacy as sovereignty</p>
+        <p>
+          Your voice is biometric — identifying, personal, yours. omalyzer treats it that way by
+          default.
+        </p>
+        <ul>
+          <li>
+            <strong>Analysis runs entirely on your device.</strong> The full DSP core executes in
+            WebAssembly in your browser as you chant. Nothing is streamed to a server to be
+            analyzed; the math happens where you stand.
+          </li>
+          <li>
+            <strong>Nothing leaves your device unless you save an om.</strong> You can use the live
+            analyzer with no account at all. Only when you explicitly contribute an om does its
+            audio and its features get stored to your account.
+          </li>
+          <li>
+            <strong>Deletion is real and complete.</strong> Any om you've saved — audio and
+            features alike — you can delete entirely, at any time.
+          </li>
+        </ul>
+        <p>
+          This is not caution. It is sovereignty: your voice processed on your own machine,
+          contributed only on your terms, removable on your word. The most personal signal you
+          carry stays under your control.
+        </p>
+      </Reveal>
+
+      <hr />
+
+      <Reveal as="div">
+        <p>
+          Sustain a tone and watch the readout resolve — pitch, formants, harmonics, and the
+          Coherence Index, live, on your own device.
+        </p>
+        <div className={styles.cta}>
+          <Link className={styles.ctaPrimary} to="/analyze">
+            Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
+          </Link>
+        </div>
       </Reveal>
     </main>
   );

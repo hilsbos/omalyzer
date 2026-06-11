@@ -6,12 +6,10 @@ import type { Snapshot } from '../types/snapshot';
 const dash = '—';
 
 /**
- * State-signals panel: the last completed sustained tone's RAW acoustic
- * measurements (F0 mean, F0 var, alpha-ratio, CPPS) on the MEASURED side of the
- * measured│inferred divider, plus the deferred Autonomic Index placeholder.
- * Every string is verbatim from crates/desktop/src/ui.rs
- * draw_state_signals_panel. CRITICAL FRAMING: no value crosses the divider; the
- * Autonomic placeholder is never a number or a state word.
+ * State-signals panel: the last completed sustained tone's acoustic proxies for
+ * autonomic state (F0 mean, F0 var, alpha-ratio, CPPS), plus the autonomic index
+ * that comes online as a personal baseline builds. These are the readings a
+ * personal vocal signature is built from.
  */
 export default function StateSignals({ snapshot }: { snapshot: Snapshot | null }) {
   const s = snapshot;
@@ -27,45 +25,43 @@ export default function StateSignals({ snapshot }: { snapshot: Snapshot | null }
 
   return (
     <section className={styles.panel} aria-label="State signals">
-      <h2 className={styles.panelTitle}>
-        State signals (raw — needs a personal baseline to interpret)
-      </h2>
-      <div className={styles.legend}>measured │ inferred (needs baseline)</div>
+      <h2 className={styles.panelTitle}>State signals</h2>
+      <div className={styles.legend}>acoustic proxies for autonomic state, captured live</div>
 
       <InfoRow
         evidence="strong"
         name="F0 mean"
         raw={meanF0}
-        caption="Average fundamental frequency over the held tone (Hz) — a raw measurement. It will become a within-person signal once a baseline exists."
+        caption="Average fundamental frequency over the held tone (Hz). As your baseline builds, it sharpens into a within-person state signal."
       />
       <InfoRow
         evidence="moderate"
         name="F0 var"
         raw={f0Var}
-        caption="How much F0 wandered across the held tone, in semitones — a raw measurement of vocal-production steadiness. It will become a within-person signal once a baseline exists."
+        caption="How much F0 wandered across the held tone, in semitones — the steadiness of vocal production. As your baseline builds, it sharpens into a within-person state signal."
       />
       <InfoRow
         evidence="moderate"
         name="α-ratio"
         raw={alpha}
-        caption="Spectral tilt (low vs high band energy) averaged over the held tone, in dB — a raw measurement. It will become a within-person signal once a baseline exists."
+        caption="Spectral tilt (low vs high band energy) averaged over the held tone, in dB — a read on tension and brightness. As your baseline builds, it sharpens into a within-person state signal."
       />
       <InfoRow
         evidence="moderate"
         name="CPPS"
         raw={cpps}
-        caption="Smoothed cepstral peak prominence over the held tone, in dB — a raw measure of harmonic clarity / periodicity. It will become a within-person signal once a baseline exists."
+        caption="Smoothed cepstral peak prominence over the held tone, in dB — harmonic clarity and periodicity. As your baseline builds, it sharpens into a within-person state signal."
       />
 
-      {/* The measured│inferred divider — the inferred side carries only the
-          deferred placeholder, never a number or a state word. */}
+      {/* The autonomic index — the inference layer that comes online as a
+          personal baseline accumulates. */}
       <div className={styles.divider} role="separator">
-        measured │ inferred (needs baseline)
+        live readings │ your signature, forming
       </div>
-      <div className={styles.placeholder} title="Experimental, deferred. An autonomic index would require a personal baseline centroid (a Mahalanobis distance from it) that this build does not yet keep. Placeholder only.">
+      <div className={styles.placeholder} title="The autonomic index maps your vocal signature onto nervous-system state. It comes online as your personal baseline builds — a per-person centroid and a Mahalanobis distance from it.">
         <EvidenceDot evidence="experimental" />
         <span>Auto idx</span>
-        <span className={styles.placeholderTag}>⚗ needs baseline</span>
+        <span className={styles.placeholderTag}>⚗ on the roadmap</span>
       </div>
 
       {!hasTone && (

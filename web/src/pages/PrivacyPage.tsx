@@ -13,8 +13,9 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
 }
 
 /**
- * Privacy page (/privacy). Honest framing throughout: Omalyzer reports acoustic
- * steadiness — no medical, stress, lie-detection, or energetic claims anywhere.
+ * Privacy page (/privacy). Voice is biometric and treated as such: analysis runs
+ * client-side, nothing leaves the device unless the user saves an om, deletion is
+ * complete.
  */
 export default function PrivacyPage() {
   return (

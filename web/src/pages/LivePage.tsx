@@ -237,7 +237,7 @@ export default function LivePage() {
         </button>
       </header>
 
-      {/* Warnings / errors strip (honest framing, kept verbatim). */}
+      {/* Warnings / errors strip (device + mic status). */}
       {(status.error || status.warnings.length > 0) && (
         <div className={styles.alerts}>
           {status.error && <span className={styles.error}>{status.error}</span>}
@@ -419,8 +419,8 @@ interface CapturedOmCardProps {
 
 /**
  * The prominent captured-om band, pinned directly above the transport. Renders
- * plain acoustic facts (vowel, seconds, coherence index) — no energetic/state
- * claim. The save path reuses ConsentStep verbatim (honest two-checkbox gate).
+ * the tone's acoustic facts (vowel, seconds, coherence index). The save path
+ * reuses ConsentStep (the two-checkbox consent gate).
  */
 function CapturedOmCard({
   om,

@@ -48,9 +48,10 @@ export default function DashboardPage() {
       </p>
 
       <p className={styles.framing}>
-        These are your own saved recordings and their acoustic features. The
-        coherence index is a within-person measure of vocal steadiness. Your audio
-        is private to your account and is never played to anyone else.
+        These are your own saved recordings and their acoustic features — the
+        corpus your personal vocal signature is built from. The coherence index is
+        how steadily each tone held together. Your audio is private to your account
+        and is never played to anyone else.
       </p>
 
       {loading ? (

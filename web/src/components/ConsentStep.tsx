@@ -20,8 +20,7 @@ interface Props {
 /**
  * Explicit, nothing-pre-checked consent gate shown after a successful record.
  * Two separate checkboxes: storing (required) and community aggregates (opt-in,
- * default off). Honest framing throughout — a within-person acoustic measure,
- * not a diagnosis. No medical/stress/energetic claims.
+ * default off). Voice is biometric data, so consent is explicit and granular.
  */
 export default function ConsentStep({ saving, error, onSave }: Props) {
   const [store, setStore] = useState(false);

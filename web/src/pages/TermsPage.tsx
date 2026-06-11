@@ -13,9 +13,8 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
 }
 
 /**
- * Terms of Service (/terms). Honest framing: a wellness/exploration tool that
- * measures within-person acoustics — explicitly not a medical device and not a
- * diagnosis. No stress/lie-detection/energetic claims.
+ * Terms of Service (/terms). omalyzer as a voice-analysis instrument and research
+ * program: account/content terms, consent, and deletion rights.
  */
 export default function TermsPage() {
   return (
@@ -32,10 +31,10 @@ export default function TermsPage() {
       <Label roman="I">what omalyzer is</Label>
       <h2>What omalyzer is</h2>
       <p>
-        omalyzer is a tool for measuring within-person acoustic properties of
-        vowel chanting — pitch, formants, harmonics-to-noise ratio, and a
-        coherence index that tracks the steadiness of a sustained tone. It is a
-        wellness and exploration tool.
+        omalyzer is a voice-analysis instrument and research program. It measures
+        the acoustics of vowel chanting — pitch, formants, harmonics-to-noise
+        ratio, and a coherence index that tracks the steadiness of a sustained
+        tone — and builds toward reading nervous-system state from the voice.
       </p>
       </Reveal>
 

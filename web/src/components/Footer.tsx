@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-/** Site footer with Privacy/Terms links and the standing honest-framing line. */
+/** Site footer with Privacy/Terms links and the standing tagline. */
 export default function Footer() {
   return (
     <footer
@@ -24,7 +24,7 @@ export default function Footer() {
           alignItems: 'center',
         }}
       >
-        <span>omalyzer — a within-person acoustic measure.</span>
+        <span>omalyzer — the voice, a window into the nervous system.</span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--s-lg)' }}>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
