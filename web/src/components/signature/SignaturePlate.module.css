@@ -1,0 +1,248 @@
+/* ── SignaturePlate — "first ink" — the dark plate the dashboard frames ─────
+   Darkroom-in-parchment: the page stays paper; this plate is dark by intent.
+   One living element (the latest mark's six-second breath); everything else
+   prints once, oldest → newest, then stills. Reduced motion composes the
+   finished frame — no transitions, full final ink. */
+
+.plate {
+  --ease: cubic-bezier(0.16, 1, 0.3, 1); /* the house ease */
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-frame);
+  color: var(--on-plate);
+  margin: var(--s-lg) 0;
+}
+
+/* ── top rail ── */
+.rail {
+  display: flex;
+  flex-wrap: wrap; /* label and readout are nowrap units — wrap between them
+                      instead of overflowing the plate on narrow viewports */
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2xs) var(--s-sm);
+  padding: var(--s-xs) var(--s-sm);
+  border-bottom: 1px solid var(--plate-rule);
+}
+.railLabel {
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: var(--ls-smallcaps);
+  font-variant-caps: all-small-caps;
+  color: var(--on-plate);
+  white-space: nowrap;
+}
+.railSub {
+  color: var(--on-plate-soft);
+  font-variant-caps: normal;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+.railReadout {
+  color: var(--on-plate-soft); /* carries data — keeps AA on the plate */
+  font-size: var(--t-label);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum';
+  white-space: nowrap;
+}
+
+/* ── body ── */
+.body {
+  padding: var(--s-sm);
+}
+.loadingMsg {
+  /* real text — needs AA contrast on the plate, so soft not weak */
+  color: var(--on-plate-soft);
+  font-size: var(--t-label);
+  text-align: center;
+  padding: var(--s-2xl) var(--s-sm);
+  margin: 0;
+}
+
+/* ── zero-om invitation — the arc at its beginning, fully framed ── */
+.invite {
+  text-align: center;
+  padding: var(--s-md) var(--s-sm) var(--s-lg);
+}
+.inviteKicker {
+  display: block;
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  font-variant-caps: all-small-caps;
+  /* real text — needs AA contrast on the plate, so soft not weak */
+  color: var(--on-plate-soft);
+  margin-bottom: var(--s-2xs);
+}
+.inviteLine {
+  margin: 0 auto var(--s-xs);
+  max-width: 34rem;
+  color: var(--on-plate-soft);
+  font-size: var(--t-label);
+  line-height: 1.6;
+}
+.inviteLink {
+  display: inline-block;
+  min-height: var(--tap);
+  line-height: var(--tap);
+  padding: 0 var(--s-sm);
+  color: var(--on-plate);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: var(--t-label);
+}
+.inviteLink:hover {
+  color: var(--on-plate);
+  background: var(--plate-bg-2);
+}
+
+/* ── strips ── */
+.strips {
+  display: flex;
+  flex-direction: column;
+}
+.strip {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: var(--s-sm);
+  align-items: center;
+  padding: var(--s-xs) 0;
+}
+.strip + .strip {
+  border-top: 1px solid var(--plate-rule);
+}
+
+.gutter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.glyphRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-xs);
+}
+.glyph {
+  font-size: var(--t-body);
+  color: var(--on-plate);
+}
+.dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.dotLit {
+  composes: dot;
+  background: var(--on-plate-soft);
+}
+.dotHollow {
+  composes: dot;
+  border: 1px solid var(--on-plate-weak);
+  opacity: 0.35;
+}
+.countLine {
+  /* the text equivalent of the aria-hidden dot meter — primary data, so it
+     gets the AA-passing soft tone, not the faint one */
+  color: var(--on-plate-soft);
+  font-size: var(--t-label);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum';
+}
+
+.axisWrap {
+  min-width: 0; /* let the grid track shrink; the SVG measures this box */
+}
+.axisSvg {
+  display: block;
+  width: 100%;
+}
+
+/* ── print-then-stillness ───────────────────────────────────────────────
+   Strikes and layers start unprinted; the .printed class (toggled on a
+   double rAF once data is ready) eases each to its final ink with a
+   per-element transitionDelay set inline. --a is the element's final
+   opacity (the two sharpening channels, computed in signatureMath). */
+.mark {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.layer {
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+}
+.printed .mark {
+  opacity: var(--a, 1);
+  transform: none;
+}
+.printed .layer {
+  opacity: var(--a, 1);
+}
+/* Reduced motion: the composed final frame — full ink, no transitions. */
+.reduced .mark,
+.reduced .layer {
+  transition: none;
+  opacity: var(--a, 1);
+  transform: none;
+}
+
+/* ── the 30-day lane ── */
+.lane {
+  margin-top: var(--s-sm);
+  border-top: 1px solid var(--plate-rule);
+  padding-top: var(--s-xs);
+}
+.laneSvg {
+  display: block;
+  width: 100%;
+}
+
+/* ── legend / caption row ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2xs) var(--s-sm);
+  padding: var(--s-xs) var(--s-sm);
+  border-top: 1px solid var(--plate-rule);
+  color: var(--on-plate-soft); /* the key + community median are read, not decoration */
+  font-size: var(--t-label);
+}
+.legendKeys {
+  margin: 0;
+}
+.latestFact {
+  margin: 0;
+  color: var(--on-plate); /* the freshest fact sits one step above the key */
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: 'tnum', 'lnum';
+  white-space: nowrap;
+}
+
+/* ── mobile ── */
+@media (max-width: 640px) {
+  .strip {
+    grid-template-columns: 1fr;
+    gap: var(--s-2xs);
+  }
+  .gutter {
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--s-xs);
+  }
+  .holdSecs {
+    display: none; /* readout compresses to "{n} oms · {d} days" */
+  }
+  .railSub {
+    display: none; /* rail compresses to SIGNATURE + readout — no overflow */
+  }
+}

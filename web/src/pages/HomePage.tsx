@@ -96,12 +96,12 @@ export default function HomePage() {
           <>
             <h2>Your oms are on the map.</h2>
             <p>
-              Every tone you save sharpens your own baseline and extends the corpus. Hold
-              today&rsquo;s om and keep it.
+              Every tone you save sharpens your own baseline — and, when you opt in,
+              extends the corpus. Hold today&rsquo;s om and keep it.
             </p>
             <div className={styles.cta}>
               <Link className={styles.ctaPrimary} to="/dashboard">
-                Go to your dashboard <span className={styles.arrow} aria-hidden="true">→</span>
+                See your signature <span className={styles.arrow} aria-hidden="true">→</span>
               </Link>
             </div>
           </>

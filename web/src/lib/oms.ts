@@ -45,6 +45,26 @@ export async function fetchMyOms(): Promise<OmRow[]> {
   }));
 }
 
+/**
+ * RLS-scoped count of the signed-in user's own oms for one vowel — the
+ * save-flow's "{n} of ~12" fact. `head: true` so no rows travel, only the
+ * count. Returns null on any failure; the saved line then falls back to the
+ * bare "view your signature" link (the arc never blocks a save).
+ */
+export async function countMyOmsForVowel(vowel: string): Promise<number | null> {
+  try {
+    const supabase = requireSupabase();
+    const { count, error } = await supabase
+      .from('oms')
+      .select('id', { head: true, count: 'exact' })
+      .eq('vowel', vowel);
+    if (error) return null;
+    return count;
+  } catch {
+    return null;
+  }
+}
+
 export interface CommunityStats {
   n: number;
   median: number | null;

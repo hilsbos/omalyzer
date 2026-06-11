@@ -13,6 +13,8 @@ import PitchTrack from '../viz/PitchTrack';
 import VowelChart from '../viz/VowelChart';
 import { useAuth } from '../auth/AuthProvider';
 import { saveOm, type OmContribution } from '../lib/contributions';
+import { countMyOmsForVowel } from '../lib/oms';
+import { M_HOLDS } from '../components/signature/signatureMath';
 import { blinkOpacity, useRafLoop } from '../components/science/motion';
 import styles from './LivePage.module.css';
 
@@ -84,6 +86,14 @@ export default function LivePage() {
   }, [drawerOpen]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+  /* The saved line's signature fact ("/a/ — 7 of ~12"): one RLS-scoped count,
+     fetched fire-and-forget AFTER the save the user already chose (never an
+     incentive inside the consent gate). Keyed to the capture it belongs to so
+     a slow response can never label a different om; on null the line falls
+     back to the bare "view your signature" link. */
+  const [savedFact, setSavedFact] = useState<{ at: number; vowel: string; count: number } | null>(
+    null,
+  );
 
   // Practice/console view — lazy init from localStorage, written on toggle.
   const [view, setView] = useState<AnalyzeView>(readStoredView);
@@ -108,6 +118,7 @@ export default function LivePage() {
   useEffect(() => {
     setSaveState('idle');
     setSaveError(null);
+    setSavedFact(null);
     if (lastOm != null) {
       setHasCaptured(true);
       try {
@@ -231,6 +242,16 @@ export default function LivePage() {
         };
         await saveOm(contribution);
         setSaveState('saved');
+        // The signature tie-in: count this sound's holds (own rows only,
+        // head-only). Fire-and-forget — the saved line renders immediately
+        // and gains the fact if/when the count lands for THIS capture.
+        const v = d.last_coherence_vowel ?? d.vowel ?? null;
+        if (v) {
+          const at = lastOm.capturedAt;
+          void countMyOmsForVowel(v).then((n) => {
+            if (n != null && n > 0) setSavedFact({ at, vowel: v, count: n });
+          });
+        }
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : String(e));
         setSaveState('idle');
@@ -455,6 +476,7 @@ export default function LivePage() {
           signedIn={session != null}
           saveState={saveState}
           saveError={saveError}
+          savedFact={savedFact && savedFact.at === lastOm.capturedAt ? savedFact : null}
           onSave={(c) => void handleSave(c)}
           onExport={downloadJson}
           onDiscard={clearLastOm}
@@ -587,6 +609,9 @@ interface CapturedOmCardProps {
   signedIn: boolean;
   saveState: 'idle' | 'saving' | 'saved';
   saveError: string | null;
+  /** RLS-scoped holds-count for the saved om's sound, or null while/if
+   *  unavailable — the saved line then carries the arc in its link alone. */
+  savedFact: { vowel: string; count: number } | null;
   onSave: (choice: ConsentChoice) => void;
   onExport: () => void;
   onDiscard: () => void;
@@ -607,6 +632,7 @@ function CapturedOmCard({
   signedIn,
   saveState,
   saveError,
+  savedFact,
   onSave,
   onExport,
   onDiscard,
@@ -649,9 +675,34 @@ function CapturedOmCard({
         </div>
 
         <div className={styles.capturedActions}>
+          {/* Persistent visually-hidden status (the same idiom as the capture
+              announcer above): mounted with the card — BEFORE any save — so
+              when ConsentStep unmounts and takes focus with it, "saved" is
+              still announced, and the signature fact that lands a beat later
+              re-announces through the same region. */}
+          <span className={styles.srOnly} role="status">
+            {saveState === 'saved'
+              ? `saved${
+                  savedFact
+                    ? savedFact.count < M_HOLDS
+                      ? ` — /${savedFact.vowel}/, ${savedFact.count} of about ${M_HOLDS} holds`
+                      : ` — /${savedFact.vowel}/, ${savedFact.count} held, sharpening`
+                    : ''
+                } — view your signature on your dashboard`
+              : ''}
+          </span>
           {saveState === 'saved' ? (
             <span className={styles.savedMsg}>
-              saved · <Link to="/dashboard">view in dashboard</Link>
+              {/* the arc, printed as fact: below ~12 the count counts toward
+                  the band; at/past it the counter retires into "sharpening".
+                  No fact (slow count / unclassified vowel) → the link alone
+                  carries it. */}
+              saved ·{' '}
+              {savedFact &&
+                (savedFact.count < M_HOLDS
+                  ? `/${savedFact.vowel}/ — ${savedFact.count} of ~${M_HOLDS} · `
+                  : `/${savedFact.vowel}/ — ${savedFact.count} held · sharpening · `)}
+              <Link to="/dashboard">view your signature</Link>
             </span>
           ) : signedIn ? (
             <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />

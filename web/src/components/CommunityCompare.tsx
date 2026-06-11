@@ -1,39 +1,25 @@
-import { useEffect, useState } from 'react';
-import { fetchCommunityStats, type CommunityStats, type OmRow } from '../lib/oms';
+import type { CommunityStats, OmRow } from '../lib/oms';
+import { median } from '../lib/stats';
 import styles from '../pages/DashboardPage.module.css';
 
 const fmt = (v: number | null | undefined) =>
   v == null ? '—' : v.toFixed(2);
 
-/** Median of a numeric array, or null if empty. */
-function median(xs: number[]): number | null {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+interface CommunityCompareProps {
+  oms: OmRow[];
+  /** The parent's fetchCommunityStats(null) result — one fetch feeds both
+   *  this panel and the signature plate's dashed community tick. */
+  stats: CommunityStats | null;
+  loading: boolean;
+  error: string | null;
 }
 
 /**
- * "You vs. the community". Your latest + your median against the community
+ * "Against the whole". Your latest + your median against the community
  * median and interquartile band (anonymized aggregates from opt-in contributors,
- * via the community_coherence_stats RPC).
+ * via the community_coherence_stats RPC — fetched once by the dashboard).
  */
-export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
-  const [stats, setStats] = useState<CommunityStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let live = true;
-    fetchCommunityStats(null)
-      .then((s) => live && setStats(s))
-      .catch((e) => live && setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => live && setLoading(false));
-    return () => {
-      live = false;
-    };
-  }, []);
-
+export default function CommunityCompare({ oms, stats, loading, error }: CommunityCompareProps) {
   const mine = oms
     .map((o) => o.coherence_index)
     .filter((v): v is number => v != null && Number.isFinite(v));
@@ -42,7 +28,7 @@ export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
 
   return (
     <section className={styles.community}>
-      <h2>You vs. the community</h2>
+      <h2>Against the whole</h2>
       <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={`${styles.statValue} readout`}>{fmt(yourLatest)}</span>
@@ -69,7 +55,7 @@ export default function CommunityCompare({ oms }: { oms: OmRow[] }) {
       )}
       {stats && stats.median == null && !loading && (
         <p className={styles.empty}>
-          Not enough opted-in contributors yet to show community figures.
+          Community figures print as contributors opt in — the corpus is forming.
         </p>
       )}
       {error && <p className={styles.error}>{error}</p>}
