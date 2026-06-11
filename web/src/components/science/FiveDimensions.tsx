@@ -239,9 +239,9 @@ export default function FiveDimensions({ className }: { className?: string }) {
       };
 
   /* "Dim to captions" once the beat rests — floored at 0.85 so the ~11px
-     labels hold AA on section III's #E6DECE ground (ink-soft at 0.85 ≈ 5:1;
-     deeper dims fall under 4.5:1). Never dimmed under reduced motion: that
-     would be a permanent sub-state, not a rest. */
+     labels hold AA on the page's parchment #FAF7F1 ground (ink-soft at 0.85
+     ≈ 6:1; below ~0.75 it slips under 4.5:1). Never dimmed under reduced
+     motion: that would be a permanent sub-state, not a rest. */
   const dimmed = !reduced && phase === 'rest';
 
   return (
@@ -333,13 +333,12 @@ export default function FiveDimensions({ className }: { className?: string }) {
 
       {/* the Index meter — track, live fill, big tabular readout.
           Documented deviation (owner-visible, like the other AA notes): the
-          concept pins BOTH the track fill and section III's ground to
-          --data-track-paper (#E6DECE), so a bare fill is invisible on its own
-          ground — the REST state's "single empty meter" never reads, and the
-          live fill + arithmetic ghost float without a full-scale extent. A
-          1px --rule hairline outline restores the meter's extent in the
-          house idiom (thin ink line, no second surface), and re-resolves to
-          --plate-rule if the panel ever sits in the dark scope. */}
+          --data-track-paper track fill (#E6DECE) sits barely off the page's
+          parchment #FAF7F1 ground, so a bare track hardly reads — the REST
+          state's "single empty meter" all but vanishes, and the live fill +
+          arithmetic ghost float without a full-scale extent. A 1px --rule
+          hairline outline restores the meter's extent in the house idiom
+          (thin ink line, no second surface). */}
       <rect
         x={X_METER}
         y={METER_Y}

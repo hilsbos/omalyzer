@@ -448,9 +448,9 @@ export default function SourceFilter(props: { className?: string }) {
       />
 
       {/* sliding F1 / F2 labels — live computed Hz. The text itself is ink
-          (terracotta/ochre at ~11px on section II's #ECE5D6 ground fail AA at
-          2.1–3.6:1); each hump keeps its color through the short tick that
-          pins the label to its formant. */}
+          (terracotta/ochre at ~11px on the page's parchment #FAF7F1 ground
+          fail AA at ~2.5–4.2:1); each hump keeps its color through the short
+          tick that pins the label to its formant. */}
       <g ref={f1GroupRef} opacity={0}>
         <line
           x1={0}

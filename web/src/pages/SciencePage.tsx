@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import Reveal from '../components/Reveal';
-import { useScienceAtmosphere, DARK_SCOPE_CLASS } from '../components/science/atmosphere';
+import { useScienceSeams } from '../components/science/seams';
 import HeroTone from '../components/science/HeroTone';
 import VagusBridge from '../components/science/VagusBridge';
 import SourceFilter from '../components/science/SourceFilter';
@@ -25,11 +25,12 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
  * the corpus, the road ahead, and the client-side sovereignty stance.
  */
 export default function SciencePage() {
-  // The atmosphere owns the whole descent: the seam-pinned static gradient
-  // layer, theme-color hysteresis, footer remap, seam registration marks,
-  // and the one-shot nightfall horizon beat on the III→IV crossover rule.
+  // The page stays in the light editorial world top to bottom (light =
+  // reading; dark = measuring, and the dark belongs to /analyze). The seams
+  // hook owns the two micro-moments: hr rules drawing themselves on as they
+  // reveal, and the roman-numeral channel ticks.
   const mainRef = useRef<HTMLElement>(null);
-  useScienceAtmosphere(mainRef);
+  useScienceSeams(mainRef);
 
   return (
     <main ref={mainRef} className={styles.prose}>
@@ -258,12 +259,8 @@ export default function SciencePage() {
         </blockquote>
       </Reveal>
 
-      {/* The crossover seam — the nightfall horizon beat fires here. */}
       <hr />
 
-      {/* Sections IV→CTA sit on dark ground in the static gradient; this scope
-          remaps the chrome tokens to their on-plate twins (no toggling). */}
-      <div className={DARK_SCOPE_CLASS}>
       <Reveal>
         <Label roman="IV">the corpus</Label>
         <h2>A corpus, one breath at a time</h2>
@@ -366,11 +363,10 @@ export default function SciencePage() {
             Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
         </div>
-        {/* The bookend — the hero's settled tone, returned as luminous signal:
-            the analyzer's promise previewed, a tone that holds. */}
+        {/* The bookend — the hero's settled tone, returned in the page's own
+            accent ink: the analyzer's promise previewed, a tone that holds. */}
         <CtaTone className={styles.setPiece} />
       </Reveal>
-      </div>
     </main>
   );
 }

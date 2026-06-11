@@ -1,9 +1,9 @@
 /* ── /science set-piece palette — one hand draws all four diagrams ──────────
    TOKEN.* are CSS var() strings. USE THESE in SVG attributes whenever
-   possible: they resolve through the cascade, so anything placed inside the
-   `.sci-dark` scope (sections IV→CTA) re-resolves to its on-plate twin with
-   zero edits. Source of truth: web/src/styles/tokens.css. Do not invent
-   colors. (Only tokens actually consumed by the set-pieces live here.) */
+   possible: they resolve through the cascade, so the diagrams stay in step
+   with the site tokens with zero edits. Source of truth:
+   web/src/styles/tokens.css. Do not invent colors. (Only tokens actually
+   consumed by the set-pieces live here.) */
 
 /** Cascade-resolving color strings — preferred for all SVG strokes/fills. */
 export const TOKEN = {
@@ -17,7 +17,6 @@ export const TOKEN = {
   dataMid: 'var(--data-mid)',
   dataHigh: 'var(--data-high)',
   dataTrack: 'var(--data-track-paper)',
-  pitchLine: 'var(--pitch-line)',
 } as const;
 
 /** Stroke-width law (px, with vector-effect: non-scaling-stroke). */
@@ -38,8 +37,7 @@ export const HALO = { width: 0.5, opacity: 0.28, offsetPx: 2 } as const;
 
 /** Graticule: 1px verticals every 1/8 width; ghosted. One register, all four
  *  panels: full-bleed y = 0 → H — the device that makes the diagrams read as
- *  panels of ONE oscilloscope. (The dark page-level graticule is owned by the
- *  atmosphere layer in atmosphere.css.) */
+ *  panels of ONE oscilloscope. */
 export const GRATICULE = {
   divisions: 8,
   opacityLight: 0.18, // TOKEN.rule verticals on paper grounds

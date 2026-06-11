@@ -1,0 +1,55 @@
+/* ── /science seam micro-moments (imported globally by seams.ts) ─────────────
+   Light-world only — the page stays on the body's parchment+grain top to
+   bottom. Two devices:
+   1. Every hr becomes a graticule registration mark: a 1px vertical tick
+      crossing the rule at its midpoint (a small +), the rule drawing itself
+      left→right as it scrolls into view.
+   2. Roman numerals get a 1px leading channel tick — the observatory's
+      left rail. */
+
+/* Self-drawing: each rule registers itself left→right (~500ms, house bezier)
+   as it scrolls into view — `.sci-seam-drawn` is added by a one-shot observer
+   in the hook (immediately under reduced motion / no IO, so rules never
+   vanish); the cross-tick fades in once the rule has landed. */
+.sci-seam {
+  position: relative;
+  overflow: visible;
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* No transition here. .sci-seam is applied post-paint by the hook, so a
+     transition on the initial state would animate a visible 1→0 shrink (a
+     mount wobble) on any rule already inside the first viewport before the
+     seam observer reverses it. The draw-on transition lives on
+     .sci-seam-drawn only; the initial collapse is an instant snap. */
+}
+.sci-seam-drawn {
+  transform: scaleX(1);
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sci-seam::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 1px;
+  height: 7px;
+  margin-left: -0.5px;
+  background: var(--accent-soft);
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1) 380ms;
+}
+.sci-seam-drawn::after {
+  opacity: 1;
+}
+
+/* ── micro-moment: roman numerals as channel markers ──
+   A 1px leading tick before each section's roman numeral. */
+.sci-page .roman::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 1px;
+  background: var(--accent-soft);
+  vertical-align: middle;
+  margin-right: 0.382rem;
+}

@@ -1,12 +1,12 @@
-/* ── CTA bookend — the hero's settled tone, returned as luminous signal ─────
+/* ── CTA bookend — the hero's settled tone, returned in print ───────────────
    The same summed-harmonic period the hero resolved into (identical math:
    harmonicAmps(12, 8) + goldenPhases, 3.5 clean cycles) redrawn once, static,
-   in the analyzer's own --pitch-line slate-blue on the console floor — the
-   tone you came to make, now glowing. Its ONLY motion is a slow 8s breathing
-   opacity (CSS keyframes, animation-play-state gated by an
-   IntersectionObserver so it is paused off-screen, per the graft spec;
-   reduced motion holds it steady at mid-breath). The page's last gesture:
-   a tone that holds. */
+   in the page's own accent ink on the parchment ground — the hero's tone
+   coming back as a printed line, quieter than the hero itself. Its ONLY
+   motion is a slow 8s breathing opacity (CSS keyframes, animation-play-state
+   gated by an IntersectionObserver so it is paused off-screen; reduced motion
+   holds it steady at mid-breath). The page's last gesture: a tone that
+   holds. */
 
 import { useRef } from 'react';
 import { goldenPhases, harmonicAmps, sumHarmonics, useInView } from './motion';
@@ -53,7 +53,7 @@ export default function CtaTone({ className }: { className?: string }) {
       <path
         d={D}
         fill="none"
-        stroke={TOKEN.pitchLine}
+        stroke={TOKEN.accent}
         strokeWidth={STROKE.line}
         strokeLinecap="butt"
         strokeLinejoin="round"

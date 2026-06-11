@@ -1,6 +1,11 @@
 /* ── CtaTone — the CTA bookend's breathing opacity (its only motion) ────────
    One slow 8s breath, CSS keyframes; .paused (toggled by the component's
-   IntersectionObserver) freezes it while off-screen, per the graft spec.
+   IntersectionObserver) freezes it while off-screen. The breath survives on
+   the light ground but in a narrower band: accent ink on parchment is far
+   higher-contrast than the luminous line was on the dark plate, so the old
+   0.35↔0.65 swing would read as the print fading, not breathing. 0.4↔0.7
+   keeps the line legible at the bottom of the breath and still quieter than
+   the hero's full-strength stroke at the top.
    Reduced motion: explicitly none (the global 0.01ms collapse would spin an
    infinite animation), parked at mid-breath. */
 
@@ -18,16 +23,16 @@
 @keyframes breathe {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.4;
   }
   50% {
-    opacity: 0.65;
+    opacity: 0.7;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .root {
     animation: none;
-    opacity: 0.5;
+    opacity: 0.55;
   }
 }
