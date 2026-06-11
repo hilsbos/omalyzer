@@ -1,0 +1,66 @@
+/* ── /science set-piece marginalia — inline-below on mobile ─────────────────
+   The graft law: "move any corner readouts/marginalia inline-below on mobile."
+   All in-diagram labels/readouts are 11 viewBox-unit SVG text in a 611-unit
+   box, so at phone widths they scale to ~6px — illegible. Below 640px every
+   set-piece hides its in-SVG marginalia (.svgOnly) and shows a readable HTML
+   row (.below) directly under the diagram instead; the same refs drive both,
+   so live readouts stay TRUE computed values in either register. The row is
+   aria-hidden — the svg's aria-label already carries the meaning. */
+
+.figure {
+  display: block;
+  width: 100%;
+}
+
+/* One panel rhythm, one mechanism: every set-piece <svg> is block-level here,
+   so no diagram leaves an inline-baseline gap (~4-5px of stray air) under
+   itself inside the figure. Components must not re-add display rules. */
+.figure > svg {
+  display: block;
+}
+
+.below {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .svgOnly {
+    display: none;
+  }
+  .below {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--s-sm);
+    row-gap: var(--s-2xs);
+    margin-top: var(--s-2xs);
+    font-family: var(--mono);
+    font-size: var(--t-label);
+    font-weight: 500;
+    letter-spacing: var(--ls-smallcaps);
+    font-variant-caps: all-small-caps;
+    color: var(--accent-soft);
+  }
+}
+
+/* tabular live numbers inside the row (true computed values only) */
+.num {
+  font-weight: 400;
+  letter-spacing: normal;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-variant-caps: normal;
+}
+
+/* one legend item (set-piece IV): a short stroke-colored swatch + label */
+.item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.382rem;
+  white-space: nowrap;
+}
+.swatch {
+  display: inline-block;
+  width: 0.786rem;
+  height: 2px;
+  align-self: center;
+}

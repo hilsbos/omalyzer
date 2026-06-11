@@ -120,6 +120,15 @@
   font-weight: 500;
 }
 
+/* ── /science set-piece figures — the observatory's four panels + bookend ──
+   One shared rhythm: a full-measure diagram with a deliberate pause of air
+   above and below, so each beat reads as a panel, not an illustration. */
+.setPiece {
+  display: block;
+  width: 100%;
+  margin: var(--s-xl) 0;
+}
+
 /* ── CTAs ─────────────────────────────────────────────────────────────────── */
 .cta {
   display: flex;

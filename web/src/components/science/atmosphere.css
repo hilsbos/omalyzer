@@ -1,0 +1,229 @@
+/* ── /science atmosphere: the light→dark descent ────────────────────────────
+   Imported (globally) by atmosphere.ts. Three jobs:
+   1. `.sci-atmosphere` — the full-document background layer behind the page.
+      Its gradient is STATIC geometry (stops pinned to the <hr/> seams by
+      useScienceAtmosphere); scroll merely reveals it. Zero per-frame work.
+   2. `.sci-dark` — the token remap scope for sections IV→CTA (a verbatim
+      subset of LivePage .console). Applied STATICALLY by the integrator:
+      those sections always sit on dark ground, so no toggling is needed and
+      text contrast is correct at every scroll position.
+   3. Seam furniture — graticule cross-mark ticks on every hr, plate-rule
+      recolor below the crossover, and the one-shot nightfall horizon beat. */
+
+/* ════════ 1 · the descent layer ════════ */
+
+.sci-atmosphere {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: -1; /* behind all content, above body's parchment+grain */
+  pointer-events: none;
+  /* height (px) + background-image (the seam-pinned gradient) are set by
+     useScienceAtmosphere and rebuilt on resize/reflow. */
+}
+
+/* The cold graticule of the dark end — what a noise floor looks like with the
+   room lights off. Starts at the plunge (--sci-plunge-y, set by the hook);
+   1px plate-rule lines, faint. NEVER literal stars: the dark is empty and
+   quiet, signal is the only light.
+   Opacity: the concept commissioned "~3%"; this ships 0.05 — a deliberate,
+   documented half-stop lift, because 1px #2E3650 over #11141C at 0.03 is
+   sub-perceptual on common sRGB panels and the grid would simply vanish. At
+   0.05 it still reads as a dark room, not a lit measurement grid. */
+.sci-atmosphere::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--sci-plunge-y, 200%);
+  bottom: 0;
+  background-image:
+    repeating-linear-gradient(to right, var(--plate-rule) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(to bottom, var(--plate-rule) 0 1px, transparent 1px 96px);
+  opacity: 0.05;
+}
+
+/* While the viewport sits in the dark half (same hysteresis comparator as the
+   theme-color flip), the <html> canvas itself goes cosmos so rubber-band
+   overscroll past the document end lands dark — no warm parchment (or grain:
+   body's background image paints only body's box) flashing beneath the
+   footer. In the light half html carries no background, so body's
+   parchment+grain still propagates to the canvas for top overscroll. */
+html.sci-canvas-dark {
+  background-color: #11141c;
+}
+
+/* CRITICAL: once <html> carries its own background, body's background stops
+   propagating to the canvas and paints on body's OWN box — and in the root
+   stacking context body's background paints ABOVE negative-z-index
+   descendants, i.e. on top of the .sci-atmosphere gradient layer. Without
+   this rule the whole seam-pinned descent vanishes behind parchment+grain
+   the moment the comparator flips dark, and sections IV→CTA render ivory
+   text on parchment. So while the canvas is dark, body must not paint at
+   all: the #11141c canvas shows through and the layer stays visible. (Do
+   NOT paint body dark instead — that would equally cover the gradient and
+   wrongly darken the light half still visible across the hysteresis band.
+   Known, accepted side effect: in that brief band the translucent light
+   stops blend over the dark canvas instead of parchment, so the paper above
+   the plunge reads a half-stop duskier and loses its grain — momentary, and
+   in the dusk register anyway.) */
+html.sci-canvas-dark body {
+  background: transparent;
+}
+
+/* ════════ 2 · the dark token scope (sections IV→CTA) ════════ */
+/* Verbatim chrome subset of LivePage .console — everything inside (kickers,
+   .section-label, .roman, li::marker, .callout, links, .ctaPrimary) restyles
+   itself because it resolves through these tokens. Note .ctaPrimary becomes
+   the inverted ivory-on-navy chip automatically: --accent→--on-plate (bg),
+   --on-accent→--plate-bg (text). */
+
+.sci-dark {
+  /* surfaces */
+  --bg: var(--plate-frame);
+  --panel-bg: var(--plate-bg-2);
+  --panel-bg-2: #232a3d;
+  --rule: var(--plate-rule);
+  --panel-border: var(--plate-rule);
+
+  /* text */
+  --fg: var(--on-plate);
+  --fg-muted: var(--on-plate-soft);
+  --fg-weak: var(--on-plate-soft); /* lifted — on-plate-weak fails AA */
+  --ink: var(--on-plate);
+  --ink-soft: var(--on-plate-soft);
+
+  /* accent — light on dark so links/labels/markers read */
+  --accent: var(--on-plate);
+  --accent-soft: var(--on-plate-soft);
+  --on-accent: var(--plate-bg);
+
+  /* data ramp → brighter plate variants */
+  --data-low: var(--data-low-plate);
+  --data-mid: var(--data-mid-plate);
+  --data-high: var(--data-high-plate);
+  --data-track-paper: var(--data-track);
+
+  /* status */
+  --warn: #e3b652;
+  --error: #d9694f;
+
+  color: var(--fg);
+}
+
+/* Inverted selection inside the dark scope (global is navy-on-parchment). */
+.sci-dark ::selection {
+  background: var(--on-plate);
+  color: var(--plate-bg);
+}
+
+/* ════════ 3 · seam furniture ════════ */
+
+/* Every hr becomes a graticule registration mark: a 1px vertical tick
+   crossing the rule at its midpoint (a small +). Classes are applied by
+   useScienceAtmosphere; no SciencePage edits needed.
+   Self-drawing: each rule registers itself left→right (~500ms, house bezier)
+   as it scrolls into view — `.sci-seam-drawn` is added by a one-shot observer
+   in the hook (immediately under reduced motion / no IO, so rules never
+   vanish); the cross-tick fades in once the rule has landed. */
+.sci-seam {
+  position: relative;
+  overflow: visible;
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* No transition here. .sci-seam is applied post-paint by measure(), so a
+     transition on the initial state would animate a visible 1→0 shrink (a
+     mount wobble) on any rule already inside the first viewport before the
+     seam observer reverses it. The draw-on transition lives on
+     .sci-seam-drawn only; the initial collapse is an instant snap. */
+}
+.sci-seam-drawn {
+  transform: scaleX(1);
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sci-seam::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 1px;
+  height: 7px;
+  margin-left: -0.5px;
+  background: var(--accent-soft);
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1) 380ms;
+}
+.sci-seam-drawn::after {
+  opacity: 1;
+}
+
+/* ── micro-moment: roman numerals as channel markers ──
+   A 1px leading tick before each section's roman numeral — the observatory's
+   left rail. Re-resolves to --on-plate-soft inside the dark scope for free. */
+.sci-page .roman::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 1px;
+  background: var(--accent-soft);
+  vertical-align: middle;
+  margin-right: 0.382rem;
+}
+
+/* Seams at and below the crossover sit on dark ground. Specificity note: the
+   prose module's `.prose hr { border-top: … var(--rule) }` is 0,1,1, and the
+   crossover hr sits OUTSIDE the .sci-dark token scope (so --rule resolves to
+   parchment there) — these selectors ride on .sci-page (0,2,0/0,2,1) so the
+   plate recolor actually wins on all four dark seams. */
+.sci-page hr.sci-seam-dark {
+  border-top-color: var(--plate-rule);
+}
+.sci-page hr.sci-seam-dark::after {
+  background: var(--on-plate-soft);
+}
+
+/* The nightfall horizon beat — the III→IV crossover rule alone. When it first
+   scrolls into view (class added by the hook), a 1px horizon line blooms
+   transparent→ivory→transparent over ~1.2s, then the rule settles to
+   plate-rule. One hr loud, six silent. Under prefers-reduced-motion the
+   global rule collapses the animation to its final frame (opacity 0). */
+.sci-horizon-lit::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  width: 16rem;
+  margin-left: -8rem;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e7e2d6, transparent);
+  animation: sci-horizon 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes sci-horizon {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ════════ footer: lands in the dark ════════ */
+/* The footer is a sibling of the page (SiteLayout), so the .sci-dark wrapper
+   cannot reach it. useScienceAtmosphere sets body[data-science-dark] while
+   /science is mounted; the descent layer already paints #11141C behind the
+   footer, and this remap makes the footer's own inline token refs legible —
+   the page lands in the cosmos. */
+body[data-science-dark] footer {
+  --rule: var(--plate-rule);
+  --fg: var(--on-plate);
+  --fg-muted: var(--on-plate-soft);
+  --fg-weak: var(--on-plate-soft);
+  --ink: var(--on-plate);
+  --ink-soft: var(--on-plate-soft);
+  --accent: var(--on-plate);
+  --accent-soft: var(--on-plate-soft);
+}

@@ -1,6 +1,13 @@
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import Reveal from '../components/Reveal';
+import { useScienceAtmosphere, DARK_SCOPE_CLASS } from '../components/science/atmosphere';
+import HeroTone from '../components/science/HeroTone';
+import VagusBridge from '../components/science/VagusBridge';
+import SourceFilter from '../components/science/SourceFilter';
+import FiveDimensions from '../components/science/FiveDimensions';
+import CtaTone from '../components/science/CtaTone';
 
 /** Small-caps section label with a leading italic roman numeral. */
 function Label({ roman, children }: { roman: string; children: React.ReactNode }) {
@@ -18,8 +25,14 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
  * the corpus, the road ahead, and the client-side sovereignty stance.
  */
 export default function SciencePage() {
+  // The atmosphere owns the whole descent: the seam-pinned static gradient
+  // layer, theme-color hysteresis, footer remap, seam registration marks,
+  // and the one-shot nightfall horizon beat on the III→IV crossover rule.
+  const mainRef = useRef<HTMLElement>(null);
+  useScienceAtmosphere(mainRef);
+
   return (
-    <main className={styles.prose}>
+    <main ref={mainRef} className={styles.prose}>
       <h1>The voice is a window into the nervous system</h1>
       <p>
         Speak, hum, or hold a vowel, and you set a muscle vibrating that your nervous system is
@@ -30,6 +43,14 @@ export default function SciencePage() {
         speech. This page is the program behind the instrument — the physiology that makes the
         voice a window, the math that opens it, and where we are taking it next.
       </p>
+
+      {/* Set-piece 1 · THE HELD TONE RESOLVING — plays on load, outside any Reveal.
+          Deliberate decision (flagged for the owner, not a silent drop): the
+          panel graft's hero→vagus single-handoff match-cut (this waveform
+          exiting downward to become section I's vagus line) is not implemented;
+          it conflicts with VagusBridge's locked draw-on storyboard. See the
+          VagusBridge.tsx header note. */}
+      <HeroTone className={styles.setPiece} />
 
       <hr />
 
@@ -56,6 +77,10 @@ export default function SciencePage() {
           nervous-system information: the regulator and the instrument share a line.{' '}
           <strong>One nerve, heart and voice.</strong>
         </p>
+
+        {/* Set-piece 2 · ONE NERVE, HEART & VOICE — the prose above is its caption. */}
+        <VagusBridge className={styles.setPiece} />
+
         <p>
           Read through the polyvagal lens, the pattern is legible. A calm, regulated,
           ventral-vagal state produces a melodic, prosodic, resonant voice. Sympathetic activation
@@ -97,6 +122,9 @@ export default function SciencePage() {
           noise-floor median across 0–5 kHz. The spectrogram you see is a window onto a much larger
           measurement. The features split along the same source–filter line as the anatomy.
         </p>
+
+        {/* Set-piece 3 · SOURCE → FILTER — illustrates the split the prose announces. */}
+        <SourceFilter className={styles.setPiece} />
 
         <p>
           <strong>The source — the vocal folds.</strong> This is what the vagus directly tunes, so
@@ -217,6 +245,10 @@ export default function SciencePage() {
             a vowel and how sharp, narrow, and well-supported those resonances are.
           </li>
         </ol>
+
+        {/* Set-piece 4 · THE FIVE DIMENSIONS — the diagram and the callout argue the same point. */}
+        <FiveDimensions className={styles.setPiece} />
+
         <blockquote className={styles.callout}>
           The index is their <strong>weighted harmonic mean</strong>, not an average. That choice
           matters: a harmonic mean lets one weak dimension drag the whole index down instead of
@@ -226,8 +258,12 @@ export default function SciencePage() {
         </blockquote>
       </Reveal>
 
+      {/* The crossover seam — the nightfall horizon beat fires here. */}
       <hr />
 
+      {/* Sections IV→CTA sit on dark ground in the static gradient; this scope
+          remaps the chrome tokens to their on-plate twins (no toggling). */}
+      <div className={DARK_SCOPE_CLASS}>
       <Reveal>
         <Label roman="IV">the corpus</Label>
         <h2>A corpus, one breath at a time</h2>
@@ -330,7 +366,11 @@ export default function SciencePage() {
             Try the live analyzer <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
         </div>
+        {/* The bookend — the hero's settled tone, returned as luminous signal:
+            the analyzer's promise previewed, a tone that holds. */}
+        <CtaTone className={styles.setPiece} />
       </Reveal>
+      </div>
     </main>
   );
 }

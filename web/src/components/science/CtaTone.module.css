@@ -1,0 +1,33 @@
+/* ── CtaTone — the CTA bookend's breathing opacity (its only motion) ────────
+   One slow 8s breath, CSS keyframes; .paused (toggled by the component's
+   IntersectionObserver) freezes it while off-screen, per the graft spec.
+   Reduced motion: explicitly none (the global 0.01ms collapse would spin an
+   infinite animation), parked at mid-breath. */
+
+.root {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: breathe 8s ease-in-out infinite;
+}
+
+.paused {
+  animation-play-state: paused;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+    opacity: 0.5;
+  }
+}

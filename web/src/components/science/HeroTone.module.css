@@ -1,0 +1,21 @@
+/* ── HeroTone (set-piece 1) — the held tone resolving ───────────────────────
+   Only discrete-state styling lives here; all per-frame motion is SVG refs.
+   (Block display comes from marginalia .figure > svg, the shared mechanism.) */
+
+/* The ॐ rest mark — "the tone, held." Fades in once the tone has settled. */
+.om {
+  opacity: 0;
+  transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.omVisible {
+  opacity: 1;
+  transition: opacity 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om,
+  .omVisible {
+    transition: none;
+  }
+}
