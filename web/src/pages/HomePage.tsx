@@ -5,6 +5,7 @@ import Reveal from '../components/Reveal';
 import CtaTone from '../components/science/CtaTone';
 import HeroTone from '../components/science/HeroTone';
 import { useAuth } from '../auth/AuthProvider';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /**
  * Landing page (/) — one nearly blank sheet of parchment holding one drawn
@@ -15,6 +16,7 @@ import { useAuth } from '../auth/AuthProvider';
  * one CTA each, then the bookend.
  */
 export default function HomePage() {
+  useDocumentTitle('omalyzer');
   const { user, configured } = useAuth();
 
   return (

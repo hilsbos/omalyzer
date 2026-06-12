@@ -13,6 +13,7 @@ import CommunityCompare from '../components/CommunityCompare';
 import DeleteAccountButton from '../components/DeleteAccountButton';
 import SignaturePlate from '../components/signature/SignaturePlate';
 import styles from './DashboardPage.module.css';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -34,6 +35,7 @@ const fmtDur = (v: number | null) => (v == null ? '—' : `${v.toFixed(0)}s`);
  * statically (no replay) — one state array feeds everything.
  */
 export default function DashboardPage() {
+  useDocumentTitle('omalyzer — your signature');
   const { user } = useAuth();
   const [oms, setOms] = useState<OmRow[]>([]);
   const [loading, setLoading] = useState(true);

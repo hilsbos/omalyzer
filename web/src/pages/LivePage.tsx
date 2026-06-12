@@ -16,6 +16,7 @@ import { saveOm, type OmContribution } from '../lib/contributions';
 import { countMyOmsForVowel } from '../lib/oms';
 import { M_HOLDS } from '../components/signature/signatureMath';
 import { blinkOpacity, useRafLoop } from '../components/science/motion';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import styles from './LivePage.module.css';
 
 const STORE_MAX_HZ = 4000; // matches core STORE_MAX_HZ
@@ -58,6 +59,7 @@ function deriveDeviceLabel(settings: MediaTrackSettings | null): string | null {
 }
 
 export default function LivePage() {
+  useDocumentTitle('omalyzer — studio');
   const { snapshot, status, start, stop, getHistory, gateDb, setGate, lastOm, clearLastOm } =
     useAnalyzer();
   const { session } = useAuth();
@@ -260,54 +262,6 @@ export default function LivePage() {
     [lastOm, status.settings, status.warnings],
   );
 
-  // Export the captured om as JSON (features only; PCM is not serialized).
-  const downloadJson = useCallback(() => {
-    if (!lastOm) return;
-    const d = lastOm.snapshot;
-    const capturedAt = new Date(lastOm.capturedAt).toISOString();
-    const payload = {
-      capturedAt,
-      durationSecs: lastOm.durationSecs,
-      sampleRate: lastOm.sampleRate,
-      vowel: d.last_coherence_vowel ?? d.vowel,
-      note: d.note,
-      coherenceIndex: d.last_coherence_index,
-      subMetrics: {
-        pitch_coherence: d.pitch_coherence,
-        amplitude_coherence: d.amplitude_coherence,
-        harmonic_coherence: d.harmonic_coherence,
-        spectral_stability: d.spectral_stability,
-        resonance_match: d.resonance_match,
-      },
-      detail: {
-        f0_cents_std: d.detail_f0_cents_std,
-        f0_var_st: d.detail_f0_var_st,
-        mean_f0_hz: d.detail_mean_f0_hz,
-        shimmer: d.detail_shimmer,
-        rms_cv: d.detail_rms_cv,
-        hnr_db: d.detail_hnr_db,
-        entropy: d.detail_entropy,
-        flux: d.detail_flux,
-        bandwidth_hz: d.detail_bandwidth_hz,
-        vowel_conf: d.detail_vowel_conf,
-        alpha_ratio_db: d.detail_alpha_ratio_db,
-        cpps_db: d.detail_cpps_db,
-      },
-      formants: { f1: d.f1, f2: d.f2, f3: d.f3 },
-      micSettings: status.settings,
-      warnings: status.warnings,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `omalyzer-${capturedAt.replace(/[:.]/g, '-')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, [lastOm, status.settings, status.warnings]);
-
   return (
     <main
       className={`${styles.console} instrument`}
@@ -481,7 +435,6 @@ export default function LivePage() {
           saveError={saveError}
           savedFact={savedFact && savedFact.at === lastOm.capturedAt ? savedFact : null}
           onSave={(c) => void handleSave(c)}
-          onExport={downloadJson}
           onDiscard={clearLastOm}
         />
       )}
@@ -616,7 +569,6 @@ interface CapturedOmCardProps {
    *  unavailable — the saved line then carries the arc in its link alone. */
   savedFact: { vowel: string; count: number } | null;
   onSave: (choice: ConsentChoice) => void;
-  onExport: () => void;
   onDiscard: () => void;
 }
 
@@ -637,7 +589,6 @@ function CapturedOmCard({
   saveError,
   savedFact,
   onSave,
-  onExport,
   onDiscard,
 }: CapturedOmCardProps) {
   const d = om.snapshot;
@@ -715,15 +666,11 @@ function CapturedOmCard({
             <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />
           ) : (
             <span className={styles.signInMsg}>
-              <Link to="/signin">sign in to save</Link> — analysis stays on your device. export
-              still works.
+              <Link to="/signin">sign in to save</Link> — analysis stays on your device.
             </span>
           )}
 
           <div className={styles.capturedBtns}>
-            <button type="button" className={styles.recordBtn} onClick={onExport}>
-              export json
-            </button>
             <button type="button" className={styles.discardBtn} onClick={onDiscard}>
               discard
             </button>

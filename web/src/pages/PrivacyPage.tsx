@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import Reveal from '../components/Reveal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /** Small-caps section label with a leading italic roman numeral. */
 function Label({ roman, children }: { roman: string; children: React.ReactNode }) {
@@ -18,6 +19,7 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
  * complete.
  */
 export default function PrivacyPage() {
+  useDocumentTitle('omalyzer — privacy');
   return (
     <main className={styles.prose}>
       <h1>Privacy</h1>

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const card: React.CSSProperties = {
   maxWidth: '30rem',
@@ -9,6 +10,7 @@ const card: React.CSSProperties = {
 };
 
 export default function SignInPage() {
+  useDocumentTitle('omalyzer — sign in');
   const { signInWithOtp } = useAuth();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -49,11 +51,11 @@ export default function SignInPage() {
         <span className="roman">I</span>sign in
       </div>
       <h1 style={{ fontSize: 'var(--t-disp)', margin: 'var(--s-xs) 0 var(--s-md)' }}>
-        Sign in
+        Sign in — or create your account
       </h1>
       <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
-        Enter your email and we&rsquo;ll send a one-time magic link. No password to
-        remember.
+        Enter your email and we&rsquo;ll send a one-time magic link. If you&rsquo;re
+        new, the link creates your account. No password to remember.
       </p>
       <form
         onSubmit={onSubmit}

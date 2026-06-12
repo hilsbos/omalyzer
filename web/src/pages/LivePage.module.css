@@ -743,22 +743,6 @@
   outline: 2px solid var(--on-plate);
   outline-offset: 2px;
 }
-.recordBtn {
-  min-height: var(--tap);
-  padding: var(--s-2xs) var(--s-md);
-  border-radius: 0;
-  border: 1px solid var(--plate-rule);
-  background: var(--on-plate);
-  color: var(--plate-bg);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--t-label);
-}
-.recordBtn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* ========================= RESPONSIVE FALLBACK ==========================
    Below 52rem the console grid can't fit — fall back to a stacked / tabbed
    single-column flow. Spectrogram stays the always-on hero; the tab bar drives
@@ -856,7 +840,6 @@
   .drawerToggle,
   .gear,
   .drawerClose,
-  .recordBtn,
   .discardBtn,
   .viewToggle {
     min-height: var(--tap);

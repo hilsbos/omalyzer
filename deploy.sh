@@ -34,6 +34,15 @@ aws s3 cp dist/index.html "s3://$BUCKET/index.html" --profile "$PROFILE" \
 aws s3 cp dist/worklet.js "s3://$BUCKET/worklet.js" --profile "$PROFILE" \
   --cache-control "no-cache" --content-type "text/javascript; charset=utf-8" --no-progress
 
+echo "==> Re-uploading share/PWA assets (un-hashed → 1-day cache, correct types)…"
+aws s3 cp dist/manifest.webmanifest "s3://$BUCKET/manifest.webmanifest" --profile "$PROFILE" \
+  --content-type "application/manifest+json" \
+  --cache-control "public,max-age=86400" --no-progress
+for f in og.png apple-touch-icon.png icon-192.png icon-512.png icon-maskable-192.png icon-maskable-512.png; do
+  aws s3 cp "dist/$f" "s3://$BUCKET/$f" --profile "$PROFILE" \
+    --cache-control "public,max-age=86400" --no-progress
+done
+
 echo "==> Setting application/wasm content-type…"
 for f in dist/assets/*.wasm; do
   aws s3 cp "$f" "s3://$BUCKET/assets/$(basename "$f")" --profile "$PROFILE" \

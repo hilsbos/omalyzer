@@ -8,6 +8,7 @@ import VagusBridge from '../components/science/VagusBridge';
 import SourceFilter from '../components/science/SourceFilter';
 import FiveDimensions from '../components/science/FiveDimensions';
 import CtaTone from '../components/science/CtaTone';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /** Small-caps section label with a leading italic roman numeral. */
 function Label({ roman, children }: { roman: string; children: React.ReactNode }) {
@@ -25,6 +26,7 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
  * the corpus, the road ahead, and the client-side sovereignty stance.
  */
 export default function SciencePage() {
+  useDocumentTitle('omalyzer — science');
   // The page stays in the light editorial world top to bottom (light =
   // reading; dark = measuring, and the dark belongs to /analyze). The seams
   // hook owns the two micro-moments: hr rules drawing themselves on as they

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import styles from './prose.module.css';
 import Reveal from '../components/Reveal';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /** Small-caps section label with a leading italic roman numeral. */
 function Label({ roman, children }: { roman: string; children: React.ReactNode }) {
@@ -17,6 +18,7 @@ function Label({ roman, children }: { roman: string; children: React.ReactNode }
  * program: account/content terms, consent, and deletion rights.
  */
 export default function TermsPage() {
+  useDocumentTitle('omalyzer — terms');
   return (
     <main className={styles.prose}>
       <h1>Terms of Service</h1>
