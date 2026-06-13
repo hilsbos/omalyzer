@@ -39,7 +39,11 @@ const buttonStyle = (busy: boolean): React.CSSProperties => ({
   opacity: busy ? 0.6 : 1,
 });
 
-const CODE_LENGTH = 8;
+// Supabase Email OTP length is 6 (matching the sibling project, where 8 bricked
+// sign-in). The input tolerates 6–10 so a server-side length drift degrades
+// instead of blocking; the copy assumes 6.
+const CODE_LEN = 6;
+const CODE_MAX = 10;
 
 export default function SignInPage() {
   useDocumentTitle('omalyzer — sign in');
@@ -111,7 +115,7 @@ export default function SignInPage() {
           Enter your code
         </h1>
         <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
-          We emailed an {CODE_LENGTH}-digit code to <strong>{email}</strong>. Enter it
+          We emailed a {CODE_LEN}-digit code to <strong>{email}</strong>. Enter it
           below to sign in. The code expires shortly.
         </p>
         <form
@@ -124,12 +128,12 @@ export default function SignInPage() {
             inputMode="numeric"
             autoComplete="one-time-code"
             pattern="[0-9]*"
-            maxLength={CODE_LENGTH}
+            maxLength={CODE_MAX}
             required
-            placeholder="00000000"
-            aria-label={`${CODE_LENGTH}-digit sign-in code`}
+            placeholder="000000"
+            aria-label={`${CODE_LEN}-digit sign-in code`}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_MAX))}
             style={{
               ...fieldStyle,
               fontFamily: 'var(--num)',
@@ -139,7 +143,7 @@ export default function SignInPage() {
             onFocus={(e) => (e.currentTarget.style.borderBottomColor = 'var(--accent)')}
             onBlur={(e) => (e.currentTarget.style.borderBottomColor = 'var(--rule)')}
           />
-          <button type="submit" disabled={busy || code.length === 0} style={buttonStyle(busy)}>
+          <button type="submit" disabled={busy || code.length < CODE_LEN} style={buttonStyle(busy)}>
             {busy ? 'Verifying…' : 'Verify & sign in'}
             <span aria-hidden="true">→</span>
           </button>
@@ -198,7 +202,7 @@ export default function SignInPage() {
         Sign in — or create your account
       </h1>
       <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
-        Enter your email and we&rsquo;ll send a one-time {CODE_LENGTH}-digit code. If
+        Enter your email and we&rsquo;ll send a one-time {CODE_LEN}-digit code. If
         you&rsquo;re new, it creates your account. No password to remember.
       </p>
       <form

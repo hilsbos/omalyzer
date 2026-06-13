@@ -55,11 +55,33 @@ Supabase project, so no extra setup is needed for the bucket policies.
    omalyzer sign-in code is **{{ .Token }}**. It expires shortly."). If the
    template still emits a URL, users receive a link instead of a code and the
    in-app code field has nothing to verify.
-   - **Authentication → Sign In / Providers → Email → Email OTP Length**: set
-     to **8** to match the app's 8-digit code field. (The flow still works at
-     the default 6 — the field accepts up to 8 — but set 8 for the intended UX.)
+   - Apply `{{ .Token }}` to BOTH the **Magic Link** AND the **Confirm signup**
+     templates — `signInWithOtp` uses Confirm signup for brand-new emails and
+     Magic Link for existing users; a link left in either one sends a link.
+     Never keep `{{ .Token }}` and `{{ .ConfirmationURL }}` together in one
+     template (the dual link+code form is an upstream bug and scanner-fragile).
+   - **Authentication → Sign In / Providers → Email → Email OTP Length**: keep
+     at **6**. The sibling project (twentytwo, same Supabase patterns) set it to
+     8 once and bricked sign-in; 6 is the proven value. The app's code field
+     tolerates 6–10 so a drift degrades instead of blocking, but 6 is assumed.
    - **Email OTP Expiry**: the default (~1 hour) is fine; lower it if desired.
-5. **Project Settings → API**: copy **Project URL** → `VITE_SUPABASE_URL` and
+
+5. **Authentication → Emails → SMTP Settings** (custom SMTP, so codes send
+   reliably instead of via Supabase's rate-limited built-in mailer). Mirrors the
+   twentytwo project — same AWS account (022103836148), same verified domain:
+   - Sender: `omalyzer <code@shushu.be>` — domain identity `shushu.be` is
+     verified (DKIM SUCCESS) in SES **us-east-1**; any `@shushu.be` sender works
+     with no extra verification.
+   - Host/port: `email-smtp.us-east-1.amazonaws.com` : `465`.
+   - Username/password: the AWS SES SMTP credentials of the send-only IAM user
+     `twentytwo-ses-smtp` (reused — same creds as the twentytwo project's
+     Supabase SMTP settings).
+   - **SES is in SANDBOX** (account-wide; production access still pending). In
+     sandbox SES delivers only to VERIFIED identities (`patrick@hilsbos.com`).
+     Until production access is granted, other recipients (e.g. new crew) must
+     be added as verified SES identities or they receive nothing. Check:
+     `aws --profile hilsbos sesv2 get-account --region us-east-1`.
+6. **Project Settings → API**: copy **Project URL** → `VITE_SUPABASE_URL` and
    the **anon/public** key → `VITE_SUPABASE_ANON_KEY` in `web/.env.local`.
    Never put the `service_role` key in the frontend.
 
