@@ -16,7 +16,11 @@ interface AuthContextValue {
   /** False when the Supabase env is absent — auth degrades to signed-out and
    *  account CTAs route elsewhere; the rest of the site runs untouched. */
   configured: boolean;
-  signInWithOtp: (email: string) => Promise<{ error: Error | null }>;
+  /** Step 1: email the one-time code (creates the account if new). */
+  sendEmailCode: (email: string) => Promise<{ error: Error | null }>;
+  /** Step 2: verify the code the user typed; on success the session is set
+   *  via onAuthStateChange. */
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -39,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    // 2. subscribe to future auth changes (sign-in via magic link, sign-out, refresh)
+    // 2. subscribe to future auth changes (code verification, sign-out, refresh)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
@@ -53,13 +57,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: session?.user ?? null,
       loading,
       configured: supabase !== null,
-      signInWithOtp: async (email: string) => {
+      sendEmailCode: async (email: string) => {
         if (!supabase) {
           return { error: new Error('Accounts are not configured on this deployment.') };
         }
-        const { error } = await supabase.auth.signInWithOtp({
+        // No emailRedirectTo → with a token-based email template Supabase sends
+        // a numeric code instead of a magic link. shouldCreateUser stays on
+        // (default) so a first-time email still gets an account.
+        const { error } = await supabase.auth.signInWithOtp({ email });
+        return { error };
+      },
+      verifyEmailCode: async (email: string, code: string) => {
+        if (!supabase) {
+          return { error: new Error('Accounts are not configured on this deployment.') };
+        }
+        const { error } = await supabase.auth.verifyOtp({
           email,
-          options: { emailRedirectTo: window.location.origin },
+          token: code,
+          type: 'email',
         });
         return { error };
       },

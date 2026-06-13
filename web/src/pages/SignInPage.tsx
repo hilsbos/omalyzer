@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate, type Location } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -9,38 +10,181 @@ const card: React.CSSProperties = {
   color: 'var(--fg)',
 };
 
+const fieldStyle: React.CSSProperties = {
+  fontFamily: 'var(--serif)',
+  fontSize: 'var(--t-body)',
+  padding: 'var(--s-2xs) 0',
+  border: 'none',
+  borderBottom: '1px solid var(--rule)',
+  background: 'transparent',
+  color: 'var(--ink)',
+  outline: 'none',
+};
+
+const buttonStyle = (busy: boolean): React.CSSProperties => ({
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 'var(--s-2xs)',
+  alignSelf: 'flex-start',
+  minHeight: 'var(--tap)',
+  padding: 'var(--s-xs) var(--s-lg)',
+  border: '1px solid var(--rule)',
+  borderRadius: 0,
+  background: 'var(--accent)',
+  color: 'var(--on-accent)',
+  fontFamily: 'var(--serif-display)',
+  fontWeight: 420,
+  fontSize: 'var(--t-body)',
+  cursor: busy ? 'default' : 'pointer',
+  opacity: busy ? 0.6 : 1,
+});
+
+const CODE_LENGTH = 8;
+
 export default function SignInPage() {
   useDocumentTitle('omalyzer — sign in');
-  const { signInWithOtp } = useAuth();
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
+  const { sendEmailCode, verifyEmailCode } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Where to land after sign-in: wherever RequireAuth bounced from, else dashboard.
+  const from = (location.state as { from?: Location } | null)?.from?.pathname ?? '/dashboard';
 
-  async function onSubmit(e: FormEvent) {
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [resent, setResent] = useState(false);
+  const codeRef = useRef<HTMLInputElement>(null);
+
+  async function onSendEmail(e: FormEvent) {
     e.preventDefault();
-    setStatus('sending');
-    const { error } = await signInWithOtp(email.trim());
+    setBusy(true);
+    setErrorMsg('');
+    const { error } = await sendEmailCode(email.trim());
+    setBusy(false);
     if (error) {
       setErrorMsg(error.message);
-      setStatus('error');
     } else {
-      setStatus('sent');
+      setStep('code');
+      setCode('');
+      // focus the code field once it mounts
+      requestAnimationFrame(() => codeRef.current?.focus());
     }
   }
 
-  if (status === 'sent') {
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErrorMsg('');
+    const { error } = await verifyEmailCode(email.trim(), code.trim());
+    if (error) {
+      setBusy(false);
+      setErrorMsg(error.message);
+    } else {
+      // session lands via onAuthStateChange; go where they were headed.
+      navigate(from, { replace: true });
+    }
+  }
+
+  async function onResend() {
+    setBusy(true);
+    setErrorMsg('');
+    const { error } = await sendEmailCode(email.trim());
+    setBusy(false);
+    if (error) {
+      setErrorMsg(error.message);
+    } else {
+      setResent(true);
+      setCode('');
+      codeRef.current?.focus();
+    }
+  }
+
+  if (step === 'code') {
     return (
       <main className="instrument" style={card}>
         <div className="section-label">
-          <span className="roman">II</span>check your email
+          <span className="roman">II</span>enter your code
         </div>
         <h1 style={{ fontSize: 'var(--t-disp)', margin: 'var(--s-xs) 0 var(--s-md)' }}>
-          Check your email
+          Enter your code
         </h1>
-        <p>
-          We sent a magic sign-in link to <strong>{email}</strong>. Open it on this
-          device to continue.
+        <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
+          We emailed an {CODE_LENGTH}-digit code to <strong>{email}</strong>. Enter it
+          below to sign in. The code expires shortly.
         </p>
+        <form
+          onSubmit={onVerify}
+          style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-md)', maxWidth: '22rem' }}
+        >
+          <input
+            ref={codeRef}
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]*"
+            maxLength={CODE_LENGTH}
+            required
+            placeholder="00000000"
+            aria-label={`${CODE_LENGTH}-digit sign-in code`}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
+            style={{
+              ...fieldStyle,
+              fontFamily: 'var(--num)',
+              fontSize: 'var(--t-md)',
+              letterSpacing: '0.5em',
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderBottomColor = 'var(--accent)')}
+            onBlur={(e) => (e.currentTarget.style.borderBottomColor = 'var(--rule)')}
+          />
+          <button type="submit" disabled={busy || code.length === 0} style={buttonStyle(busy)}>
+            {busy ? 'Verifying…' : 'Verify & sign in'}
+            <span aria-hidden="true">→</span>
+          </button>
+          {errorMsg && <p style={{ color: 'var(--error)', margin: 0 }}>{errorMsg}</p>}
+          <p style={{ color: 'var(--ink-soft)', fontSize: 'var(--t-label)', margin: 0 }}>
+            {resent ? 'New code sent. ' : "Didn't get it? "}
+            <button
+              type="button"
+              onClick={onResend}
+              disabled={busy}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--accent)',
+                cursor: busy ? 'default' : 'pointer',
+                font: 'inherit',
+                textDecoration: 'underline',
+              }}
+            >
+              Resend code
+            </button>
+            {' · '}
+            <button
+              type="button"
+              onClick={() => {
+                setStep('email');
+                setCode('');
+                setErrorMsg('');
+                setResent(false);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--accent)',
+                cursor: 'pointer',
+                font: 'inherit',
+                textDecoration: 'underline',
+              }}
+            >
+              Use a different email
+            </button>
+          </p>
+        </form>
       </main>
     );
   }
@@ -54,62 +198,29 @@ export default function SignInPage() {
         Sign in — or create your account
       </h1>
       <p style={{ color: 'var(--ink-soft)', marginBottom: 'var(--s-lg)' }}>
-        Enter your email and we&rsquo;ll send a one-time magic link. If you&rsquo;re
-        new, the link creates your account. No password to remember.
+        Enter your email and we&rsquo;ll send a one-time {CODE_LENGTH}-digit code. If
+        you&rsquo;re new, it creates your account. No password to remember.
       </p>
       <form
-        onSubmit={onSubmit}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'var(--s-md)',
-          maxWidth: '22rem',
-        }}
+        onSubmit={onSendEmail}
+        style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-md)', maxWidth: '22rem' }}
       >
         <input
           type="email"
           required
+          autoComplete="email"
           placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{
-            fontFamily: 'var(--serif)',
-            fontSize: 'var(--t-body)',
-            padding: 'var(--s-2xs) 0',
-            border: 'none',
-            borderBottom: '1px solid var(--rule)',
-            background: 'transparent',
-            color: 'var(--ink)',
-            outline: 'none',
-          }}
+          style={fieldStyle}
           onFocus={(e) => (e.currentTarget.style.borderBottomColor = 'var(--accent)')}
           onBlur={(e) => (e.currentTarget.style.borderBottomColor = 'var(--rule)')}
         />
-        <button
-          type="submit"
-          disabled={status === 'sending'}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 'var(--s-2xs)',
-            alignSelf: 'flex-start',
-            minHeight: 'var(--tap)',
-            padding: 'var(--s-xs) var(--s-lg)',
-            border: '1px solid var(--rule)',
-            borderRadius: 0,
-            background: 'var(--accent)',
-            color: 'var(--on-accent)',
-            fontFamily: 'var(--serif-display)',
-            fontWeight: 420,
-            fontSize: 'var(--t-body)',
-            cursor: status === 'sending' ? 'default' : 'pointer',
-            opacity: status === 'sending' ? 0.6 : 1,
-          }}
-        >
-          {status === 'sending' ? 'Sending…' : 'Send magic link'}
+        <button type="submit" disabled={busy} style={buttonStyle(busy)}>
+          {busy ? 'Sending…' : 'Email me a code'}
           <span aria-hidden="true">→</span>
         </button>
-        {status === 'error' && <p style={{ color: 'var(--error)', margin: 0 }}>{errorMsg}</p>}
+        {errorMsg && <p style={{ color: 'var(--error)', margin: 0 }}>{errorMsg}</p>}
       </form>
     </main>
   );

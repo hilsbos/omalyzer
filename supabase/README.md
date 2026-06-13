@@ -47,12 +47,18 @@ Supabase project, so no extra setup is needed for the bucket policies.
 2. **Authentication → URL Configuration → Site URL**: set to your production
    origin (e.g. `https://omalyzer.com`).
 3. **Authentication → URL Configuration → Redirect URLs**: add both
-   `http://localhost:5173` (Vite dev) and your production origin, so
-   `emailRedirectTo = window.location.origin` is allowed from each environment.
-   If the origin isn't allow-listed, Supabase falls back to Site URL and dev
-   links bounce to prod.
-4. **Authentication → Email Templates → Magic Link** (optional): default
-   `{{ .ConfirmationURL }}` works; customize branding if desired.
+   `http://localhost:5173` (Vite dev) and your production origin. (The app no
+   longer uses `emailRedirectTo`, but keeping these allow-listed is harmless.)
+4. **Authentication → Email Templates → Magic Link** — REQUIRED for the
+   code-based sign-in: the template body MUST use the numeric token, not the
+   link. Replace `{{ .ConfirmationURL }}` with `{{ .Token }}` (e.g. "Your
+   omalyzer sign-in code is **{{ .Token }}**. It expires shortly."). If the
+   template still emits a URL, users receive a link instead of a code and the
+   in-app code field has nothing to verify.
+   - **Authentication → Sign In / Providers → Email → Email OTP Length**: set
+     to **8** to match the app's 8-digit code field. (The flow still works at
+     the default 6 — the field accepts up to 8 — but set 8 for the intended UX.)
+   - **Email OTP Expiry**: the default (~1 hour) is fine; lower it if desired.
 5. **Project Settings → API**: copy **Project URL** → `VITE_SUPABASE_URL` and
    the **anon/public** key → `VITE_SUPABASE_ANON_KEY` in `web/.env.local`.
    Never put the `service_role` key in the frontend.
