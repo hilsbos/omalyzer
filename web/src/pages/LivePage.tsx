@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { useAnalyzer, type Om } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
 import CoherencePanel from '../components/CoherencePanel';
+import SteadinessPresence from '../components/SteadinessPresence';
 import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
@@ -235,9 +236,16 @@ export default function LivePage() {
   const levelNorm = Math.min(1, Math.max(0, ((s?.rms_db ?? -60) + 60) / 60));
   const levelLit = Math.round(levelNorm * LEVEL_SEGMENTS);
 
-  // `live_coherence_index` is non-null precisely while a long-enough tone is
-  // mid-hold — the correct "capturing…" signal.
-  const capturing = s?.live_coherence_index != null;
+  // `capturing` = a tone is sounding RIGHT NOW (crossing the RMS gate). Re-keyed
+  // off `voiced` because the focus band no longer surfaces `live_coherence_index`
+  // (the steadiness presence replaced the live number); `voiced` is the honest
+  // present-tense "a tone is held" signal and is exactly what the glow keys on
+  // too. (`coherence_seq` only ticks at COMPLETION, so it can't mark "currently
+  // capturing".) Gated on the analyzer running so it can't read stale.
+  // NOTE: auto-save (keyed on lastOm/coherence_seq) and inline sign-in (keyed on
+  // lastOm/session) do NOT depend on this — confirmed; only the rec dot + the
+  // transport hint consume `capturing`.
+  const capturing = status.running && !!s?.voiced;
 
   // ── Save the captured om — REAL duration + aligned PCM from `lastOm`. ──────
   // Auto-fired once per capture (see the effect below); `share` defaults to
@@ -462,16 +470,18 @@ export default function LivePage() {
       </section>
 
       {/* ── PRACTICE FOCUS — the one number, where the cockpit would be ──────
-          While a tone is held: the live index, breathing hop-by-hop (the
-          number IS the during-hold affordance). After a capture: the last
-          index, at rest. Before anything: the breath cue (until the first om
-          ever captured on this device answers it) or an em-dash. */}
+          While a tone is held: the steadiness PRESENCE — a breathing glow + a
+          quiet word reading how clean the tone is THIS second. No number: the
+          single Coherence Index appears only at completion via ScoreReveal.
+          After a capture: the last index, at rest. Before anything: the breath
+          cue (until the first om ever captured on this device answers it) or an
+          em-dash. */}
       {view === 'practice' && (
         <section className={styles.focus} aria-label="coherence">
           <span className={styles.focusLabel}>coherence</span>
-          {s?.live_coherence_index != null ? (
-            <span className={styles.focusValue} data-state="live">
-              {s.live_coherence_index.toFixed(2)}
+          {s?.voiced ? (
+            <span className={styles.focusValue} data-state="presence">
+              <SteadinessPresence snapshot={s} />
             </span>
           ) : s?.last_coherence_index != null ? (
             <span className={styles.focusValue} data-state="rest">

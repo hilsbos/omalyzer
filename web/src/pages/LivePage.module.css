@@ -146,6 +146,13 @@
   font-feature-settings: 'tnum', 'lnum', 'kern';
   line-height: 1.15;
 }
+/* the steadiness presence replaces the live number — it sets its own glow +
+   word sizing, so the focus value here is just a neutral container (no giant
+   number font, no fixed numeric line-height) */
+.focusValue[data-state='presence'] {
+  font-size: inherit;
+  line-height: 1.2;
+}
 .focusValue[data-state='rest'] {
   color: var(--on-plate-soft);
 }

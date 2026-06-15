@@ -16,7 +16,10 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
   const hasTone = s?.last_coherence_index != null;
   const vowel = s?.last_coherence_vowel ?? null;
   const secs = s?.last_coherence_secs ?? 0;
-  const live = s?.live_coherence_index ?? null;
+  // A tone is sounding right now — drives the "· holding…" chip. Keyed off the
+  // present-tense `voiced` flag (NOT live_coherence_index, which the UI no longer
+  // surfaces): the chip is a calm presence cue, not a mid-hold score.
+  const holding = !!s?.voiced;
 
   const header = hasTone
     ? vowel
@@ -46,12 +49,11 @@ export default function CoherencePanel({ snapshot }: { snapshot: Snapshot | null
     <section className={styles.panel} aria-label="Vocal Coherence">
       <h2 className={styles.panelTitle}>
         {header}
-        {live != null && (
-          // --data-high-plate, not --hold-green: #5E7E55 is ~3.9:1 on the
-          // #14171F plate — the plate register passes where the paper one fails.
-          <span style={{ color: 'var(--data-high-plate)', marginLeft: '0.5rem' }}>
-            · holding… {live.toFixed(2)}
-          </span>
+        {holding && (
+          // A calm present-tense cue, not a verdict: no number, no green (green
+          // would imply a measured good result mid-hold). The soft pulse reads
+          // as "listening", and stills under prefers-reduced-motion.
+          <span className={styles.holdingChip}>· holding…</span>
         )}
       </h2>
 

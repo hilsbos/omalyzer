@@ -19,6 +19,29 @@
   margin: 0;
 }
 
+/* The "· holding…" presence chip in the panel title — a calm soft pulse while
+   a tone sounds. Deliberately in the muted register (no green, no number): it
+   is a "listening" cue, not a mid-hold score. Stills under reduced motion. */
+.holdingChip {
+  margin-left: 0.5rem;
+  color: var(--fg-muted);
+  animation: holdingPulse 2.4s ease-in-out infinite;
+}
+@keyframes holdingPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .holdingChip {
+    animation: none;
+  }
+}
+
 .legend {
   font-family: var(--mono);
   font-size: var(--t-label);
