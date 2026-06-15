@@ -10,7 +10,7 @@ import { Link } from 'react-router-dom';
 import { useAnalyzer, type Om } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
 import CoherencePanel from '../components/CoherencePanel';
-import SteadinessPresence from '../components/SteadinessPresence';
+import SettlingLine from '../components/SettlingLine';
 import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
@@ -247,6 +247,30 @@ export default function LivePage() {
   // transport hint consume `capturing`.
   const capturing = status.running && !!s?.voiced;
 
+  // ── The ONE practice focus-band state truth table ──────────────────────────
+  // Exactly one of these holds at any time; the band's JSX is a flat switch on
+  // it. The number NEVER appears here (it resolves only in ScoreReveal) — at
+  // rest the band shows the "begin" on-ramp, or an em-dash + re-entry once a
+  // tone has completed on this device.
+  //   begin    — not running, no capture yet: the large on-ramp tap-target.
+  //   restMark — not running, a tone has completed: em-dash at rest + "begin again".
+  //   voiced   — running & a tone is sounding: the settling line + word.
+  //   cue      — running, no tone, first-ever hold not yet answered: the breath cue.
+  //   waiting  — running, no tone, after the breath cue has been answered.
+  // `hasCaptured` persists across reloads, so restMark/waiting reflect a prior
+  // session too; `last_coherence_index`/`lastOm` carry an in-session completion.
+  const completedHere =
+    hasCaptured || lastOm != null || s?.last_coherence_index != null;
+  const focusState: 'begin' | 'restMark' | 'voiced' | 'cue' | 'waiting' = !status.running
+    ? completedHere
+      ? 'restMark'
+      : 'begin'
+    : s?.voiced
+      ? 'voiced'
+      : !hasCaptured
+        ? 'cue'
+        : 'waiting';
+
   // ── Save the captured om — REAL duration + aligned PCM from `lastOm`. ──────
   // Auto-fired once per capture (see the effect below); `share` defaults to
   // private. Stores nothing the user didn't earn by holding a tone.
@@ -469,34 +493,56 @@ export default function LivePage() {
         </div>
       </section>
 
-      {/* ── PRACTICE FOCUS — the one number, where the cockpit would be ──────
-          While a tone is held: the steadiness PRESENCE — a breathing glow + a
-          quiet word reading how clean the tone is THIS second. No number: the
-          single Coherence Index appears only at completion via ScoreReveal.
-          After a capture: the last index, at rest. Before anything: the breath
-          cue (until the first om ever captured on this device answers it) or an
-          em-dash. */}
+      {/* ── PRACTICE FOCUS — "the tone", where the cockpit would be ──────────
+          ONE explicit state truth table (see `focusState` below), no coherence
+          number anywhere here — the single index resolves ONLY at completion in
+          ScoreReveal. The band claims to show "the tone", never coherence live.
+
+            idle (not running)                 → the "begin" on-ramp plate
+            stopped after a capture            → em-dash + an obvious "begin again"
+            running & voiced                   → the settling line + word
+            running & not voiced, no capture   → the breath cue
+            running & not voiced, post-capture → a calm waiting state
+       */}
       {view === 'practice' && (
-        <section className={styles.focus} aria-label="coherence">
-          <span className={styles.focusLabel}>coherence</span>
-          {s?.voiced ? (
+        <section className={styles.focus} aria-label="the tone">
+          <span className={styles.focusLabel}>the tone</span>
+          {focusState === 'voiced' ? (
             <span className={styles.focusValue} data-state="presence">
-              <SteadinessPresence snapshot={s} />
+              <SettlingLine snapshot={s} running={status.running} />
             </span>
-          ) : s?.last_coherence_index != null ? (
-            <span className={styles.focusValue} data-state="rest">
-              {s.last_coherence_index.toFixed(2)}
+          ) : focusState === 'begin' ? (
+            /* the on-ramp: a large, calm tap-target where the eye already rests */
+            <button
+              type="button"
+              className={styles.beginPlate}
+              onClick={handleStart}
+              aria-label="begin — start the analyzer and hold a tone"
+            >
+              begin
+            </button>
+          ) : focusState === 'restMark' ? (
+            /* stopped after a capture: the em-dash at rest (no number), with an
+               obvious way to start the next hold directly underneath it */
+            <span className={styles.focusValue} data-state="empty">
+              <span aria-hidden="true">—</span>
+              <button
+                type="button"
+                className={styles.beginAgain}
+                onClick={handleStart}
+                aria-label="begin again — start the next hold"
+              >
+                begin again
+              </button>
             </span>
-          ) : status.running && !hasCaptured && !s?.voiced ? (
-            /* displaced the moment a tone crosses the gate (voiced), not 2.5 s
-               later when the live index first exists — while the first-ever
-               tone builds toward its index, the number's seat sits empty */
+          ) : focusState === 'cue' ? (
             <span className={styles.focusValue} data-state="cue">
               <BreathCue />
             </span>
           ) : (
-            <span className={styles.focusValue} data-state="empty">
-              —
+            /* running, between tones, post-capture — a calm waiting state */
+            <span className={styles.focusValue} data-state="waiting">
+              <span className={styles.waiting}>listening · hold a tone</span>
             </span>
           )}
         </section>
@@ -581,15 +627,22 @@ export default function LivePage() {
 
       {/* ── TRANSPORT ───────────────────────────────────────────────────────── */}
       <footer className={styles.transport}>
-        <button
-          type="button"
-          className={styles.startStop}
-          data-running={status.running}
-          onClick={status.running ? handleStop : handleStart}
-          aria-pressed={status.running}
-        >
-          {status.running ? 'Stop' : 'Start'}
-        </button>
+        {/* Start is the calm primary affordance. In practice the focus-band
+            "begin" plate is the real on-ramp, so the footer Start only appears
+            when stopped (it stays for the console's literal transport too); once
+            running, the quiet "end" affordance near the clock demotes stop —
+            capture is automatic on a sustained tone, so stop never stopped a
+            recording, and the alarm-red rectangle is gone. */}
+        {!status.running && (
+          <button
+            type="button"
+            className={styles.startStop}
+            onClick={handleStart}
+            aria-pressed={false}
+          >
+            Start
+          </button>
+        )}
 
         {/* live capture hint / capturing state (replaces the old Record button) */}
         {status.running && (
@@ -605,6 +658,18 @@ export default function LivePage() {
         <span className={styles.elapsed} aria-label="elapsed">
           {mmss(elapsedMs)}
         </span>
+
+        {/* quiet "end" text affordance, beside the clock — no red, no rectangle */}
+        {status.running && (
+          <button
+            type="button"
+            className={styles.endBtn}
+            onClick={handleStop}
+            aria-pressed={true}
+          >
+            end
+          </button>
+        )}
 
         {/* Console-only transport detail — practice keeps the thin sill:
             Start/Stop, the factual capture hint, and the clock. */}

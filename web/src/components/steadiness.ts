@@ -102,43 +102,10 @@ export function steadinessWord(v: number): SteadinessWord {
   return 'finding it…';
 }
 
-/* ── Glow brightness mapping ──────────────────────────────────────────────────
-   The 0..1 steadiness maps to an OPACITY range for the warm-neutral glow. It
-   only brightens — it never crosses into a "good=green / bad=red" hue, so it
-   reads as presence (more light = more here), not a verdict. GLOW_MIN keeps a
-   faint ember at the floor so the glow is never fully dark while a tone sounds. */
-export const GLOW_MIN = 0.1; // faint ember at steadiness 0 (the absolute floor)
-export const GLOW_MAX = 0.92; // fully present, settled tone
-
-/** Map steadiness 0..1 → glow opacity, eased so the mid-range feels lively
- *  without the top pinning early. */
-export function glowOpacity(v: number): number {
-  const e = clamp01(v);
-  // gentle ease-in-out (smoothstep) so "settling" already glows meaningfully
-  // and "steady" tops out softly.
-  const eased = e * e * (3 - 2 * e);
-  return GLOW_MIN + (GLOW_MAX - GLOW_MIN) * eased;
-}
-
-/* ── DOM-published opacity (deliberately coarse) ──────────────────────────────
-   The glow opacity is the only scalar this presence ever writes to the DOM.
-   glowOpacity() is published and invertible, so a precise value would let an
-   adversary recover the EMA'd steadiness to ~3 digits from element.style.opacity.
-   We quantize to GLOW_BUCKETS coarse steps across [GLOW_MIN, GLOW_MAX] so the DOM
-   carries PRESENCE (a handful of brightness levels), not a precise number — far
-   too coarse to read back as anything score-like. The eye cannot tell a bucket
-   from a continuum at this granularity, so the glow still breathes smoothly. */
-export const GLOW_BUCKETS = 8;
-
-/** Quantize a glow opacity to one of GLOW_BUCKETS levels over [GLOW_MIN, GLOW_MAX],
- *  returning the string written to style.opacity. Coarse on purpose. */
-export function glowOpacityString(v: number): string {
-  const op = glowOpacity(v);
-  const t = (op - GLOW_MIN) / (GLOW_MAX - GLOW_MIN); // 0..1
-  const bucket = Math.round(clamp01(t) * (GLOW_BUCKETS - 1));
-  const stepped = GLOW_MIN + (GLOW_MAX - GLOW_MIN) * (bucket / (GLOW_BUCKETS - 1));
-  return stepped.toFixed(3);
-}
+/* The glow brightness mapping (glowOpacity/glowOpacityString/GLOW_*) RETIRED
+   with SteadinessPresence — the settling line derives its per-hop width and
+   brightness from jitter/HNR/entropy directly (see components/SettlingLine).
+   The word + EMA helpers below remain the live surface this module exposes. */
 
 /* ── The per-hop sub-readings ─────────────────────────────────────────────── */
 

@@ -146,18 +146,79 @@
   font-feature-settings: 'tnum', 'lnum', 'kern';
   line-height: 1.15;
 }
-/* the steadiness presence replaces the live number — it sets its own glow +
-   word sizing, so the focus value here is just a neutral container (no giant
+/* the settling line replaces the live number — it owns its own canvas + word
+   sizing, so the focus value here is a full-width neutral container (no giant
    number font, no fixed numeric line-height) */
 .focusValue[data-state='presence'] {
   font-size: inherit;
   line-height: 1.2;
-}
-.focusValue[data-state='rest'] {
-  color: var(--on-plate-soft);
+  width: 100%;
 }
 .focusValue[data-state='empty'] {
+  flex-direction: column;
+  gap: var(--s-xs);
   color: var(--on-plate-weak);
+}
+.focusValue[data-state='waiting'] {
+  color: var(--on-plate-weak);
+  font-size: var(--t-body);
+}
+.waiting {
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+  color: var(--on-plate-weak);
+}
+
+/* ── the "begin" on-ramp — a large, calm, centered tap-target where the eye
+   already rests; replaces the inert em-dash / the pale corner Start. Mind the
+   thumb: a generous hit-area for mobile. ─────────────────────────────────── */
+.beginPlate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(3.2rem, 9vh, 4.4rem);
+  min-width: 9rem;
+  padding: var(--s-sm) var(--s-xl);
+  border: 1px solid var(--plate-rule);
+  border-radius: 0;
+  background: var(--plate-bg-2);
+  color: var(--on-plate);
+  font-family: var(--mono);
+  font-size: clamp(1.4rem, 5vw, 2.2rem);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.beginPlate:hover {
+  background: var(--plate-rule);
+}
+.beginPlate:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 3px;
+}
+/* the em-dash-at-rest's re-entry: a quiet "begin again" so the next hold is
+   obvious without re-claiming the hero scale */
+.beginAgain {
+  border: 0;
+  background: none;
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: lowercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--plate-rule);
+  cursor: pointer;
+}
+.beginAgain:hover {
+  color: var(--on-plate);
+}
+.beginAgain:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
 }
 /* the breath cue sits where the number will appear, in the quiet register */
 .breathCue {
@@ -320,7 +381,9 @@
   background: var(--data-high-plate);
 }
 .statusDot[data-state='rec'] {
-  background: var(--error);
+  /* a tone is sounding — a calm sage accent, not alarm-red; still pulses to
+     read as "live and capturing", never a red recording light */
+  background: var(--data-high-plate);
   animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse {
@@ -385,9 +448,30 @@
   font-weight: 500;
   cursor: pointer;
 }
-.startStop[data-running='true'] {
-  background: var(--error);
-  color: var(--plate-bg);
+/* the quiet "end" affordance, beside the clock — text, no rectangle, no red.
+   Capture is automatic on a sustained tone, so this never stopped a recording;
+   it just closes the session. */
+.endBtn {
+  min-height: 2.4rem;
+  padding: 0 var(--s-xs);
+  border: 0;
+  background: none;
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: lowercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--plate-rule);
+  cursor: pointer;
+}
+.endBtn:hover {
+  color: var(--on-plate);
+}
+.endBtn:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
 }
 /* live capture hint — sits where Record was */
 .captureHint {
