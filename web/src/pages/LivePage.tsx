@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { useAnalyzer, type Om } from '../hooks/useAnalyzer';
 import type { Snapshot } from '../types/snapshot';
@@ -6,13 +13,12 @@ import CoherencePanel from '../components/CoherencePanel';
 import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
-import ConsentStep, { type ConsentChoice } from '../components/ConsentStep';
 import ScoreReveal from '../components/ScoreReveal';
 import Spectrogram from '../viz/Spectrogram';
 import PitchTrack from '../viz/PitchTrack';
 import VowelChart from '../viz/VowelChart';
 import { useAuth } from '../auth/AuthProvider';
-import { saveOm, type OmContribution } from '../lib/contributions';
+import { saveOm, deleteOm, type OmContribution } from '../lib/contributions';
 import { countMyOmsForVowel } from '../lib/oms';
 import { M_HOLDS } from '../components/signature/signatureMath';
 import { blinkOpacity, useRafLoop } from '../components/science/motion';
@@ -20,6 +26,11 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import styles from './LivePage.module.css';
 
 const STORE_MAX_HZ = 4000; // matches core STORE_MAX_HZ
+
+// Supabase Email OTP length (matches SignInPage). The input tolerates 6–10 so a
+// server-side length drift degrades instead of blocking; the copy assumes 6.
+const CODE_LEN = 6;
+const CODE_MAX = 10;
 
 /* ── Practice / console split ────────────────────────────────────────────────
    First-time visitors (often arriving mid-story from the landing hero) get the
@@ -62,7 +73,7 @@ export default function LivePage() {
   useDocumentTitle('omalyzer — studio');
   const { snapshot, status, start, stop, getHistory, gateDb, setGate, lastOm, clearLastOm } =
     useAnalyzer();
-  const { session } = useAuth();
+  const { session, loading: authLoading, configured, sendEmailCode, verifyEmailCode } = useAuth();
   const [controls, setControls] = useState<DisplayControls>({
     maxFreqHz: 1000,
     dbFloor: -90,
@@ -88,6 +99,30 @@ export default function LivePage() {
   }, [drawerOpen]);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [discarding, setDiscarding] = useState(false);
+  const [discardError, setDiscardError] = useState<string | null>(null);
+  /* The id/path saveOm minted for THIS capture — the only handle that lets
+     discard hard-delete the cloud row. Keyed by capturedAt so a stale handle
+     from a prior om can never delete the new one (cleared in the reset effect
+     and re-stamped on each successful save). */
+  const savedOmRef = useRef<{ at: number; id: string; audioPath: string } | null>(null);
+  /* Discard-during-save guard: stamped with the capturedAt the user discarded
+     while saveOm was still in flight (so savedOmRef wasn't minted yet). The
+     in-flight handleSave checks this right after the await and, if it matches,
+     hard-deletes the just-written row instead of latching 'saved' — otherwise a
+     discarded om would silently persist in the cloud. Keyed by capturedAt and
+     cleared in the reset effect so a stale flag can't cancel a later om. */
+  const discardRequestedAtRef = useRef<number | null>(null);
+  /* Once-per-capture auto-save guard: holds the capturedAt the save already
+     fired for. A NEW capture has a different value, so the guard self-clears;
+     set synchronously before the await so StrictMode's double-mount can't
+     double-fire the network call (saveOm mints a fresh UUID each call → a true
+     double-fire would create two rows). */
+  const autoSavedAtRef = useRef<number | null>(null);
+  /* The corpus-share choice captured at the inline-sign-in claim moment. The
+     auto-save effect (not the panel) fires the save, so it reads the chosen
+     share from here. Default false → private by default. */
+  const pendingShareRef = useRef(false);
   /* The saved line's signature fact ("/a/ — 7 of ~12"): one RLS-scoped count,
      fetched fire-and-forget AFTER the save the user already chose (never an
      incentive inside the consent gate). Keyed to the capture it belongs to so
@@ -121,6 +156,19 @@ export default function LivePage() {
     setSaveState('idle');
     setSaveError(null);
     setSavedFact(null);
+    setDiscarding(false);
+    setDiscardError(null);
+    // A new capture can never be hard-deleted with a prior om's handle.
+    savedOmRef.current = null;
+    pendingShareRef.current = false;
+    // NOTE: do NOT clear discardRequestedAtRef here. This effect also fires when
+    // lastOm goes null via clearLastOm() — including from handleDiscard's
+    // discard-while-saving path, which has just stamped this ref so the in-flight
+    // handleSave can delete the orphaned row. Wiping it here would cancel that
+    // cleanup and silently persist a discarded om. The flag is self-limiting: it
+    // is keyed to a capturedAt and handleSave only acts (then nulls it) when its
+    // own `at` matches, so a stale flag from a prior om can never cancel a later
+    // om's save.
     if (lastOm != null) {
       setHasCaptured(true);
       try {
@@ -192,13 +240,16 @@ export default function LivePage() {
   const capturing = s?.live_coherence_index != null;
 
   // ── Save the captured om — REAL duration + aligned PCM from `lastOm`. ──────
+  // Auto-fired once per capture (see the effect below); `share` defaults to
+  // private. Stores nothing the user didn't earn by holding a tone.
   const handleSave = useCallback(
-    async (choice: ConsentChoice) => {
+    async (share: boolean) => {
       if (!lastOm || !lastOm.sampleRate) {
         setSaveError('Nothing captured to save — hold a tone first.');
         return;
       }
       const d = lastOm.snapshot; // the latched completed-tone snapshot
+      const at = lastOm.capturedAt;
       setSaveState('saving');
       setSaveError(null);
       try {
@@ -211,7 +262,7 @@ export default function LivePage() {
           f0Mean: d.detail_mean_f0_hz ?? d.f0 ?? null,
           deviceLabel: deriveDeviceLabel(status.settings),
           micSettings: status.settings,
-          consentShare: choice.share,
+          consentShare: share,
           coherenceIndex: d.last_coherence_index,
           subMetrics: {
             pitch_coherence: d.pitch_coherence,
@@ -242,14 +293,32 @@ export default function LivePage() {
             warnings: status.warnings,
           },
         };
-        await saveOm(contribution);
+        const saved = await saveOm(contribution);
+        // The user may have hit discard while this save was in flight (the band
+        // is interactive the instant the tone latches). If so, the cloud row
+        // they discarded is now written but unreachable from the UI — delete it
+        // immediately instead of latching 'saved' (never silent data-loss).
+        if (discardRequestedAtRef.current === at) {
+          discardRequestedAtRef.current = null;
+          try {
+            await deleteOm(saved.id, saved.audioPath);
+          } catch (e) {
+            // The discard's own handler already cleared the band; surface the
+            // failure to delete so the orphan is at least visible, not silent.
+            setDiscardError(e instanceof Error ? e.message : String(e));
+          }
+          setSaveState('idle');
+          return;
+        }
+        // Stash the cloud handle so discard can HARD-DELETE this row/object;
+        // keyed to the capture it belongs to (a later om clears it).
+        savedOmRef.current = { at, id: saved.id, audioPath: saved.audioPath };
         setSaveState('saved');
         // The signature tie-in: count this sound's holds (own rows only,
         // head-only). Fire-and-forget — the saved line renders immediately
         // and gains the fact if/when the count lands for THIS capture.
         const v = d.last_coherence_vowel ?? d.vowel ?? null;
         if (v) {
-          const at = lastOm.capturedAt;
           void countMyOmsForVowel(v).then((n) => {
             if (n != null && n > 0) setSavedFact({ at, vowel: v, count: n });
           });
@@ -261,6 +330,60 @@ export default function LivePage() {
     },
     [lastOm, status.settings, status.warnings],
   );
+
+  // ── Auto-save: once per capture, the moment a signed-in account exists. ─────
+  // Drives BOTH flows: a signed-in user saves the instant the tone latches; a
+  // signed-out user who completes the inline code flips `session` non-null,
+  // re-running this effect, which then saves the still-mounted pending om. The
+  // ref guard (compared to capturedAt, set synchronously) makes it fire exactly
+  // once per capture — never on re-render, never twice under StrictMode.
+  useEffect(() => {
+    if (!lastOm || session == null) return;
+    if (autoSavedAtRef.current === lastOm.capturedAt) return;
+    autoSavedAtRef.current = lastOm.capturedAt;
+    void handleSave(pendingShareRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastOm?.capturedAt, session, handleSave]);
+
+  // ── Discard: hard-delete the cloud om if it was saved, else just clear. ─────
+  const handleDiscard = useCallback(async () => {
+    const at = lastOm?.capturedAt;
+    const saved = savedOmRef.current;
+    if (saved && saved.at === at) {
+      // Already saved → hard-delete the cloud row/object now.
+      setDiscarding(true);
+      setDiscardError(null);
+      try {
+        await deleteOm(saved.id, saved.audioPath);
+      } catch (e) {
+        // Never silently lose the row reference — surface a quiet retry and
+        // keep the om in place so discard can be tried again.
+        setDiscardError(e instanceof Error ? e.message : String(e));
+        setDiscarding(false);
+        return;
+      }
+    } else if (at != null && autoSavedAtRef.current === at) {
+      // A save was INITIATED for this capture (autoSavedAtRef is stamped
+      // synchronously the instant the auto-save effect fires, before its
+      // setSaveState('saving') commits) but no cloud handle exists yet — saveOm
+      // is still in flight, OR the effect just launched it in a render gap where
+      // saveState is still 'idle'. Either way the row is about to be written and
+      // unreachable. Flag this capture so handleSave deletes it the moment it
+      // lands — gating on autoSavedAtRef (not the lagging saveState) closes the
+      // idle→saving render-gap window where the discard would otherwise cancel
+      // neither branch and silently orphan the row.
+      discardRequestedAtRef.current = at;
+    }
+    savedOmRef.current = null;
+    setDiscarding(false);
+    clearLastOm();
+  }, [lastOm?.capturedAt, clearLastOm]);
+
+  // The inline panel reports its corpus-share choice up so the auto-save (fired
+  // from the effect, not the panel) can read it at verify time.
+  const handleShareChange = useCallback((share: boolean) => {
+    pendingShareRef.current = share;
+  }, []);
 
   return (
     <main
@@ -431,11 +554,18 @@ export default function LivePage() {
           om={lastOm}
           revealCompressed={revealCompressed}
           signedIn={session != null}
+          authReady={!authLoading}
+          authConfigured={configured}
           saveState={saveState}
           saveError={saveError}
           savedFact={savedFact && savedFact.at === lastOm.capturedAt ? savedFact : null}
-          onSave={(c) => void handleSave(c)}
-          onDiscard={clearLastOm}
+          discarding={discarding}
+          discardError={discardError}
+          sendEmailCode={sendEmailCode}
+          verifyEmailCode={verifyEmailCode}
+          onShareChange={handleShareChange}
+          onRetrySave={() => void handleSave(pendingShareRef.current)}
+          onDiscard={() => void handleDiscard()}
         />
       )}
 
@@ -563,12 +693,26 @@ interface CapturedOmCardProps {
    *  (same gesture at 9/16 time). */
   revealCompressed: boolean;
   signedIn: boolean;
+  /** False while getSession() is still resolving — gates the signed-out panel
+   *  so a fast capture doesn't flash sign-in before auth hydrates. */
+  authReady: boolean;
+  /** False when the Supabase env is absent — the inline panel can't work, so
+   *  it degrades to a plain note. */
+  authConfigured: boolean;
   saveState: 'idle' | 'saving' | 'saved';
   saveError: string | null;
   /** RLS-scoped holds-count for the saved om's sound, or null while/if
    *  unavailable — the saved line then carries the arc in its link alone. */
   savedFact: { vowel: string; count: number } | null;
-  onSave: (choice: ConsentChoice) => void;
+  /** A cloud hard-delete is in flight (discard, post-save). */
+  discarding: boolean;
+  discardError: string | null;
+  sendEmailCode: (email: string) => Promise<{ error: Error | null }>;
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: Error | null }>;
+  /** Report the corpus-share opt-in chosen at the inline claim moment. */
+  onShareChange: (share: boolean) => void;
+  /** Re-fire the auto-save after a failure (signed-in retry). */
+  onRetrySave: () => void;
   onDiscard: () => void;
 }
 
@@ -578,17 +722,28 @@ interface CapturedOmCardProps {
  * and the save decision are physically one object; no overlay, no dismissal,
  * input never blocked. key={om.capturedAt} remounts the reveal per capture so
  * every om gets a fresh t=0 beat. The head prints the facts (vowel, seconds);
- * the braid readout is the index of record — printed once. The save path
- * reuses ConsentStep (the two-checkbox consent gate).
+ * the braid readout is the index of record — printed once.
+ *
+ * The save path is now silent: a signed-in user's om auto-saves the moment it
+ * latches (the band just shows "saving…" → "saved"). A signed-out user gets an
+ * inline email→code panel here — no route change, the analyzer never unmounts,
+ * the pending om survives in state and saves on verify.
  */
 function CapturedOmCard({
   om,
   revealCompressed,
   signedIn,
+  authReady,
+  authConfigured,
   saveState,
   saveError,
   savedFact,
-  onSave,
+  discarding,
+  discardError,
+  sendEmailCode,
+  verifyEmailCode,
+  onShareChange,
+  onRetrySave,
   onDiscard,
 }: CapturedOmCardProps) {
   const d = om.snapshot;
@@ -635,8 +790,8 @@ function CapturedOmCard({
         <div className={styles.capturedActions}>
           {/* Persistent visually-hidden status (the same idiom as the capture
               announcer above): mounted with the card — BEFORE any save — so
-              when ConsentStep unmounts and takes focus with it, "saved" is
-              still announced, and the signature fact that lands a beat later
+              when the inline panel unmounts and takes focus with it, "saved"
+              is still announced, and the signature fact that lands a beat later
               re-announces through the same region. */}
           <span className={styles.srOnly} role="status">
             {saveState === 'saved'
@@ -663,21 +818,189 @@ function CapturedOmCard({
               <Link to="/dashboard">view your signature</Link>
             </span>
           ) : signedIn ? (
-            <ConsentStep saving={saveState === 'saving'} error={saveError} onSave={onSave} />
+            // Auto-save in flight or failed — calm, no checkbox. saveState
+            // flips to 'saved' from the effect; on error a quiet retry.
+            saveError ? (
+              <span className={styles.saveFail}>
+                save failed —{' '}
+                <button type="button" className={styles.retryBtn} onClick={onRetrySave}>
+                  retry
+                </button>
+                <span className={styles.saveFailDetail}> · {saveError}</span>
+              </span>
+            ) : (
+              <span className={styles.savingMsg} aria-live="polite">
+                saving to your account…
+              </span>
+            )
+          ) : authConfigured && authReady ? (
+            // No route change: the analyzer stays mounted, the om survives in
+            // state, and on verify the effect above auto-saves it.
+            <InlineSignIn
+              key={om.capturedAt}
+              sendEmailCode={sendEmailCode}
+              verifyEmailCode={verifyEmailCode}
+              onShareChange={onShareChange}
+            />
+          ) : authConfigured ? (
+            <span className={styles.signInMsg}>signing you in…</span>
           ) : (
             <span className={styles.signInMsg}>
-              <Link to="/signin">sign in to save</Link> — analysis stays on your device.
+              accounts are not configured on this deployment — analysis stays on your device.
             </span>
           )}
 
           <div className={styles.capturedBtns}>
-            <button type="button" className={styles.discardBtn} onClick={onDiscard}>
-              discard
+            {discardError && <span className={styles.saveFailDetail}>{discardError}</span>}
+            <button
+              type="button"
+              className={styles.discardBtn}
+              onClick={onDiscard}
+              disabled={discarding}
+            >
+              {discarding ? 'discarding…' : 'discard'}
             </button>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+interface InlineSignInProps {
+  sendEmailCode: (email: string) => Promise<{ error: Error | null }>;
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: Error | null }>;
+  onShareChange: (share: boolean) => void;
+}
+
+/**
+ * Inline email→code sign-in, lifted from SignInPage's two-step idiom but living
+ * INSIDE the captured-om band — no navigation, so the analyzer never unmounts
+ * and the pending om survives in LivePage state the whole time. On a successful
+ * verify the session flips non-null via onAuthStateChange and LivePage's
+ * auto-save effect saves the pending om; this component does not navigate or
+ * touch the save path itself. key={om.capturedAt} on the call site remounts it
+ * per capture, so a fresh om resets back to the email step.
+ *
+ * The one corpus-share opt-in lives here and only here (the claim moment):
+ * unchecked by default, non-blocking, reported up via onShareChange so the
+ * triggered auto-save picks it up.
+ */
+function InlineSignIn({ sendEmailCode, verifyEmailCode, onShareChange }: InlineSignInProps) {
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [share, setShare] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
+
+  async function onSendEmail(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const { error: err } = await sendEmailCode(email.trim());
+    setBusy(false);
+    if (err) {
+      setError(err.message);
+    } else {
+      setStep('code');
+      setCode('');
+      requestAnimationFrame(() => codeRef.current?.focus());
+    }
+  }
+
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    // Lock the share choice in BEFORE the session flips, so the auto-save
+    // effect reads the right value when it fires.
+    onShareChange(share);
+    const { error: err } = await verifyEmailCode(email.trim(), code.trim());
+    if (err) {
+      setBusy(false);
+      setError(err.message);
+    }
+    // success: leave `busy` on — the session flip remounts this branch into the
+    // signed-in "saving…" state; no navigation, no reset needed.
+  }
+
+  return (
+    <div className={styles.inlineAuth}>
+      {step === 'email' ? (
+        <form className={styles.inlineAuthForm} onSubmit={onSendEmail}>
+          <p className={styles.inlineAuthIntro}>
+            sign in to keep this om — a one-time code, no password.
+          </p>
+          <div className={styles.inlineAuthField}>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              aria-label="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={styles.inlineAuthInput}
+            />
+            <button type="submit" className={styles.inlineAuthBtn} disabled={busy}>
+              {busy ? 'sending…' : 'email me a code'}
+            </button>
+          </div>
+          <label className={styles.inlineAuthShare}>
+            <input
+              type="checkbox"
+              checked={share}
+              onChange={(e) => setShare(e.target.checked)}
+            />
+            <span>also contribute anonymized features to the research corpus (optional)</span>
+          </label>
+          {error && <p className={styles.saveFailDetail}>{error}</p>}
+        </form>
+      ) : (
+        <form className={styles.inlineAuthForm} onSubmit={onVerify}>
+          <p className={styles.inlineAuthIntro}>
+            we emailed a {CODE_LEN}-digit code to <strong>{email}</strong>.
+          </p>
+          <div className={styles.inlineAuthField}>
+            <input
+              ref={codeRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]*"
+              maxLength={CODE_MAX}
+              required
+              placeholder="000000"
+              aria-label={`${CODE_LEN}-digit sign-in code`}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, CODE_MAX))}
+              className={styles.inlineAuthCode}
+            />
+            <button
+              type="submit"
+              className={styles.inlineAuthBtn}
+              disabled={busy || code.length < CODE_LEN}
+            >
+              {busy ? 'verifying…' : 'verify & save'}
+            </button>
+          </div>
+          <button
+            type="button"
+            className={styles.inlineAuthLink}
+            onClick={() => {
+              setStep('email');
+              setCode('');
+              setError(null);
+            }}
+          >
+            use a different email
+          </button>
+          {error && <p className={styles.saveFailDetail}>{error}</p>}
+        </form>
+      )}
+    </div>
   );
 }
 
