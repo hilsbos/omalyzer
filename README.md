@@ -45,6 +45,23 @@ cargo test
 
 ---
 
+## Development
+
+CI runs on every push and pull request (`.github/workflows/ci.yml`) and enforces
+three gates, all run from `live/`:
+
+```sh
+cargo fmt --check                 # formatting
+cargo clippy --all-targets -- -D warnings   # lints (warnings are errors)
+cargo test                        # unit tests
+```
+
+Please run these locally before opening a PR. On Linux the build needs the ALSA
+and udev development headers (`libasound2-dev`, `libudev-dev`); on macOS no extra
+system packages are required.
+
+---
+
 ## Repository layout
 
 ```
