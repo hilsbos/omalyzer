@@ -1,8 +1,17 @@
-// Omalyzer Live — real-time vowel-chant analyzer.
-//
-// Captures a macOS input device and shows a scrolling low-frequency
-// spectrogram. Per-hop analysis (pitch, harmonics, formants, voice quality)
-// runs behind an RMS silence gate; results are surfaced in the top panel.
+//! Omalyzer Live — real-time vowel-chant analyzer.
+//!
+//! Captures a macOS input device and shows a scrolling low-frequency
+//! spectrogram. Per-hop analysis (pitch, harmonics, formants, voice quality)
+//! runs behind an RMS silence gate; results are surfaced in the top panel.
+//!
+//! # Dataflow
+//!
+//! [`audio`] sends mono `f32` chunks over an `mpsc` channel.
+//! [`App::ingest_audio`] slices them into [`HOP`]-sample hops, maintains a
+//! [`FFT_SIZE`]-sample Hann-windowed FFT buffer, and calls [`analysis::run`]
+//! every hop. The analysis result feeds both the per-hop readout and the
+//! sustained-tone coherence state machine ([`App::update_sustained_capture`] /
+//! [`App::finish_held_note`]).
 
 mod analysis;
 mod audio;
