@@ -153,7 +153,7 @@ Calls all DSP modules in sequence for each FFT hop and returns one `AnalysisResu
 ### `pitch.rs` — Pitch detection
 **YIN algorithm** (de Cheveigné & Kawahara 2002): squared-difference function → cumulative-mean-normalized difference (CMND) → absolute threshold 0.15 → descent to local minimum → reject if CMND > 0.2 → parabolic interpolation. Lag range covers 70–500 Hz.
 
-`PitchTracker` maintains up to 60 s of per-hop history and exputes:
+`PitchTracker` maintains up to 60 s of per-hop history and computes:
 - **Jitter** — std-dev in cents over the last ~1 s of the current note.
 - **Drift** — cents change from the onset median to the recent median (~2 s each).
 
