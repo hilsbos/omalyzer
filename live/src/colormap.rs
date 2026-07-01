@@ -1,4 +1,9 @@
-// Magma-ish colormap for the spectrogram.
+//! Magma-ish colormap for the spectrogram.
+//!
+//! [`colormap`] maps a normalized intensity `t ∈ [0, 1]` to an `[R, G, B]`
+//! byte triple by piecewise-linear interpolation through five hand-chosen stops
+//! (black → purple → pink → orange → cream), approximating the perceptually
+//! uniform *magma* palette.
 
 /// Magma-ish colormap, t in [0,1].
 pub fn colormap(t: f32) -> [u8; 3] {

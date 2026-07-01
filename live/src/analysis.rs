@@ -1,5 +1,9 @@
-// Per-hop analysis orchestrator: combines pitch, harmonics, formants and
-// voice-quality measures into a single AnalysisResult, behind an RMS gate.
+//! Per-hop analysis orchestrator: combines pitch, harmonics, formants and
+//! voice-quality measures into a single [`AnalysisResult`], behind an RMS gate.
+//!
+//! Call [`run`] once per FFT hop. When the gate is closed it returns an
+//! all-default result while still advancing the [`PitchTracker`] so note
+//! timeouts work correctly during silence.
 
 use crate::formants::{self, Formants};
 use crate::harmonics;
