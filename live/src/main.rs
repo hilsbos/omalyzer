@@ -25,11 +25,11 @@ mod ui;
 mod voice_quality;
 
 use std::collections::VecDeque;
-use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
+use std::sync::mpsc::{Receiver, channel};
 
 use eframe::egui::{self, Color32, TextureHandle};
-use rustfft::{num_complex::Complex, Fft, FftPlanner};
+use rustfft::{Fft, FftPlanner, num_complex::Complex};
 
 use audio::{list_input_devices, start_audio};
 use pitch::PitchTracker;
@@ -83,16 +83,16 @@ struct App {
     hann: Vec<f32>,
     hann_sum: f32, // cached sum of `hann` (window-normalization denominator)
     fft: Arc<dyn Fft<f32>>,
-    win_scratch: Vec<f32>,             // reused contiguous copy of `window` per hop
-    fft_scratch: Vec<Complex<f32>>,    // reused FFT input buffer per hop
-    stored_bins: usize,   // bins kept per spectrogram column (up to STORE_MAX_HZ)
-    analysis_bins: usize, // bins kept in latest_lin for analysis (up to ANALYSIS_MAX_HZ)
+    win_scratch: Vec<f32>, // reused contiguous copy of `window` per hop
+    fft_scratch: Vec<Complex<f32>>, // reused FFT input buffer per hop
+    stored_bins: usize,    // bins kept per spectrogram column (up to STORE_MAX_HZ)
+    analysis_bins: usize,  // bins kept in latest_lin for analysis (up to ANALYSIS_MAX_HZ)
     spec: VecDeque<Vec<f32>>, // dB columns, index 0 = oldest
-    latest_lin: Vec<f32>,     // latest linear (window-normalized) magnitude column
-    prev_lin: Vec<f32>,       // previous frame's linear magnitude column (for flux)
-    current_rms: f32,         // most recent per-hop RMS amplitude
-    gate_open: bool,          // current gate state (hysteresis between hops)
-    gate_hold: u32,           // remaining release-hold hops before closing
+    latest_lin: Vec<f32>,  // latest linear (window-normalized) magnitude column
+    prev_lin: Vec<f32>,    // previous frame's linear magnitude column (for flux)
+    current_rms: f32,      // most recent per-hop RMS amplitude
+    gate_open: bool,       // current gate state (hysteresis between hops)
+    gate_hold: u32,        // remaining release-hold hops before closing
 
     // analysis
     last_result: analysis::AnalysisResult,
@@ -260,8 +260,11 @@ impl App {
                 // would make current_rms NaN, and every gate comparison with `>`
                 // is false for NaN — wedging the silence gate (a closed gate
                 // never reopens). Replace non-finite samples with silence.
-                self.pending
-                    .extend(chunk.into_iter().map(|s| if s.is_finite() { s } else { 0.0 }));
+                self.pending.extend(
+                    chunk
+                        .into_iter()
+                        .map(|s| if s.is_finite() { s } else { 0.0 }),
+                );
             }
         }
         while self.pending.len() >= HOP {
@@ -416,19 +419,19 @@ impl App {
             self.finish_held_note();
 
             // Start a fresh segment if this frame is voiced with a known onset.
-            if result.voiced {
-                if let (Some(on), Some(f0)) = (onset, result.f0) {
-                    let mut seg = coherence::SustainedSegment::new(hps);
-                    Self::push_hop_features(&mut seg, result, rms);
-                    self.held_segment = Some(seg);
-                    self.held_onset = Some(on);
-                    self.held_vowel = result.vowel;
-                    self.held_vowel_conf = result.vowel_conf;
-                    self.held_samples.clear();
-                    Self::append_held_samples(&mut self.held_samples, win);
-                    self.held_f0_sum = f0;
-                    self.held_f0_n = 1;
-                }
+            if result.voiced
+                && let (Some(on), Some(f0)) = (onset, result.f0)
+            {
+                let mut seg = coherence::SustainedSegment::new(hps);
+                Self::push_hop_features(&mut seg, result, rms);
+                self.held_segment = Some(seg);
+                self.held_onset = Some(on);
+                self.held_vowel = result.vowel;
+                self.held_vowel_conf = result.vowel_conf;
+                self.held_samples.clear();
+                Self::append_held_samples(&mut self.held_samples, win);
+                self.held_f0_sum = f0;
+                self.held_f0_n = 1;
             }
         } else if let Some(mut seg) = self.held_segment.take() {
             // Same note held. A momentarily-unvoiced hop (tracker still within
@@ -463,21 +466,22 @@ impl App {
     /// then the Vocal Coherence Index, storing it when the hold was long enough.
     /// Clears the held-note state regardless.
     fn finish_held_note(&mut self) {
-        if let Some(mut seg) = self.held_segment.take() {
-            if seg.duration_secs() >= SUSTAINED_MIN_SECS && self.held_f0_n > 0 {
-                let f0 = self.held_f0_sum / self.held_f0_n as f32;
-                let shimmer = voice_quality::shimmer(&self.held_samples, self.sample_rate, f0);
-                seg.set_shimmer(shimmer);
-                // Smoothed cepstral peak prominence over the whole held window —
-                // a raw within-person measurement that also feeds the harmonic
-                // sub-metric. Computed before compute() so both reflect it.
-                let cpps = voice_quality::cpps(&self.held_samples, self.sample_rate, f0);
-                seg.set_cpps(cpps);
-                if let Some(metrics) = coherence::compute(&seg) {
-                    self.last_coherence = Some(metrics);
-                    self.last_coherence_vowel = self.held_vowel;
-                    self.last_coherence_secs = seg.duration_secs();
-                }
+        if let Some(mut seg) = self.held_segment.take()
+            && seg.duration_secs() >= SUSTAINED_MIN_SECS
+            && self.held_f0_n > 0
+        {
+            let f0 = self.held_f0_sum / self.held_f0_n as f32;
+            let shimmer = voice_quality::shimmer(&self.held_samples, self.sample_rate, f0);
+            seg.set_shimmer(shimmer);
+            // Smoothed cepstral peak prominence over the whole held window —
+            // a raw within-person measurement that also feeds the harmonic
+            // sub-metric. Computed before compute() so both reflect it.
+            let cpps = voice_quality::cpps(&self.held_samples, self.sample_rate, f0);
+            seg.set_cpps(cpps);
+            if let Some(metrics) = coherence::compute(&seg) {
+                self.last_coherence = Some(metrics);
+                self.last_coherence_vowel = self.held_vowel;
+                self.last_coherence_secs = seg.duration_secs();
             }
         }
         self.held_onset = None;
@@ -565,7 +569,11 @@ impl eframe::App for App {
                 ui.label(format!("@ {:.1} kHz", self.sample_rate / 1000.0));
                 ui.separator();
                 if ui
-                    .button(if self.paused { "▶ resume" } else { "⏸ pause" })
+                    .button(if self.paused {
+                        "▶ resume"
+                    } else {
+                        "⏸ pause"
+                    })
                     .clicked()
                 {
                     self.paused = !self.paused;
@@ -736,18 +744,10 @@ impl eframe::App for App {
             );
             // Overlay harmonic ticks and formant lines when voiced.
             let r = &self.last_result;
-            if r.voiced {
-                if let Some(f0) = r.f0 {
-                    ui::draw_spectrogram_overlay(
-                        ui,
-                        spec_rect,
-                        self.max_freq,
-                        f0,
-                        r.f1,
-                        r.f2,
-                        r.f3,
-                    );
-                }
+            if r.voiced
+                && let Some(f0) = r.f0
+            {
+                ui::draw_spectrogram_overlay(ui, spec_rect, self.max_freq, f0, r.f1, r.f2, r.f3);
             }
         });
 

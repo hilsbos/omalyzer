@@ -223,7 +223,10 @@ mod tests {
     #[test]
     fn white_noise_has_high_entropy_and_flatness() {
         // |magnitude| of white noise across bins is roughly flat/diffuse.
-        let spec: Vec<f32> = white_noise(256, 0xABCD_1234).iter().map(|x| x.abs()).collect();
+        let spec: Vec<f32> = white_noise(256, 0xABCD_1234)
+            .iter()
+            .map(|x| x.abs())
+            .collect();
         let h = spectral_entropy(&spec);
         let f = spectral_flatness(&spec);
         assert!(h > 0.7, "noise entropy {h} should be high");
@@ -279,7 +282,10 @@ mod tests {
     fn flux_zero_for_identical_spectra() {
         let spec = tonal_spectrum(128, 20);
         let flux = spectral_flux(&spec, &spec);
-        assert!(flux.abs() < 1e-6, "identical-spectra flux {flux} should be ~0");
+        assert!(
+            flux.abs() < 1e-6,
+            "identical-spectra flux {flux} should be ~0"
+        );
     }
 
     #[test]
@@ -287,7 +293,10 @@ mod tests {
         let prev = tonal_spectrum(128, 20);
         let curr = tonal_spectrum(128, 60); // energy moved to a different bin
         let flux = spectral_flux(&prev, &curr);
-        assert!(flux > 0.0, "changed-spectrum flux {flux} should be positive");
+        assert!(
+            flux > 0.0,
+            "changed-spectrum flux {flux} should be positive"
+        );
     }
 
     #[test]
@@ -307,7 +316,10 @@ mod tests {
         let curr2: Vec<f32> = curr.iter().map(|x| x * 10.0).collect();
         let a = spectral_flux(&prev, &curr);
         let b = spectral_flux(&prev2, &curr2);
-        assert!((a - b).abs() < 1e-4, "flux should be scale-invariant: {a} vs {b}");
+        assert!(
+            (a - b).abs() < 1e-4,
+            "flux should be scale-invariant: {a} vs {b}"
+        );
     }
 
     #[test]
@@ -333,8 +345,14 @@ mod tests {
         let mut high = vec![0.001f32; n];
         high[300] = 1.0;
         let a_high = alpha_ratio_db(&high, bin_hz).expect("alpha high");
-        assert!(a_high < 0.0, "high-dominant alpha {a_high} should be negative");
-        assert!(a_low > a_high, "low tilt {a_low} should exceed high tilt {a_high}");
+        assert!(
+            a_high < 0.0,
+            "high-dominant alpha {a_high} should be negative"
+        );
+        assert!(
+            a_low > a_high,
+            "low tilt {a_low} should exceed high tilt {a_high}"
+        );
     }
 
     #[test]

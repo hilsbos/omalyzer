@@ -81,9 +81,15 @@ pub fn estimate(samples: &[f32], sr: f32, f0: Option<f32>) -> Formants {
     let mut formants = pick_formants(&peaks, f0);
 
     // -3 dB bandwidths from the same LPC envelope (None when the formant absent).
-    formants.b1 = formants.f1.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
-    formants.b2 = formants.f2.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
-    formants.b3 = formants.f3.and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+    formants.b1 = formants
+        .f1
+        .and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+    formants.b2 = formants
+        .f2
+        .and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
+    formants.b3 = formants
+        .f3
+        .and_then(|f| formant_bandwidth(&env_db, &grid_hz, f));
 
     formants
 }
@@ -314,12 +320,13 @@ fn pick_formants(peaks: &[(f32, f32)], f0: Option<f32>) -> Formants {
             // An alternative only counts if it is a real formant-strength peak,
             // i.e. within ~6 dB of the candidate's level — not a noise blip far
             // down on the envelope skirt.
-            if dist_to_harmonic(first.0, f0v) <= tol {
-                if let Some(&alt) = cands.iter().skip(1).find(|&&(f, lvl)| {
-                    dist_to_harmonic(f, f0v) > tol && lvl >= first.1 - 6.0
-                }) {
-                    return Some(alt.0);
-                }
+            if dist_to_harmonic(first.0, f0v) <= tol
+                && let Some(&alt) = cands
+                    .iter()
+                    .skip(1)
+                    .find(|&&(f, lvl)| dist_to_harmonic(f, f0v) > tol && lvl >= first.1 - 6.0)
+            {
+                return Some(alt.0);
             }
         }
         Some(first.0)
@@ -495,8 +502,18 @@ mod tests {
         let r = autocorr(&x[1000..], 2);
         let a = levinson(&r, 2);
         // a = [1, a1, a2]
-        assert!((a[1] - a1).abs() < 0.05, "a1 recovered = {} (want {})", a[1], a1);
-        assert!((a[2] - a2).abs() < 0.05, "a2 recovered = {} (want {})", a[2], a2);
+        assert!(
+            (a[1] - a1).abs() < 0.05,
+            "a1 recovered = {} (want {})",
+            a[1],
+            a1
+        );
+        assert!(
+            (a[2] - a2).abs() < 0.05,
+            "a2 recovered = {} (want {})",
+            a[2],
+            a2
+        );
     }
 
     #[test]

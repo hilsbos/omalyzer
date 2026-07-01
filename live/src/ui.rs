@@ -58,7 +58,12 @@ pub fn draw_spectrogram(
     let image = ColorImage::from_rgb([w, h], &rgb);
     match tex {
         Some(t) => t.set(image, TextureOptions::NEAREST),
-        None => *tex = Some(ui.ctx().load_texture("spec", image, TextureOptions::NEAREST)),
+        None => {
+            *tex = Some(
+                ui.ctx()
+                    .load_texture("spec", image, TextureOptions::NEAREST),
+            )
+        }
     }
 
     let avail = ui.available_size();
@@ -115,7 +120,7 @@ pub fn draw_spectrogram_overlay(
     f2: Option<f32>,
     f3: Option<f32>,
 ) {
-    if max_freq <= 0.0 || !(f0 > 0.0) || rect.height() <= 0.0 {
+    if max_freq <= 0.0 || !(f0.is_finite() && f0 > 0.0) || rect.height() <= 0.0 {
         return;
     }
     let painter = ui.painter_at(rect);
@@ -133,29 +138,33 @@ pub fn draw_spectrogram_overlay(
         }
         let y = y_of(fk);
         painter.line_segment(
-            [Pos2::new(rect.right() - tick_len, y), Pos2::new(rect.right(), y)],
+            [
+                Pos2::new(rect.right() - tick_len, y),
+                Pos2::new(rect.right(), y),
+            ],
             Stroke::new(1.5, Color32::from_rgba_unmultiplied(255, 255, 255, 200)),
         );
     }
 
     // Horizontal formant lines (thin, semi-transparent) with small labels.
     let draw_formant = |freq: Option<f32>, color: Color32, label: &str| {
-        if let Some(fv) = freq {
-            if fv > 0.0 && fv < max_freq {
-                let y = y_of(fv);
-                let stroke_color = color.gamma_multiply(0.65);
-                painter.line_segment(
-                    [Pos2::new(rect.left(), y), Pos2::new(rect.right() - 12.0, y)],
-                    Stroke::new(1.5, stroke_color),
-                );
-                painter.text(
-                    Pos2::new(rect.right() - 14.0, y),
-                    egui::Align2::RIGHT_CENTER,
-                    label,
-                    egui::FontId::monospace(10.0),
-                    color,
-                );
-            }
+        if let Some(fv) = freq
+            && fv > 0.0
+            && fv < max_freq
+        {
+            let y = y_of(fv);
+            let stroke_color = color.gamma_multiply(0.65);
+            painter.line_segment(
+                [Pos2::new(rect.left(), y), Pos2::new(rect.right() - 12.0, y)],
+                Stroke::new(1.5, stroke_color),
+            );
+            painter.text(
+                Pos2::new(rect.right() - 14.0, y),
+                egui::Align2::RIGHT_CENTER,
+                label,
+                egui::FontId::monospace(10.0),
+                color,
+            );
         }
     };
     draw_formant(f1, F1_COLOR, "F1");
@@ -390,12 +399,13 @@ pub fn draw_vowel_chart(
     }
 
     // Live dot.
-    if let (Some(f1), Some(f2)) = live {
-        if f1 > 0.0 && f2 > 0.0 {
-            let p = Pos2::new(x_of(f2), y_of(f1));
-            painter.circle_filled(p, 4.5, Color32::from_rgb(255, 230, 120));
-            painter.circle_stroke(p, 4.5, Stroke::new(1.0, Color32::BLACK));
-        }
+    if let (Some(f1), Some(f2)) = live
+        && f1 > 0.0
+        && f2 > 0.0
+    {
+        let p = Pos2::new(x_of(f2), y_of(f1));
+        painter.circle_filled(p, 4.5, Color32::from_rgb(255, 230, 120));
+        painter.circle_stroke(p, 4.5, Stroke::new(1.0, Color32::BLACK));
     }
 }
 
@@ -428,18 +438,13 @@ pub fn draw_coherence_panel(
         (None, _) => "Vocal Coherence (sustained tone) — hold a steady note ≥ 2.5 s".to_string(),
     };
     ui.horizontal(|ui| {
-        ui.label(
-            egui::RichText::new(header)
-                .monospace()
-                .size(13.0)
-                .strong(),
-        )
-        .on_hover_text(
-            "Overall vocal coherence and its five acoustic sub-metrics, measured \
+        ui.label(egui::RichText::new(header).monospace().size(13.0).strong())
+            .on_hover_text(
+                "Overall vocal coherence and its five acoustic sub-metrics, measured \
              over the last steady tone you held (≥ 2.5 s). Each score is 0..1, \
              higher = steadier / clearer / more ordered. A within-person acoustic \
              measure, not a diagnosis.",
-        );
+            );
         if let Some(li) = live_index {
             ui.label(
                 egui::RichText::new(format!("· holding… {li:.2}"))
@@ -464,12 +469,10 @@ pub fn draw_coherence_panel(
     // D4: an honest scope note. The index reflects vocal-production steadiness
     // only; it is NOT a nervous-system, arousal, or health reading.
     ui.label(
-        egui::RichText::new(
-            "  reflects vocal-production steadiness — no nervous-system claim",
-        )
-        .monospace()
-        .size(10.0)
-        .weak(),
+        egui::RichText::new("  reflects vocal-production steadiness — no nervous-system claim")
+            .monospace()
+            .size(10.0)
+            .weak(),
     );
 
     // Overall index as a prominent bar.
@@ -479,11 +482,15 @@ pub fn draw_coherence_panel(
             Some(i) => format!("index {i:.2}"),
             None => format!("index {dash:>4}"),
         };
-        ui.label(egui::RichText::new(format!("{label:<11}")).monospace().size(14.0))
-            .on_hover_text(
-                "Weighted overall index: 0.25·pitch + 0.15·amplitude + 0.30·harmonic \
+        ui.label(
+            egui::RichText::new(format!("{label:<11}"))
+                .monospace()
+                .size(14.0),
+        )
+        .on_hover_text(
+            "Weighted overall index: 0.25·pitch + 0.15·amplitude + 0.30·harmonic \
                  + 0.15·spectral + 0.15·resonance.",
-            );
+        );
         coherence_bar(ui, index, 240.0, 14.0);
     });
 
@@ -619,7 +626,8 @@ pub fn draw_state_signals_panel(ui: &mut egui::Ui, metrics: Option<&CoherenceMet
         ui,
         Evidence::Moderate,
         "α-ratio",
-        d.and_then(|d| d.alpha_ratio_db).map(|a| format!("{a:>+6.1} dB")),
+        d.and_then(|d| d.alpha_ratio_db)
+            .map(|a| format!("{a:>+6.1} dB")),
         "Spectral tilt (low vs high band energy) averaged over the held tone, in dB — \
          a raw measurement. It will become a within-person signal once a baseline \
          exists; shown here only as a measured acoustic, not a state.",
@@ -667,10 +675,12 @@ pub fn draw_state_signals_panel(ui: &mut egui::Ui, metrics: Option<&CoherenceMet
     // Blank-to-dash hint when there is no completed tone yet.
     if metrics.is_none() {
         ui.label(
-            egui::RichText::new(format!("  {dash} hold a steady note ≥ 2.5 s for state signals"))
-                .monospace()
-                .size(10.0)
-                .weak(),
+            egui::RichText::new(format!(
+                "  {dash} hold a steady note ≥ 2.5 s for state signals"
+            ))
+            .monospace()
+            .size(10.0)
+            .weak(),
         );
     }
 }
@@ -699,12 +709,8 @@ fn state_signal_row(
         )
         .on_hover_text(tooltip);
         let value = raw.unwrap_or_else(|| format!("{dash:>6}"));
-        ui.label(
-            egui::RichText::new(value)
-                .monospace()
-                .size(12.0),
-        )
-        .on_hover_text(tooltip);
+        ui.label(egui::RichText::new(value).monospace().size(12.0))
+            .on_hover_text(tooltip);
     });
 }
 

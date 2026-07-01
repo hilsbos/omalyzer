@@ -65,6 +65,7 @@ pub struct AnalysisResult {
 ///
 /// When the gate is closed the tracker still receives an unvoiced `push` so it
 /// can time out the current note, and an all-`—` result is returned.
+#[allow(clippy::too_many_arguments)] // per-hop orchestrator: each spectrum/config input is distinct
 pub fn run(
     window: &[f32],
     prev_lin: &[f32],
@@ -109,7 +110,7 @@ pub fn run(
                 flux,
                 alpha_ratio_db,
                 ..AnalysisResult::default()
-            }
+            };
         }
     };
 

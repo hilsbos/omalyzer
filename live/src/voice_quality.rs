@@ -79,11 +79,7 @@ pub fn shimmer(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     let diff_mean = diff_sum / (peaks.len() - 1) as f32;
 
     let s = diff_mean / amp_mean;
-    if s.is_finite() {
-        Some(s)
-    } else {
-        None
-    }
+    if s.is_finite() { Some(s) } else { None }
 }
 
 /// CPP (cepstral peak prominence) in dB.
@@ -150,6 +146,9 @@ pub fn cpp(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
     // Find the peak (max) cepstral value in the search band.
     let mut peak_q = q_lo;
     let mut peak_val = cep[q_lo];
+    // Indexing a quefrency sub-range; `peak_q` is the index itself, so a plain
+    // range loop is clearer than `enumerate` with an offset.
+    #[allow(clippy::needless_range_loop)]
     for q in q_lo..=q_hi {
         if cep[q] > peak_val {
             peak_val = cep[q];
@@ -228,7 +227,7 @@ fn frame_prominence(cep: &[f32], sr: f32, f0: f32) -> Option<f32> {
     }
     // Bias toward the provided f0 when it is finite and inside the band: shrink
     // the search to ±20% around sr/f0 (still clamped to the voice band).
-    if f0.is_finite() && f0 >= 60.0 && f0 <= 330.0 {
+    if f0.is_finite() && (60.0..=330.0).contains(&f0) {
         let q0 = sr / f0;
         let lo = (q0 * 0.8).floor() as usize;
         let hi = (q0 * 1.2).ceil() as usize;
@@ -242,6 +241,9 @@ fn frame_prominence(cep: &[f32], sr: f32, f0: f32) -> Option<f32> {
     // Cepstral peak within the band.
     let mut peak_q = q_lo;
     let mut peak_val = cep[q_lo];
+    // Indexing a quefrency sub-range; `peak_q` is the index itself, so a plain
+    // range loop is clearer than `enumerate` with an offset.
+    #[allow(clippy::needless_range_loop)]
     for q in q_lo..=q_hi {
         if cep[q] > peak_val {
             peak_val = cep[q];
@@ -376,6 +378,9 @@ pub fn cpps(samples: &[f32], sr: f32, f0: f32) -> Option<f32> {
         // Quefrency smoothing: short moving average across quefrency.
         let len = cep.len();
         let mut smooth = vec![0.0f32; len];
+        // `q` drives a symmetric window (`q ± SMOOTH_HALF`), so it is index
+        // arithmetic rather than simple element access.
+        #[allow(clippy::needless_range_loop)]
         for q in 0..len {
             let lo = q.saturating_sub(SMOOTH_HALF);
             let hi = (q + SMOOTH_HALF).min(len - 1);
@@ -515,7 +520,7 @@ mod tests {
         let mut sig = vec![0.0f32; n];
         for (i, sample) in sig.iter_mut().enumerate() {
             let cycle = i / period;
-            let amp = if cycle % 2 == 0 { 1.0 } else { 0.6 };
+            let amp = if cycle.is_multiple_of(2) { 1.0 } else { 0.6 };
             *sample = amp * (2.0 * PI * f0 * i as f32 / sr).sin();
         }
         let sh = shimmer(&sig, sr, f0).expect("shimmer");

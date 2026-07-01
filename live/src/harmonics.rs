@@ -108,7 +108,7 @@ pub fn analyze(spectrum_lin: &[f32], bin_hz: f32, f0: f32) -> HarmonicInfo {
                 && (b as usize) < n - 1
                 && m >= spectrum_lin[(b - 1) as usize]
                 && m >= spectrum_lin[(b + 1) as usize];
-            if is_local_max && best_local.map_or(true, |(_, bm)| m > bm) {
+            if is_local_max && best_local.is_none_or(|(_, bm)| m > bm) {
                 best_local = Some((b, m));
             }
             b += 1;
@@ -378,7 +378,9 @@ mod tests {
         // Deterministic pseudo-random white noise (LCG) so the test is stable.
         let mut seed: u64 = 0x1234_5678_9abc_def0;
         let mut noise = || {
-            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             ((seed >> 33) as f32 / (1u64 << 31) as f32) - 1.0 // ~[-1,1)
         };
         let sig: Vec<f32> = (0..n)
@@ -389,11 +391,7 @@ mod tests {
             })
             .collect();
         let hnr = hnr_db(&sig, sr, f0);
-        assert!(
-            hnr < 10.0,
-            "noisy sine HNR {} should be below 10 dB",
-            hnr
-        );
+        assert!(hnr < 10.0, "noisy sine HNR {} should be below 10 dB", hnr);
     }
 
     #[test]

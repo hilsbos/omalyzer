@@ -91,8 +91,7 @@ where
                 let mono: Vec<f32> = data
                     .chunks(channels.max(1))
                     .map(|frame| {
-                        frame.iter().map(|s| s.to_sample::<f32>()).sum::<f32>()
-                            / frame.len() as f32
+                        frame.iter().map(|s| s.to_sample::<f32>()).sum::<f32>() / frame.len() as f32
                     })
                     .collect();
                 let _ = tx.send(mono);

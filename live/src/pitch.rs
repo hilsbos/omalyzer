@@ -76,7 +76,7 @@ pub fn yin(samples: &[f32], sr: f32) -> Option<(f32, f32)> {
     let mut tau = min_lag;
     while tau <= max_lag {
         if cmnd[tau] < ABS_THRESHOLD {
-            while tau + 1 <= max_lag && cmnd[tau + 1] < cmnd[tau] {
+            while tau < max_lag && cmnd[tau + 1] < cmnd[tau] {
                 tau += 1;
             }
             best_tau = tau;
@@ -88,6 +88,9 @@ pub fn yin(samples: &[f32], sr: f32) -> Option<(f32, f32)> {
     // Fallback: global minimum of CMND across the range.
     if best_tau == 0 {
         let mut min_val = f32::INFINITY;
+        // Indexing a lag sub-range (not a zero-based slice), so a plain range
+        // loop is clearer than `enumerate` with an offset.
+        #[allow(clippy::needless_range_loop)]
         for t in min_lag..=max_lag {
             if cmnd[t] < min_val {
                 min_val = cmnd[t];
@@ -149,7 +152,7 @@ const NOTE_NAMES: [&str; 12] = [
 /// `midi = 69 + 12*log2(f0/440)`; the nearest semitone names the note and the
 /// fractional remainder becomes the cents offset (A4 = 440 Hz).
 pub fn hz_to_note(f0: f32) -> String {
-    if !(f0 > 0.0) {
+    if !(f0.is_finite() && f0 > 0.0) {
         return "—".to_string();
     }
     let midi_f = 69.0 + 12.0 * (f0 / 440.0).log2();

@@ -52,13 +52,18 @@ impl SustainedSegment {
             alpha: Vec::new(),
             shimmer: None,
             cpps: None,
-            hops_per_sec: if hops_per_sec > 0.0 { hops_per_sec } else { 1.0 },
+            hops_per_sec: if hops_per_sec > 0.0 {
+                hops_per_sec
+            } else {
+                1.0
+            },
         }
     }
 
     /// Append one voiced hop's features. `hnr_db`, `mean_bw_hz` and
     /// `alpha_ratio_db` are optional; only finite supplied values are accumulated
     /// (so missing/`NaN` measures do not pollute the per-segment means).
+    #[allow(clippy::too_many_arguments)] // one distinct per-hop feature per argument
     pub fn push_hop(
         &mut self,
         f0: f32,
@@ -76,10 +81,10 @@ impl SustainedSegment {
         if rms.is_finite() {
             self.rms.push(rms);
         }
-        if let Some(h) = hnr_db {
-            if h.is_finite() {
-                self.hnr_db.push(h);
-            }
+        if let Some(h) = hnr_db
+            && h.is_finite()
+        {
+            self.hnr_db.push(h);
         }
         if entropy.is_finite() {
             self.entropy.push(entropy);
@@ -87,18 +92,18 @@ impl SustainedSegment {
         if flux.is_finite() {
             self.flux.push(flux);
         }
-        if let Some(b) = mean_bw_hz {
-            if b.is_finite() {
-                self.mean_bandwidth_hz.push(b);
-            }
+        if let Some(b) = mean_bw_hz
+            && b.is_finite()
+        {
+            self.mean_bandwidth_hz.push(b);
         }
         if vowel_conf.is_finite() {
             self.vowel_conf.push(vowel_conf);
         }
-        if let Some(a) = alpha_ratio_db {
-            if a.is_finite() {
-                self.alpha.push(a);
-            }
+        if let Some(a) = alpha_ratio_db
+            && a.is_finite()
+        {
+            self.alpha.push(a);
         }
     }
 
@@ -405,11 +410,11 @@ mod tests {
                 220.0, // f0: constant
                 0.5,   // rms: constant
                 Some(30.0),
-                0.10,        // entropy: low (ordered)
-                0.02,        // flux: low (stable)
-                Some(80.0),  // narrow formant bandwidth
-                0.9,         // confident vowel
-                Some(-8.0),  // alpha ratio (raw measurement)
+                0.10,       // entropy: low (ordered)
+                0.02,       // flux: low (stable)
+                Some(80.0), // narrow formant bandwidth
+                0.9,        // confident vowel
+                Some(-8.0), // alpha ratio (raw measurement)
             );
         }
         seg.set_shimmer(Some(0.02)); // small shimmer
@@ -429,9 +434,9 @@ mod tests {
             seg.push_hop(
                 f0,
                 rms.abs().max(0.05),
-                Some(3.0),  // low HNR
-                0.85,       // high entropy (noisy)
-                0.40,       // high flux (unstable)
+                Some(3.0),   // low HNR
+                0.85,        // high entropy (noisy)
+                0.40,        // high flux (unstable)
                 Some(350.0), // broad formants
                 0.3,         // uncertain vowel
                 Some(-2.0),  // alpha ratio (raw measurement)
@@ -475,7 +480,16 @@ mod tests {
         let mut seg = SustainedSegment::new(11.0);
         // Only a few hops -> well under 1 s.
         for _ in 0..5 {
-            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9, Some(-8.0));
+            seg.push_hop(
+                220.0,
+                0.5,
+                Some(30.0),
+                0.1,
+                0.02,
+                Some(80.0),
+                0.9,
+                Some(-8.0),
+            );
         }
         assert!(compute(&seg).is_none());
     }
@@ -494,7 +508,16 @@ mod tests {
         let hops_per_sec = 11.0;
         let mut seg = SustainedSegment::new(hops_per_sec);
         for _ in 0..((hops_per_sec * 2.0) as usize) {
-            seg.push_hop(220.0, 0.5, Some(30.0), 0.1, 0.02, Some(80.0), 0.9, Some(-8.0));
+            seg.push_hop(
+                220.0,
+                0.5,
+                Some(30.0),
+                0.1,
+                0.02,
+                Some(80.0),
+                0.9,
+                Some(-8.0),
+            );
         }
         let m = compute(&seg).expect("metrics");
         assert!(
@@ -530,7 +553,16 @@ mod tests {
         let mut seg = SustainedSegment::new(hops_per_sec);
         for _ in 0..((hops_per_sec * 2.0) as usize) {
             // HNR/20 -> 0.5, 1-entropy -> 0.5.
-            seg.push_hop(220.0, 0.5, Some(10.0), 0.5, 0.02, Some(80.0), 0.9, Some(-8.0));
+            seg.push_hop(
+                220.0,
+                0.5,
+                Some(10.0),
+                0.5,
+                0.02,
+                Some(80.0),
+                0.9,
+                Some(-8.0),
+            );
         }
         seg.set_cpps(Some(15.0)); // CPPS term -> 1.0
         let m = compute(&seg).expect("metrics");
