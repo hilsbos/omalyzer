@@ -1,5 +1,9 @@
-// UI rendering helpers: the scrolling spectrogram (with harmonic/formant
-// overlays), the pitch-track plot, and the vowel chart.
+//! UI rendering helpers: the scrolling spectrogram (with harmonic/formant
+//! overlays), the pitch-track plot, and the vowel chart.
+//!
+//! All public functions take plain data structs and an `egui::Ui`; they have
+//! no audio-device or DSP dependency. This module (along with `main.rs`) is
+//! the only place that references `egui`.
 
 use std::collections::VecDeque;
 

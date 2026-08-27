@@ -1,10 +1,22 @@
-// Audio capture: device enumeration and cpal input stream setup.
+//! Audio capture: device enumeration and cpal input stream setup.
+//!
+//! [`list_input_devices`] returns the names of all available input devices.
+//! [`start_audio`] opens the default (or a named) input device, spawns a cpal
+//! input stream that downmixes to mono `f32`, and sends sample chunks over an
+//! `mpsc` channel. The caller owns the returned [`cpal::Stream`]; dropping it
+//! stops capture.
+//!
+//! This is the only module that depends on `cpal`. All downstream DSP modules
+//! operate on plain `&[f32]` slices and have no audio-device dependency.
 
 use std::sync::mpsc::Sender;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat};
 
+/// List the names (descriptions) of all available audio input devices on the
+/// default host. Returns an empty `Vec` when enumeration fails (e.g. no audio
+/// subsystem).
 pub fn list_input_devices() -> Vec<String> {
     let host = cpal::default_host();
     host.input_devices()
@@ -16,6 +28,15 @@ pub fn list_input_devices() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Open an audio input stream and start capturing.
+///
+/// * `tx` — channel to which mono `f32` sample chunks are sent each callback.
+/// * `device_name` — if `Some`, use the device whose description matches
+///   exactly; if `None`, use the host's default input device.
+///
+/// Returns `(stream, sample_rate_hz, device_description)` on success, or a
+/// human-readable error string on failure. The caller must keep `stream` alive
+/// for as long as capture is desired; dropping it stops the stream.
 pub fn start_audio(
     tx: Sender<Vec<f32>>,
     device_name: Option<&str>,

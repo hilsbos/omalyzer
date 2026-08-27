@@ -1,16 +1,16 @@
-// Formant estimation (LPC pipeline) and vowel classification.
-//
-// Pipeline (see plan "Formants — LPC without root-finding"):
-//   1. anti-alias FIR low-pass + decimate native sr -> ~12 kHz
-//   2. pre-emphasis  y[n] = x[n] - 0.97 * x[n-1]
-//   3. Hamming window
-//   4. autocorrelation r[0..=ORDER]
-//   5. Gaussian lag-window  r[k] *= exp(-0.5*(PI*k*120/fs_ds)^2)  (~60 Hz bw)
-//   6. Levinson-Durbin, order 14
-//   7. evaluate envelope dB on a 512-point grid 0..5 kHz
-//   8. peak-pick F1/F2/F3 with harmonic-distrust heuristic
-//
-// All free functions on slices; no external state, std only.
+//! Formant estimation (LPC pipeline) and vowel classification.
+//!
+//! Pipeline:
+//! 1. Anti-alias FIR low-pass + decimate native sr → ~12 kHz
+//! 2. Pre-emphasis  `y[n] = x[n] − 0.97·x[n−1]`
+//! 3. Hamming window
+//! 4. Autocorrelation `r[0..=ORDER]`
+//! 5. Gaussian lag-window `r[k] *= exp(−0.5·(π·k·120/fs_ds)²)` (~60 Hz bw)
+//! 6. Levinson-Durbin, order 14
+//! 7. Evaluate LPC spectral envelope (dB) on a 512-point grid 0–5 kHz
+//! 8. Peak-pick F1/F2/F3 with harmonic-distrust heuristic
+//!
+//! All free functions on slices; no external state, `std`-only.
 
 use std::f32::consts::PI;
 

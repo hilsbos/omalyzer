@@ -1,10 +1,14 @@
-// Harmonic peak extraction (count / amplitudes / spectral centroid) and HNR.
-//
-// `analyze` operates on a linear (window-normalized) magnitude spectrum and a
-// known fundamental F0. `hnr_db` measures the harmonics-to-noise ratio in the
-// time domain via the Praat normalized-autocorrelation method.
-//
-// Pure DSP on slices: std-only, no external deps, fully unit-testable.
+//! Harmonic peak extraction (count / amplitudes / spectral centroid) and HNR.
+//!
+//! [`analyze`] operates on a linear (window-normalized) magnitude spectrum and a
+//! known fundamental F0, and returns a [`HarmonicInfo`] with the count of
+//! harmonics above the noise floor, per-harmonic dB amplitudes (first 12), and
+//! the magnitude-weighted spectral centroid.
+//!
+//! [`hnr_db`] measures the harmonics-to-noise ratio in the time domain via
+//! the Praat normalized-autocorrelation method.
+//!
+//! Pure DSP on slices: `std`-only, no external deps, fully unit-testable.
 
 /// Result of harmonic analysis of a single spectral frame.
 pub struct HarmonicInfo {
