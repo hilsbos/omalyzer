@@ -1,0 +1,177 @@
+/* ── VowelStep — the per-vowel scan view (dark "measuring" atmosphere) ──────
+   Plate-token vocabulary only (the page wrapper remaps parchment → plate, the
+   LivePage .console idiom). Calm, centered, generous whitespace — one vowel,
+   one breath. No green/red, no live number; the coherence figure only ever
+   appears in the ScoreReveal reckoning. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-lg);
+  width: min(100%, var(--max));
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* the big phonetic cue — the one thing a sleepy eye lands on */
+.prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2xs);
+}
+
+.cueRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--s-sm);
+}
+
+.label {
+  color: var(--on-plate);
+  font-family: var(--mono);
+  font-size: clamp(var(--t-disp), 12vw, 5.5rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.glyph {
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: clamp(var(--t-md), 4vw, var(--t-lg));
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.hint {
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+
+.copy {
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  max-width: var(--max);
+}
+
+/* the quiet presence ring — a breathing glow whose brightness reads the live
+   steadiness of the held tone (presence, never a number) */
+.ring {
+  position: relative;
+  width: clamp(var(--s-4xl), 30vw, 11rem);
+  height: clamp(var(--s-4xl), 30vw, 11rem);
+  display: block;
+}
+
+/* the SettlingLine ribbon for the held tone sits beneath the ring */
+.settling {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* the 5-dot progress rail — done / current / pending */
+.rail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+}
+
+.dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--s-lg);
+  height: var(--s-lg);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: 0;
+  color: var(--on-plate-weak);
+  border-radius: 999px;
+  border: 1px solid var(--plate-rule);
+  background: transparent;
+}
+
+.dotDone {
+  color: var(--on-plate);
+  border-color: var(--on-plate-soft);
+  background: var(--plate-bg-2);
+}
+
+.dotCurrent {
+  color: var(--on-plate);
+  border-color: var(--on-plate);
+}
+
+.dotSkipped {
+  color: var(--on-plate-weak);
+  border-color: var(--plate-rule);
+}
+
+/* the calm 'still listening' + skip affordance, surfaced after a short delay */
+.listening {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2xs);
+  min-height: var(--s-2xl); /* reserve space so the layout never jumps when it appears */
+  justify-content: center;
+}
+
+.listeningWord {
+  color: var(--on-plate-soft);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+}
+
+.skip {
+  background: none;
+  border: none;
+  padding: var(--s-2xs) var(--s-xs);
+  color: var(--on-plate-weak);
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+  /* hidden until the step has had a calm moment to begin; the parent flips
+     data-ready after SKIP_REVEAL_MS. a gentle fade-in, honoring reduced motion. */
+  opacity: 0;
+  pointer-events: none;
+  transition: color 0.2s ease, opacity 0.6s ease;
+}
+
+.listening[data-ready='true'] .skip {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.skip:hover,
+.skip:focus-visible {
+  color: var(--on-plate-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip {
+    transition: color 0.2s ease;
+  }
+}
+
+/* the in-place reckoning — ScoreReveal lives here during 'revealing' */
+.reveal {
+  width: min(100%, var(--max));
+}

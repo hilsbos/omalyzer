@@ -2,6 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import init, { WasmAnalyzer } from '../wasm/pkg/omalyzer_wasm';
 import type { Snapshot } from '../types/snapshot';
 
+/** Machine-readable category of `AnalyzerStatus.error`, so UIs can lead with
+ *  the right framing instead of pattern-matching copy. */
+export type AnalyzerErrorKind =
+  | 'permission' // mic denied — a grant (or a browser-settings change) fixes it
+  | 'environment' // in-app webview / insecure context / standalone — this container can never grant the mic
+  | 'device' // no mic, mic busy, or mic failed to start
+  | 'engine' // Web Audio or WebAssembly missing (Lockdown Mode, very old browser)
+  | 'load' // fetching the wasm/worklet failed (network blip, content blocker)
+  | 'pipeline'; // anything else mid-pipeline
+
 export interface AnalyzerStatus {
   running: boolean;
   sampleRate: number | null;
@@ -9,6 +19,7 @@ export interface AnalyzerStatus {
   settings: MediaTrackSettings | null;
   warnings: string[];
   error: string | null;
+  errorKind: AnalyzerErrorKind | null;
 }
 
 /**
@@ -41,6 +52,29 @@ export interface AnalyzerHistory {
 
 const GATE_DB = -45.0; // matches core default / web-proof
 
+// Android in-app webviews (the `; wv)` UA token) and the big in-app browsers
+// expose getUserMedia but deny it WITHOUT ever prompting — the host app owns
+// the mic permission and has no plumbing for it. iOS in-app webviews never
+// reach the getUserMedia call at all (no navigator.mediaDevices; caught by the
+// context gate in start()).
+const IN_APP_BROWSER_RE = /\bwv\b|FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|Snapchat/i;
+
+// Idempotent wasm load shared by the mount-time warm-up and start(). The
+// wasm-bindgen glue only caches AFTER a successful finalize, so two concurrent
+// init() calls would double-instantiate; this promise makes the load
+// single-flight, and a failure resets it so the next start() retries the fetch
+// and surfaces the error properly.
+let wasmReady: Promise<unknown> | null = null;
+function ensureWasm(): Promise<unknown> {
+  if (!wasmReady) {
+    wasmReady = init().catch((e) => {
+      wasmReady = null;
+      throw e;
+    });
+  }
+  return wasmReady;
+}
+
 // History caps. Spectrogram ~45 s, pitch/vowel 60 s — generous at ~12 hops/s.
 const MAX_COLUMNS = 540;
 const MAX_PITCH = 760;
@@ -61,6 +95,7 @@ export function useAnalyzer() {
     settings: null,
     warnings: [],
     error: null,
+    errorKind: null,
   });
 
   // Mutable audio graph — refs so re-renders don't recreate it.
@@ -212,7 +247,7 @@ export function useAnalyzer() {
     if (runningRef.current) return;
     const gen = ++genRef.current;
     resetHistory();
-    setStatus((s) => ({ ...s, error: null, warnings: [] }));
+    setStatus((s) => ({ ...s, error: null, errorKind: null, warnings: [] }));
 
     // Everything below is acquired into LOCALS and committed to the refs only
     // after the LAST await has passed a generation check — so a stop() (user,
@@ -228,7 +263,55 @@ export function useAnalyzer() {
       analyzer?.free();
     };
 
-    // 1. Raw-as-possible mic — PLAIN booleans (not {exact:...}) so capture
+    // 0. Context gate — in-app webviews (Mail, Instagram, QR scanners) and some
+    //    home-screen/standalone containers never expose navigator.mediaDevices,
+    //    and it is absent entirely outside secure contexts. Bail with guidance
+    //    instead of letting the property access throw a bare TypeError.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      const standalone =
+        window.matchMedia?.('(display-mode: standalone)')?.matches ||
+        (navigator as { standalone?: boolean }).standalone === true;
+      const why = !window.isSecureContext
+        ? 'microphone capture needs a secure connection — open https://omalyzer.com directly.'
+        : standalone
+          ? 'microphone capture isn’t available in the home-screen app on this device — open omalyzer.com in Safari or Chrome instead.'
+          : 'microphone capture isn’t available here. If this page opened inside another app (Mail, Instagram, a QR scanner), use its menu to open it in Safari or Chrome, then try again.';
+      setStatus((s) => ({ ...s, error: why, errorKind: 'environment' }));
+      return;
+    }
+
+    // 0b. Engine gate — Lockdown Mode (and some hardened/ancient browsers)
+    //     remove the WebAssembly global entirely; failing here beats prompting
+    //     for a mic the analyzer can never use, and beats the opaque
+    //     ReferenceError the init() await would otherwise throw.
+    if (typeof WebAssembly === 'undefined') {
+      setStatus((s) => ({
+        ...s,
+        error:
+          'WebAssembly is turned off in this browser (Lockdown Mode does this) — the analyzer needs it to run. Exclude omalyzer.com from Lockdown Mode, or try another browser.',
+        errorKind: 'engine',
+      }));
+      return;
+    }
+
+    // 1. AudioContext FIRST, synchronously inside the user gesture — iOS can
+    //    consume the tap's transient activation while the permission prompt is
+    //    up, so creating/resuming only after the getUserMedia await risks a
+    //    context that stays suspended forever. resume() is kicked here and
+    //    awaited (idempotently) after the mic lands.
+    try {
+      ctx = new AudioContext();
+    } catch (e) {
+      setStatus((s) => ({
+        ...s,
+        error: `Web Audio isn’t available in this browser: ${e}`,
+        errorKind: 'engine',
+      }));
+      return;
+    }
+    ctx.resume().catch(() => {}); // begin resuming while activation is live
+
+    // 2. Raw-as-possible mic — PLAIN booleans (not {exact:...}) so capture
     //    never fails on a device that can't satisfy the constraint.
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -240,7 +323,37 @@ export function useAnalyzer() {
         video: false,
       });
     } catch (e) {
-      if (!cancelled()) setStatus((s) => ({ ...s, error: `getUserMedia failed: ${e}` }));
+      if (!cancelled()) {
+        const name = e instanceof DOMException ? e.name : '';
+        let msg: string;
+        let kind: AnalyzerErrorKind;
+        if (name === 'NotAllowedError' || name === 'SecurityError') {
+          if (IN_APP_BROWSER_RE.test(navigator.userAgent)) {
+            // Promptless deny: permission wording would send the user chasing
+            // a prompt this container can never show.
+            msg =
+              'microphone capture isn’t available inside this app’s browser — use its menu to open omalyzer.com in Safari or Chrome, then try again.';
+            kind = 'environment';
+          } else {
+            // Denials are sticky (session-long on iOS Safari, persistent on
+            // Android Chrome) — retrying never re-prompts, so name the way out.
+            msg =
+              'microphone access was denied — allow the mic for omalyzer.com and try again. If no prompt appears, enable it in your browser settings (Safari: the aA menu → Website Settings → Microphone).';
+            kind = 'permission';
+          }
+        } else if (name === 'NotFoundError') {
+          msg = 'no microphone was found on this device.';
+          kind = 'device';
+        } else if (name === 'NotReadableError' || name === 'AbortError') {
+          msg = 'the microphone couldn’t start — it may be in use by another app. Close it and try again.';
+          kind = 'device';
+        } else {
+          msg = `getUserMedia failed: ${e}`;
+          kind = 'pipeline';
+        }
+        setStatus((s) => ({ ...s, error: msg, errorKind: kind }));
+      }
+      release(); // close the context acquired above
       return;
     }
     if (cancelled()) {
@@ -258,9 +371,10 @@ export function useAnalyzer() {
       if (settings.autoGainControl)
         warnings.push('autoGainControl is ON (corrupts HNR/jitter)');
 
-      // 2. AudioContext — READ sampleRate at runtime, never hardcode.
-      ctx = new AudioContext();
-      await ctx.resume(); // gesture-gated; runs inside the user click handler
+      // 3. Ensure the context is running (resume was kicked inside the gesture
+      //    above; awaiting again is idempotent) — READ sampleRate at runtime,
+      //    never hardcode.
+      await ctx.resume();
       if (cancelled()) {
         release();
         return;
@@ -273,8 +387,9 @@ export function useAnalyzer() {
         );
       }
 
-      // 3. WASM core — instantiate with the ACTUAL sample rate.
-      await init(); // explicit init gate (loads *_bg.wasm)
+      // 4. WASM core — instantiate with the ACTUAL sample rate. Usually
+      //    instant: the mount-time warm-up below has already fetched the wasm.
+      await ensureWasm();
       if (cancelled()) {
         release();
         return;
@@ -282,19 +397,19 @@ export function useAnalyzer() {
       analyzer = new WasmAnalyzer(sr);
       analyzer.set_gate_db(gateRef.current);
 
-      // 4. Worklet — DSP-FREE; just tiles 4096-sample hops. WASM stays main-thread.
+      // 5. Worklet — DSP-FREE; just tiles 4096-sample hops. WASM stays main-thread.
       await ctx.audioWorklet.addModule(new URL('/worklet.js', import.meta.url).href);
       if (cancelled()) {
         release();
         return;
       }
 
-      // 5. Commit — the last await is behind us; everything below is
+      // 6. Commit — the last await is behind us; everything below is
       //    synchronous, so any later stop() sees fully-populated refs.
       const src = ctx.createMediaStreamSource(stream);
       const node = new AudioWorkletNode(ctx, 'hop-processor', {
         numberOfInputs: 1,
-        numberOfOutputs: 0, // sink only
+        numberOfOutputs: 1, // silent output — feeds the muted pull-path below
         channelCount: 1,
         channelCountMode: 'explicit',
       });
@@ -305,7 +420,7 @@ export function useAnalyzer() {
       srcRef.current = src;
       nodeRef.current = node;
 
-      // 6. Each hop -> push into the WASM core (per 4096-sample boundary).
+      // 7. Each hop -> push into the WASM core (per 4096-sample boundary).
       node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
         const hop = ev.data;
         // Continuous rolling tap: copy the hop BEFORE handing it to WASM
@@ -320,9 +435,16 @@ export function useAnalyzer() {
         }
         analyzerRef.current?.push_samples(hop);
       };
-      src.connect(node); // no connect to destination (numberOfOutputs:0 still pulls)
+      src.connect(node);
+      // WebKit won't reliably pull a subgraph that never reaches destination,
+      // so route the worklet's (silent) output through a zero-gain node —
+      // inaudible everywhere, keeps hops flowing on iOS.
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
+      node.connect(mute);
+      mute.connect(ctx.destination);
 
-      // 7. rAF paint loop — poll snapshot() into React state (decoupled from hops).
+      // 8. rAF paint loop — poll snapshot() into React state (decoupled from hops).
       runningRef.current = true;
       const paint = () => {
         if (!runningRef.current || !analyzerRef.current) return;
@@ -334,11 +456,21 @@ export function useAnalyzer() {
       };
       rafRef.current = requestAnimationFrame(paint);
 
-      setStatus({ running: true, sampleRate: sr, settings, warnings, error: null });
+      setStatus({
+        running: true,
+        sampleRate: sr,
+        settings,
+        warnings,
+        error: null,
+        errorKind: null,
+      });
     } catch (e) {
       // A mid-pipeline failure must not strand a granted mic. Un-commit any
       // refs THIS attempt set (so a later stop() can't double-free), release
-      // the locals, and rethrow for the caller's denied path.
+      // the locals, and report through status.error — callers fire-and-forget
+      // start(), so a rethrow here would vanish into an unhandled rejection
+      // and leave a silent dead begin button (e.g. iOS < 15 wasm, < 14.5
+      // audioWorklet).
       runningRef.current = false;
       if (analyzerRef.current === analyzer) analyzerRef.current = null;
       if (streamRef.current === stream) {
@@ -348,8 +480,30 @@ export function useAnalyzer() {
       }
       if (ctxRef.current === ctx) ctxRef.current = null;
       release();
-      throw e;
+      if (!cancelled()) {
+        // Safari reports a failed wasm/worklet fetch (cellular blip, content
+        // blocker) as an opaque "TypeError: Load failed" — a retry usually
+        // succeeds, so say that instead of blaming the browser.
+        const text = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+        const isLoad = /load failed|failed to fetch|networkerror|network error/i.test(text);
+        setStatus((s) => ({
+          ...s,
+          running: false,
+          error: isLoad
+            ? 'part of the analyzer didn’t finish downloading — check your connection and try again.'
+            : `couldn’t start the analyzer in this browser: ${e}`,
+          errorKind: isLoad ? 'load' : 'pipeline',
+        }));
+      }
     }
+  }, []);
+
+  // Warm the wasm while the user reads the page, so tap-time start() doesn't
+  // gamble the fetch on the moment of the gesture (flaky cellular would
+  // otherwise error the first tap). Failures are swallowed here — ensureWasm
+  // resets itself, so start() retries the load and reports it properly.
+  useEffect(() => {
+    if (typeof WebAssembly !== 'undefined') ensureWasm().catch(() => {});
   }, []);
 
   // Re-resume on tab refocus (some browsers suspend backgrounded contexts).

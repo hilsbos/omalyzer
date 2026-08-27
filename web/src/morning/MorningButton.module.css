@@ -1,0 +1,94 @@
+/* ── morning/MorningButton — calm one-tap affordance ────────────────────────
+   Three registers share one shape. Token-based only: plate tokens inside the
+   dark measuring flow ('primary'/'on-ramp' live on the plate ground), accent /
+   rule tokens for the parchment 'secondary' CTA. No colour literals, no green/
+   red, no animation libraries — a single quiet hover transition. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6ch;
+  border-radius: 0;
+  font-family: var(--mono);
+  letter-spacing: var(--ls-smallcaps);
+  text-transform: lowercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.mark {
+  /* OmMark inherits currentColor; hold it just under the label's weight so the
+     glyph anchors rather than shouts. Size scales with the variant's text. */
+  font-size: 1.15em;
+  line-height: 1;
+}
+
+.label {
+  display: inline-block;
+}
+
+/* ── primary — the in-flow Begin, on the dark plate ground ──────────────────
+   Mirrors LivePage's beginPlate: a generous, centred tap-target where the eye
+   already rests. */
+.primary {
+  min-height: clamp(var(--s-2xl), 9vh, var(--s-3xl));
+  min-width: 9rem;
+  padding: var(--s-sm) var(--s-xl);
+  border: 1px solid var(--plate-rule);
+  background: var(--plate-bg-2);
+  color: var(--on-plate);
+  font-size: clamp(var(--t-md), 5vw, var(--t-xl));
+}
+.primary:hover:not(:disabled) {
+  background: var(--plate-rule);
+}
+.primary:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 3px;
+}
+
+/* ── on-ramp — secondary affordance beside LivePage's begin ─────────────────
+   Quieter than primary: a plain plate-rule outline that doesn't compete with
+   the single-tone begin it sits next to. */
+.on-ramp {
+  min-height: var(--tap);
+  padding: var(--s-xs) var(--s-lg);
+  border: 1px solid var(--plate-rule);
+  background: transparent;
+  color: var(--on-plate-soft);
+  font-size: var(--t-label);
+}
+.on-ramp:hover:not(:disabled) {
+  color: var(--on-plate);
+  border-color: var(--on-plate-soft);
+}
+.on-ramp:focus-visible {
+  outline: 2px solid var(--on-plate);
+  outline-offset: 2px;
+}
+
+/* ── secondary — the parchment CTA next to /analyze ─────────────────────────
+   Matches prose.module.css .ctaSecondary: outlined, accent ink on paper. */
+.secondary {
+  min-height: var(--tap);
+  padding: var(--s-xs) var(--s-lg);
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--t-label);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.secondary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

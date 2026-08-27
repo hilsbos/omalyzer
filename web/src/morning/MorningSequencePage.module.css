@@ -1,0 +1,193 @@
+/* ── MorningSequencePage — the standalone /morning dark screen ──────────────
+   A full-viewport "measuring" atmosphere, the LivePage `.console` token-remap
+   idiom: remap the parchment chrome tokens to their on-dark twins so every
+   reused parchment component (OmLockup, SettlingLine, ScoreReveal, buttons)
+   renders correctly on dark with no per-component edits. One page, one
+   atmosphere — dark from the first frame, never a scroll-driven shift. */
+
+/* ============================ TOKEN REMAP ================================= */
+.screen {
+  /* surfaces */
+  --bg: var(--plate-frame);
+  --panel-bg: var(--plate-bg-2);
+  --rule: var(--plate-rule);
+  --panel-border: var(--plate-rule);
+  --plot-bg: var(--plate-bg);
+  --plot-border: var(--plate-rule);
+
+  /* text */
+  --fg: var(--on-plate);
+  --fg-muted: var(--on-plate-soft);
+  --fg-weak: var(--on-plate-soft);
+  --ink: var(--on-plate);
+  --ink-soft: var(--on-plate-soft);
+
+  /* accent — must be LIGHT on dark so links / rings read */
+  --accent: var(--on-plate);
+  --accent-soft: var(--on-plate-soft);
+  --on-accent: var(--plate-bg);
+
+  /* data ramp → brighter on-plate variants */
+  --data-low: var(--data-low-plate);
+  --data-mid: var(--data-mid-plate);
+  --data-high: var(--data-high-plate);
+  --data-track-paper: var(--data-track);
+
+  /* status — brighter for dark ground */
+  --warn: #e3b652;
+  --error: #d9694f;
+}
+
+/* ============================ THE FRAME ================================== */
+.screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* top bar — lockup left, quiet home link right */
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(var(--s-sm), 3vw, var(--s-lg)) clamp(var(--s-sm), 4vw, var(--s-2xl));
+}
+
+.home {
+  color: var(--fg-muted);
+  text-decoration: none;
+  font-size: var(--t-label);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.home:hover {
+  color: var(--fg);
+  border-bottom-color: var(--rule);
+}
+
+/* the live stage — vertically centred, generous breathing room */
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(var(--s-sm), 4vw, var(--s-2xl));
+  overflow-y: auto;
+}
+
+/* ============================ IDLE / ERROR CARD ========================== */
+.card {
+  max-width: var(--max);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: clamp(var(--s-md), 4vw, var(--s-xl));
+}
+
+.opening {
+  margin: 0;
+  color: var(--fg);
+  font-size: clamp(var(--t-body), var(--t-md), var(--t-lg));
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  max-width: 26rem;
+}
+
+/* the journey preview on the idle card — the five vowels + the time framing */
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+}
+.preview {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(0.35rem, 2vw, var(--s-xs));
+}
+.previewVowel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: clamp(0.35rem, 2vw, var(--s-xs));
+  font-size: clamp(var(--t-body), 3.5vw, var(--t-md));
+  letter-spacing: 0.16em;
+  color: var(--fg-muted);
+}
+.previewGlide {
+  color: var(--fg-weak);
+  opacity: 0.55;
+  font-size: 0.8em;
+}
+.meta {
+  margin: 0;
+  font-size: var(--t-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-weak);
+}
+
+.errorLead {
+  margin: 0;
+  color: var(--fg);
+  font-size: clamp(var(--t-body), var(--t-md), var(--t-md));
+  line-height: 1.5;
+  max-width: 26rem;
+}
+
+.errorDetail {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--t-label);
+  line-height: 1.55;
+  max-width: 28rem;
+}
+
+/* a quiet, non-blocking heads-up about mic routing before Begin */
+.warnings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-width: 28rem;
+}
+.warning {
+  color: var(--warn);
+  font-size: var(--t-label);
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+.warningsLead {
+  color: var(--fg-muted);
+  font-size: var(--t-label);
+  line-height: 1.5;
+  margin-bottom: var(--s-4xs);
+}
+
+/* ============================ A11Y ANNOUNCER ============================= */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

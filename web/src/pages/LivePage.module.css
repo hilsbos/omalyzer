@@ -141,7 +141,7 @@
   justify-content: center;
   min-height: 1.15em;
   color: var(--on-plate);
-  font-size: clamp(2.4rem, 8vw, 4rem);
+  font-size: clamp(var(--t-xl), 8vw, var(--t-disp));
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: 'tnum', 'lnum', 'kern';
   line-height: 1.15;
@@ -177,7 +177,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: clamp(3.2rem, 9vh, 4.4rem);
+  min-height: clamp(var(--s-2xl), 9vh, var(--s-3xl));
   min-width: 9rem;
   padding: var(--s-sm) var(--s-xl);
   border: 1px solid var(--plate-rule);
@@ -185,7 +185,7 @@
   background: var(--plate-bg-2);
   color: var(--on-plate);
   font-family: var(--mono);
-  font-size: clamp(1.4rem, 5vw, 2.2rem);
+  font-size: clamp(var(--t-md), 5vw, var(--t-xl));
   letter-spacing: var(--ls-smallcaps);
   text-transform: lowercase;
   cursor: pointer;
@@ -244,7 +244,7 @@
 }
 /* in practice the captured band reads as the centered ~44rem column */
 .console[data-view='practice'] .captured {
-  padding-inline: max(var(--s-sm), calc((100% - 44rem) / 2));
+  padding-inline: max(var(--s-sm), calc((100% - var(--max)) / 2));
 }
 
 /* ====================== PANEL (cell) CHROME ============================== */
@@ -332,7 +332,7 @@
   align-items: center;
   gap: var(--s-xs);
   padding: 0 var(--s-sm);
-  height: 2.6rem;
+  height: var(--s-2xl);
   background: linear-gradient(var(--plate-bg-2), var(--plate-bg));
   border-bottom: 1px solid var(--plate-rule);
   color: var(--on-plate-soft);
@@ -342,13 +342,13 @@
 .brand {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--s-2xs);
   color: var(--on-plate);
   text-decoration: none;
 }
 .brand .om {
   font-family: var(--devanagari);
-  font-size: 1.25rem;
+  font-size: var(--t-md);
   color: var(--on-plate);
 }
 .wordmark {
@@ -370,8 +370,8 @@
   color: var(--on-plate-weak);
 }
 .statusDot {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: var(--s-xs);
+  height: var(--s-xs);
   border-radius: 50%;
   background: var(--on-plate-weak);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
@@ -429,7 +429,7 @@
   align-items: center;
   gap: var(--s-md);
   padding: 0 var(--s-sm);
-  min-height: 3rem;
+  min-height: var(--s-2xl);
   background: linear-gradient(var(--plate-bg), var(--plate-bg-2));
   border-top: 1px solid var(--plate-rule);
   font-family: var(--mono);
@@ -437,8 +437,8 @@
   color: var(--on-plate-soft);
 }
 .startStop {
-  min-height: 2.4rem;
-  min-width: 5rem;
+  min-height: var(--s-2xl);
+  min-width: var(--s-3xl);
   padding: 0 var(--s-md);
   border: 1px solid var(--plate-rule);
   border-radius: 0;
@@ -452,7 +452,7 @@
    Capture is automatic on a sustained tone, so this never stopped a recording;
    it just closes the session. */
 .endBtn {
-  min-height: 2.4rem;
+  min-height: var(--s-2xl);
   padding: 0 var(--s-xs);
   border: 0;
   background: none;
@@ -491,7 +491,7 @@
 .elapsed {
   font-variant-numeric: tabular-nums;
   color: var(--on-plate);
-  min-width: 4.5rem;
+  min-width: var(--s-3xl);
 }
 .levelDb {
   font-variant-numeric: tabular-nums;
@@ -513,7 +513,7 @@
   display: flex;
   gap: 2px;
   align-items: flex-end;
-  height: 1.4rem;
+  height: var(--s-md);
 }
 .seg {
   width: 5px;
@@ -533,15 +533,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2rem;
-  min-height: 2rem;
+  min-width: var(--s-xl);
+  min-height: var(--s-xl);
   margin-left: var(--s-xs);
   padding: 0 var(--s-2xs);
   border: 1px solid var(--plate-rule);
   border-radius: 0;
   background: var(--plate-bg-2);
   color: var(--on-plate);
-  font-size: 1rem;
+  font-size: var(--t-body);
   line-height: 1;
   cursor: pointer;
 }
@@ -553,7 +553,7 @@
   outline-offset: 2px;
 }
 .drawerToggle {
-  min-height: 2.4rem;
+  min-height: var(--s-2xl);
   padding: 0 var(--s-md);
   border: 1px solid var(--plate-rule);
   border-radius: 0;
@@ -572,7 +572,7 @@
 }
 /* the practice/console door — appbar right slot, same vocabulary as .gear */
 .viewToggle {
-  min-height: 2rem;
+  min-height: var(--s-xl);
   margin-left: var(--s-xs);
   padding: 0 var(--s-xs);
   border: 1px solid var(--plate-rule);
@@ -635,8 +635,8 @@
      data-captured escape hatch on .console below lets the whole plate scroll
      in that case, so the transport and save flow stay reachable by
      construction. */
-  min-height: 8rem;
-  max-height: max(8rem, calc(100dvh - 26rem));
+  min-height: var(--s-4xl);
+  max-height: max(var(--s-4xl), calc(100dvh - 26rem));
   overflow-y: auto;
   overscroll-behavior: contain;
   /* Classic (non-overlay) scrollbars must speak the console's dark vocabulary,
@@ -686,7 +686,7 @@
 /* the braid reckoning — an inset plate above the facts + save row */
 .capturedReveal {
   width: 100%;
-  max-width: 44rem;
+  max-width: var(--max);
   margin-inline: auto;
 }
 .capturedRow {
@@ -698,7 +698,7 @@
 .capturedHead {
   display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: var(--s-2xs);
   color: var(--on-plate);
 }
 .capturedHead strong {
@@ -718,7 +718,7 @@
   gap: var(--s-xs);
 }
 .discardBtn {
-  min-height: 2.4rem;
+  min-height: var(--s-2xl);
   padding: 0 var(--s-md);
   border-radius: 0;
   border: 1px solid var(--plate-rule);
@@ -792,7 +792,7 @@
 .inlineAuthCode {
   flex: 1;
   min-width: 10rem;
-  min-height: 2.4rem;
+  min-height: var(--s-2xl);
   padding: 0 var(--s-xs);
   border: 1px solid var(--plate-rule);
   border-radius: 0;
@@ -811,7 +811,7 @@
   border-color: var(--on-plate);
 }
 .inlineAuthBtn {
-  min-height: 2.4rem;
+  min-height: var(--s-2xl);
   padding: 0 var(--s-md);
   border: 1px solid var(--on-plate);
   border-radius: 0;
@@ -832,7 +832,7 @@
   cursor: pointer;
 }
 .inlineAuthShare input {
-  margin-top: 0.15rem;
+  margin-top: var(--s-4xs);
 }
 .inlineAuthLink {
   align-self: flex-start;
@@ -920,13 +920,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2rem;
-  min-height: 2rem;
+  min-width: var(--s-xl);
+  min-height: var(--s-xl);
   border: 1px solid var(--plate-rule);
   border-radius: 0;
   background: transparent;
   color: var(--on-plate);
-  font-size: 1.25rem;
+  font-size: var(--t-md);
   line-height: 1;
   cursor: pointer;
 }
@@ -1000,7 +1000,7 @@
      some of its minimum rather than letting the rail or transport vanish. */
   .rail {
     flex-basis: 22rem;
-    min-height: 6rem;
+    min-height: var(--s-4xl);
   }
   .console[data-captured='true'] .spectro {
     min-height: 14vh;
@@ -1051,7 +1051,7 @@
      shortest phones. */
   .captured {
     flex: 0 1 auto;
-    min-height: min(8rem, 22dvh);
+    min-height: min(var(--s-4xl), 22dvh);
     max-height: none;
     -webkit-overflow-scrolling: touch;
   }

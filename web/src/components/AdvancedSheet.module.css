@@ -37,13 +37,13 @@
   min-height: var(--tap);
 }
 .sliderLabel {
-  flex: 0 0 5rem;
+  flex: 0 0 var(--s-3xl);
   font-family: var(--serif);
   font-size: var(--t-body);
 }
 .range {
   flex: 1;
-  min-width: 120px;
+  min-width: var(--s-4xl);
   height: var(--tap);
   accent-color: var(--accent);
 }
@@ -52,10 +52,10 @@
   accent-color: var(--warn);
 }
 .sliderValue {
-  flex: 0 0 5rem;
+  flex: 0 0 var(--s-3xl);
   text-align: right;
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: var(--t-label);
   font-variant-numeric: tabular-nums;
   color: var(--fg-muted);
 }

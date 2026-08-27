@@ -23,7 +23,7 @@
    a tone sounds. Deliberately in the muted register (no green, no number): it
    is a "listening" cue, not a mid-hold score. Stills under reduced motion. */
 .holdingChip {
-  margin-left: 0.5rem;
+  margin-left: var(--s-xs);
   color: var(--fg-muted);
   animation: holdingPulse 2.4s ease-in-out infinite;
 }
@@ -154,7 +154,7 @@
    ellipsis (not anywhere-wrap) handles the truly too-narrow case. */
 .rowRaw {
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: var(--t-label);
   color: var(--fg-muted);
   margin-left: auto;
   min-width: 0;

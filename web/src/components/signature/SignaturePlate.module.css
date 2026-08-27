@@ -74,7 +74,7 @@
 }
 .inviteLine {
   margin: 0 auto var(--s-xs);
-  max-width: 34rem;
+  max-width: var(--max);
   color: var(--on-plate-soft);
   font-size: var(--t-label);
   line-height: 1.6;
@@ -131,8 +131,8 @@
   align-items: center;
 }
 .dot {
-  width: 6px;
-  height: 6px;
+  width: var(--s-2xs);
+  height: var(--s-2xs);
   border-radius: 50%;
   box-sizing: border-box;
 }

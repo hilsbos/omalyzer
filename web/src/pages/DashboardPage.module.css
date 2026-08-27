@@ -80,7 +80,7 @@
   color: var(--error);
 }
 .audio {
-  height: 32px;
+  height: var(--s-xl);
   max-width: 220px;
 }
 
@@ -118,7 +118,7 @@
 .statValue {
   font-family: var(--num);
   font-weight: 420;
-  font-size: 1.618rem;
+  font-size: var(--t-lg);
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: 'tnum', 'lnum', 'kern';
 }

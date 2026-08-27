@@ -78,8 +78,8 @@ p, li { text-wrap: pretty; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
   color: var(--accent);
 }
 .roman { font-family: var(--serif-display); font-style: italic; font-weight: 400;
-         letter-spacing: var(--ls-roman); color: var(--accent-soft); margin-right: 0.382rem; }
-.roman::after { content: "·"; margin-left: 0.382rem; color: var(--accent-soft); }
+         letter-spacing: var(--ls-roman); color: var(--accent-soft); margin-right: var(--s-2xs); }
+.roman::after { content: "·"; margin-left: var(--s-2xs); color: var(--accent-soft); }
 
 /* ── The Om (ॐ) mark ───────────────────────────────────────────────────────
    A single Devanagari glyph that inherits currentColor and themes with context.
@@ -90,7 +90,7 @@ p, li { text-wrap: pretty; hyphens: auto; hyphenate-limit-chars: 7 3 3; }
   color: currentColor;
   line-height: 1;
   display: inline-block;
-  font-size: 1.7rem;
+  font-size: var(--t-lg);
   transform: translateY(0.04em);  /* optical centering against Fraunces caps (re-tuned for Tiro) */
 }
 

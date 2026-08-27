@@ -1,0 +1,266 @@
+/* ── MorningSummary — the end-of-scan rollup styling ────────────────────────
+   Lives inside MorningSequencePage's .screen token-remap, so the parchment
+   chrome tokens (--fg, --fg-muted, --rule, --accent, --data-*) already point at
+   their on-dark twins. Plate atmosphere only — no science paper TOKEN.*, no
+   green/red. IBM Plex Mono via --mono. The only motion is a fill width the
+   global reduced-motion rules already park; nothing here animates on its own. */
+
+.summary {
+  width: 100%;
+  max-width: var(--max);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(var(--s-md), 4vw, var(--s-xl));
+  color: var(--fg);
+  font-family: var(--mono);
+}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+.head {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+.heading {
+  margin: 0;
+  font-size: clamp(var(--t-md), var(--t-lg), var(--t-lg));
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--fg);
+}
+.lead {
+  margin: 0 auto;
+  max-width: 30rem;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+
+/* ── session overall ──────────────────────────────────────────────────── */
+.overall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: clamp(0.8rem, 3vw, var(--s-md)) 0;
+}
+.overallValue {
+  font-size: clamp(var(--t-xl), 8vw, var(--t-disp));
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  line-height: 1;
+}
+.overallLabel {
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--fg-muted);
+}
+
+/* ── the five-vowel static reckoning ──────────────────────────────────── */
+.row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: clamp(0.5rem, 2vw, var(--s-sm));
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+.glyph {
+  font-size: var(--t-body);
+  color: var(--fg);
+  letter-spacing: 0.02em;
+}
+.cell[data-scored='false'] .glyph {
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+.bar {
+  position: relative;
+  display: block;
+  width: 0.5rem;
+  height: clamp(var(--s-2xl), 14vh, var(--s-3xl));
+  border: 1px solid var(--rule);
+  border-radius: 1px;
+  background: var(--plot-bg, transparent);
+  overflow: hidden;
+}
+.barFill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* --v is the snapped 0..1 index set inline; height is its proportion */
+  height: calc(var(--v, 0) * 100%);
+  background: var(--data-mid);
+  transition: height 360ms ease;
+}
+.cell[data-scored='false'] .barFill {
+  background: transparent;
+}
+.cellValue {
+  font-size: var(--t-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+/* ── per-vowel detail list ────────────────────────────────────────────── */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.item {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto auto;
+  align-items: baseline;
+  gap: var(--s-xs);
+  padding: var(--s-xs) 0;
+  border-bottom: 1px solid var(--rule);
+}
+.item:last-child {
+  border-bottom: 0;
+}
+.itemGlyph {
+  font-size: var(--t-body);
+  color: var(--fg);
+}
+.itemMeta {
+  font-size: var(--t-label);
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+.itemValue {
+  font-size: var(--t-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  justify-self: end;
+}
+.itemSaved {
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+.itemErr {
+  font-size: var(--t-label);
+  letter-spacing: 0.06em;
+  color: var(--error);
+}
+
+/* ── opt-in persistence ───────────────────────────────────────────────── */
+.save {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  padding-top: var(--s-2xs);
+}
+.share {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--t-label);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+.share input {
+  accent-color: var(--accent);
+}
+.primary {
+  font-family: var(--mono);
+  font-size: var(--t-body);
+  letter-spacing: 0.03em;
+  padding: var(--s-xs) var(--s-lg);
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+.primary:hover:not(:disabled) {
+  opacity: 0.88;
+}
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.signin {
+  font-size: var(--t-label);
+  color: var(--fg-muted);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+}
+.signin:hover {
+  color: var(--fg);
+}
+.saveErr {
+  margin: 0;
+  font-size: var(--t-label);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--warn);
+  max-width: 28rem;
+}
+.savedAll {
+  margin: 0;
+  text-align: center;
+  font-size: var(--t-label);
+  line-height: 1.55;
+  color: var(--fg-muted);
+  max-width: 30rem;
+}
+
+/* ── forward navigation ───────────────────────────────────────────────── */
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(var(--s-sm), 4vw, var(--s-xl));
+  padding-top: var(--s-xs);
+}
+.again {
+  font-family: var(--mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.03em;
+  padding: 0.5rem var(--s-md);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.again:hover:not(:disabled) {
+  border-color: var(--accent-soft);
+}
+.again:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.navLink {
+  font-size: var(--t-label);
+  letter-spacing: 0.03em;
+  color: var(--fg-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.navLink:hover {
+  color: var(--fg);
+  border-bottom-color: var(--rule);
+}

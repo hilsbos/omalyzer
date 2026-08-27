@@ -51,5 +51,5 @@
   height: 1px;
   background: var(--accent-soft);
   vertical-align: middle;
-  margin-right: 0.382rem;
+  margin-right: var(--s-2xs);
 }

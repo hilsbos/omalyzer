@@ -2,8 +2,8 @@
   "name": "omalyzer",
   "short_name": "omalyzer",
   "description": "The voice is a window into the nervous system. We're building the map.",
-  "start_url": "/analyze",
-  "display": "standalone",
+  "start_url": "/",
+  "display": "browser",
   "background_color": "#FAF7F1",
   "theme_color": "#FAF7F1",
   "icons": [

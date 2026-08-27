@@ -55,7 +55,7 @@
 .item {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.382rem;
+  gap: var(--s-2xs);
   white-space: nowrap;
 }
 .swatch {

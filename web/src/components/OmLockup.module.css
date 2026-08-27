@@ -5,14 +5,14 @@
   color: var(--accent);
   display: inline-flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--s-xs);
   text-decoration: none;
 }
 
 .wordmark {
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 1.15rem;
+  font-size: var(--t-md);
   letter-spacing: 0.02em;
   line-height: 1;
   color: var(--accent);

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useLayoutEffect } from 'react';
+import { Component, Suspense, lazy, useLayoutEffect, type ReactNode } from 'react';
 import { Link, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import Footer from './components/Footer';
@@ -10,6 +10,7 @@ import { useAuth } from './auth/AuthProvider';
 // chunk on first visit. LivePage pulls the WASM glue (via useAnalyzer) into
 // its chunk, so the analyzer never weighs down the marketing pages.
 const LivePage = lazy(() => import('./pages/LivePage'));
+const MorningSequencePage = lazy(() => import('./morning/MorningSequencePage'));
 const SciencePage = lazy(() => import('./pages/SciencePage'));
 const SignInPage = lazy(() => import('./pages/SignInPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -49,6 +50,9 @@ function Nav() {
         </Link>
         <Link to="/analyze" style={navLinkStyle}>
           Analyze
+        </Link>
+        <Link to="/morning" style={navLinkStyle}>
+          Morning
         </Link>
         {user ? (
           <>
@@ -101,6 +105,52 @@ function SiteLayout() {
   );
 }
 
+/** Last-resort catcher for render throws and failed lazy-chunk fetches (a
+ *  stale index.html pointing at purged hashed assets is the classic mobile
+ *  case) — without it either one blanks the whole app with no message. A
+ *  reload refetches index.html and clears both. */
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div
+        style={{
+          padding: 'var(--s-lg)',
+          color: 'var(--ink-dim, var(--accent))',
+          fontSize: 'var(--t-label)',
+          display: 'grid',
+          gap: 'var(--s-sm)',
+          justifyItems: 'start',
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          this page hit a snag while loading — a reload usually clears it.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          style={{
+            font: 'inherit',
+            color: 'var(--accent)',
+            background: 'none',
+            border: '1px solid var(--rule)',
+            padding: 'var(--s-xs, 0.25rem) var(--s-sm)',
+            cursor: 'pointer',
+          }}
+        >
+          reload
+        </button>
+      </div>
+    );
+  }
+}
+
 /** Shown while a lazy route chunk loads — one dim mono line, parchment-quiet. */
 function RouteFallback() {
   return (
@@ -121,10 +171,16 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
+      <RouteErrorBoundary>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
           {/* Standalone full-viewport console — NO marketing nav/footer. */}
           <Route path="/analyze" element={<LivePage />} />
+
+          {/* Standalone full-viewport guided full-vowel scan — same dark
+              "measuring" atmosphere as /analyze, its own analyzer instance,
+              NO marketing nav/footer. */}
+          <Route path="/morning" element={<MorningSequencePage />} />
 
           {/* Everything else gets the parchment nav + footer chrome. */}
           <Route element={<SiteLayout />}>
@@ -142,8 +198,9 @@ export default function App() {
               }
             />
           </Route>
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </RouteErrorBoundary>
     </>
   );
 }

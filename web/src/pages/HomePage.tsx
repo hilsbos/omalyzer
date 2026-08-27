@@ -12,8 +12,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
  * line, one sentence, one button. The hero shows the thesis image (HeroTone:
  * chaos resolving into a clean held tone, synthesized — no microphone here)
  * and sends the one button straight to the studio, where the real instrument
- * lives. Below the fold, three beats — MEASURE → UNDERSTAND → CONTRIBUTE —
- * one CTA each, then the bookend.
+ * lives. Below the fold, four beats — MEASURE → PRACTICE → UNDERSTAND →
+ * CONTRIBUTE — one CTA each, then the bookend.
  */
 export default function HomePage() {
   useDocumentTitle('omalyzer');
@@ -56,6 +56,25 @@ export default function HomePage() {
         <div className={styles.cta}>
           <Link className={styles.ctaPrimary} to="/analyze">
             Open the studio <span className={styles.arrow} aria-hidden="true">→</span>
+          </Link>
+        </div>
+      </Reveal>
+
+      <hr />
+
+      {/* ── PRACTICE — the morning scan ── */}
+      <Reveal>
+        <p className={styles.kicker}>Practice</p>
+        <h2>A morning takes five breaths.</h2>
+        <p>
+          Open the morning scan and one button walks you through all five vowels &mdash; OO, OH,
+          AH, EH, EE &mdash; one held breath each. It listens, marks every tone, and in about a
+          minute you have a full reading of your voice. Do it without thinking; do it daily, and
+          each morning sets another point on your signature.
+        </p>
+        <div className={styles.cta}>
+          <Link className={styles.ctaPrimary} to="/morning">
+            Begin the morning scan <span className={styles.arrow} aria-hidden="true">→</span>
           </Link>
         </div>
       </Reveal>

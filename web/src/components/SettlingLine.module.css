@@ -11,8 +11,8 @@
    band's width and reads as a quiet ribbon, not a chart panel (no frame, no
    axis labels — just the line, its home gridline, and the right-edge note) */
 .canvasWrap {
-  width: min(100%, 34rem);
-  height: clamp(4.5rem, 18vh, 7rem);
+  width: min(100%, var(--max));
+  height: clamp(var(--s-3xl), 18vh, var(--s-4xl));
   min-height: 0;
 }
 .canvas {

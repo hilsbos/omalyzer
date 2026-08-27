@@ -35,7 +35,7 @@ export default function Reveal({ children, as = 'section', className, delay = 0 
           }
         }
       },
-      { rootMargin: '0px 0px -10% 0px' },
+      { rootMargin: '0px 0px 22% 0px' },
     );
     obs.observe(el);
     return () => obs.disconnect();

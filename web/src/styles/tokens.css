@@ -84,6 +84,7 @@
   --devanagari:   'Tiro Devanagari Sanskrit', 'Noto Serif Devanagari', 'Kohinoor Devanagari', 'Nirmala UI', serif; /* the Om (ॐ) mark */
 
   /* ── Golden-ratio spacing scale (φ = 1.618) ───────────────────────────── */
+  --s-4xs: 0.146rem;   /* φ⁻⁴  */
   --s-2xs: 0.382rem;   /* φ⁻²  */
   --s-xs:  0.618rem;   /* φ⁻¹  */
   --s-sm:  1rem;       /* base */

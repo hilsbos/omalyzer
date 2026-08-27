@@ -15,6 +15,7 @@ import StateSignals from '../components/StateSignals';
 import AdvancedSheet, { type DisplayControls } from '../components/AdvancedSheet';
 import TabBar, { type SecondaryTab } from '../components/TabBar';
 import ScoreReveal from '../components/ScoreReveal';
+import MorningButton from '../morning/MorningButton';
 import Spectrogram from '../viz/Spectrogram';
 import PitchTrack from '../viz/PitchTrack';
 import VowelChart from '../viz/VowelChart';
@@ -34,12 +35,12 @@ const CODE_LEN = 6;
 const CODE_MAX = 10;
 
 /* ── Practice / console split ────────────────────────────────────────────────
-   First-time visitors (often arriving mid-story from the landing hero) get the
-   still room: spectrogram, one number, transport. The full console is one
-   toggle away and the choice is REMEMBERED — anyone who opens the console
-   stays in the console on every return until they close it. The mode is
-   purely presentational: useAnalyzer mounts once regardless, so the audio
-   lifecycle never notices. */
+   The console (full instrument) is the default view; the still room — spectrogram,
+   one number, transport — is one toggle away. The choice is REMEMBERED in both
+   directions: anyone who closes the console stays in the still room on every
+   return until they reopen it, and only an explicit 'practice' preference
+   overrides the console default. The mode is purely presentational: useAnalyzer
+   mounts once regardless, so the audio lifecycle never notices. */
 type AnalyzeView = 'practice' | 'console';
 const VIEW_KEY = 'omalyzer.analyze.view';
 /** Once any om has ever been captured on this device, the breath cue is
@@ -48,9 +49,9 @@ const HAS_CAPTURED_KEY = 'omalyzer.analyze.hasCaptured';
 
 function readStoredView(): AnalyzeView {
   try {
-    return localStorage.getItem(VIEW_KEY) === 'console' ? 'console' : 'practice';
+    return localStorage.getItem(VIEW_KEY) === 'practice' ? 'practice' : 'console';
   } catch {
-    return 'practice'; // storage unavailable (private mode) → first-time default
+    return 'console'; // storage unavailable (private mode) → console default
   }
 }
 function readHasCaptured(): boolean {
@@ -513,14 +514,20 @@ export default function LivePage() {
             </span>
           ) : focusState === 'begin' ? (
             /* the on-ramp: a large, calm tap-target where the eye already rests */
-            <button
-              type="button"
-              className={styles.beginPlate}
-              onClick={handleStart}
-              aria-label="begin — start the analyzer and hold a tone"
-            >
-              begin
-            </button>
+            <span className={styles.focusValue} data-state="begin">
+              <button
+                type="button"
+                className={styles.beginPlate}
+                onClick={handleStart}
+                aria-label="begin — start the analyzer and hold a tone"
+              >
+                begin
+              </button>
+              {/* the calm sibling on-ramp: the guided full-vowel scan. A distinct
+                  screen with its own analyzer instance, so navigate (don't
+                  mode-switch). */}
+              <MorningButton to="/morning" variant="on-ramp" />
+            </span>
           ) : focusState === 'restMark' ? (
             /* stopped after a capture: the em-dash at rest (no number), with an
                obvious way to start the next hold directly underneath it */

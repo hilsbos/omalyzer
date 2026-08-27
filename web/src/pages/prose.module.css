@@ -44,7 +44,7 @@
 .prose hr {
   border: none;
   border-top: 1px solid var(--rule);
-  width: 3.6rem;
+  width: var(--s-3xl);
   height: 0;
   margin: var(--s-2xl) auto;
 }
@@ -97,7 +97,7 @@
    its one-screen composition (sentence + line + button) at phone widths;
    clamps back to the full display size by ~640px. Same idiom as .heroLockup. */
 .prose .heroTitle {
-  font-size: clamp(1.9rem, 8.5vw, var(--t-disp));
+  font-size: clamp(var(--t-lg), 8.5vw, var(--t-disp));
 }
 
 .lede {
