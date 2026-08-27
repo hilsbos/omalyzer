@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
-# Build and deploy the Omalyzer web app to omalyzer.com.
+# Build and deploy the omalyzer web app to the nine.ch Root CloudVM (Zürich).
 #
-# Pipeline: vite production build -> S3 (private bucket) -> CloudFront invalidation.
-# Static assets are content-hashed and cached immutably for a year; index.html and
-# worklet.js are sent no-cache so a new deploy is picked up immediately; .wasm gets
-# the application/wasm content-type that streaming instantiation needs.
+# Pipeline: wasm build -> vite production build -> rsync dist/ to the box.
+# Caddy serves /srv/omalyzer/web directly, so there is no CDN cache to
+# invalidate; Caddy sends index.html / worklet.js no-cache (see ../+shushu/setup/Caddyfile)
+# so a new deploy is visible immediately, while hashed assets stay immutable.
 #
-# Usage:   ./deploy.sh
-# Requires: aws CLI authenticated for the profile below, and `npm` in web/.
+# Usage:   NINE_HOST=<ip-or-host> ./deploy.sh
+# Config (env):
+#   NINE_HOST   ssh host/IP of the CloudVM            (required)
+#   NINE_USER   ssh user that owns the webroot        (default: deploy)
+#   WEB_ROOT    path Caddy serves on the box          (default: /srv/omalyzer/web)
+#
+# (Legacy AWS S3 + CloudFront deploy retired with the nine.ch migration — see
+#  ../+shushu. The old recipe lives in git history if ever needed.)
 set -euo pipefail
 
-PROFILE="${AWS_PROFILE:-hilsbos}"
-BUCKET="omalyzer-web-022103836148"
-DIST_ID="E27JEVRT6GNQ6O"
+NINE_HOST="${NINE_HOST:?set NINE_HOST to the CloudVM ssh host/IP}"
+NINE_USER="${NINE_USER:-deploy}"
+WEB_ROOT="${WEB_ROOT:-/srv/omalyzer/web}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$HERE/web"
@@ -23,37 +29,9 @@ npm run wasm
 echo "==> Building production bundle…"
 npm run build
 
-echo "==> Syncing hashed assets (immutable, 1-year cache)…"
-aws s3 sync dist/ "s3://$BUCKET/" --delete --profile "$PROFILE" \
-  --cache-control "public,max-age=31536000,immutable" \
-  --exclude "index.html" --exclude "worklet.js" --no-progress
+echo "==> Syncing dist/ → ${NINE_USER}@${NINE_HOST}:${WEB_ROOT} …"
+# -z compress; --delete prunes superseded hashed assets; only changed files ship.
+rsync -az --human-readable --delete \
+  dist/ "${NINE_USER}@${NINE_HOST}:${WEB_ROOT}/"
 
-echo "==> Uploading entry files (no-cache so deploys propagate)…"
-aws s3 cp dist/index.html "s3://$BUCKET/index.html" --profile "$PROFILE" \
-  --cache-control "no-cache" --content-type "text/html; charset=utf-8" --no-progress
-aws s3 cp dist/worklet.js "s3://$BUCKET/worklet.js" --profile "$PROFILE" \
-  --cache-control "no-cache" --content-type "text/javascript; charset=utf-8" --no-progress
-
-echo "==> Re-uploading share/PWA assets (un-hashed → 1-day cache, correct types)…"
-aws s3 cp dist/manifest.webmanifest "s3://$BUCKET/manifest.webmanifest" --profile "$PROFILE" \
-  --content-type "application/manifest+json" \
-  --cache-control "public,max-age=86400" --no-progress
-for f in og.png apple-touch-icon.png icon-192.png icon-512.png icon-maskable-192.png icon-maskable-512.png; do
-  aws s3 cp "dist/$f" "s3://$BUCKET/$f" --profile "$PROFILE" \
-    --cache-control "public,max-age=86400" --no-progress
-done
-
-echo "==> Setting application/wasm content-type…"
-for f in dist/assets/*.wasm; do
-  aws s3 cp "$f" "s3://$BUCKET/assets/$(basename "$f")" --profile "$PROFILE" \
-    --content-type "application/wasm" \
-    --cache-control "public,max-age=31536000,immutable" \
-    --metadata-directive REPLACE --no-progress
-done
-
-echo "==> Invalidating CloudFront cache…"
-aws cloudfront create-invalidation --distribution-id "$DIST_ID" \
-  --paths "/*" --profile "$PROFILE" \
-  --query "Invalidation.{Id:Id,Status:Status}" --output table
-
-echo "==> Done. Live at https://omalyzer.com (edge propagation ~1-2 min)."
+echo "==> Done. Live at https://omalyzer.com (Caddy serves immediately)."
